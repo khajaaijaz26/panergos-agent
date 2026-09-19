@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📖 Documentation
+    url: https://github.com/khajaaijaz26/panergos-agent/blob/main/README.md
+    about: Check the README and docs before opening an issue.
+  - name: 🤝 Contributing Guide
+    url: https://github.com/khajaaijaz26/panergos-agent/blob/main/CONTRIBUTING.md
+    about: Read this before submitting a PR.

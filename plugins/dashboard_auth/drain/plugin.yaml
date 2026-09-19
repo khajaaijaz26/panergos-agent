@@ -1,0 +1,7 @@
+name: drain
+version: 1.0.0
+description: "Dashboard auth provider for the gateway drain-control endpoint. Verifies PANERGOS_DASHBOARD_DRAIN_SECRET with a constant-time comparison and rejects weak secrets."
+author: Panergos contributors
+kind: backend
+requires_env:
+  - PANERGOS_DASHBOARD_DRAIN_SECRET

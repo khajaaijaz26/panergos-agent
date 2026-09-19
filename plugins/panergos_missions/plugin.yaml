@@ -1,0 +1,11 @@
+name: panergos_missions
+version: 0.1.0
+description: "Panergos durable missions: isolated Kanban task graphs plus typed shared state, addressed peer messages, and an auditable coordination log."
+author: "@khajaaijaz26"
+kind: standalone
+platforms:
+  - linux
+  - macos
+  - windows
+provides_tools:
+  - panergos_mission

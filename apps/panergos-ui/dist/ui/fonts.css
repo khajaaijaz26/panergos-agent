@@ -1,0 +1,7 @@
+:root {
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
+  --font-rules-compressed: var(--font-sans);
+  --font-rules-expanded: var(--font-sans);
+  --font-mondwest: var(--font-sans);
+}

@@ -1,0 +1,34 @@
+{
+  "date": "2026-09-18",
+  "release_candidate": "v0.1.0",
+  "command": "uvx --from uv==0.9.28 uv run --frozen python scripts/benchmark_project_memory.py --files 500",
+  "environment": {
+    "cpu": "AMD Ryzen 5 PRO 5650U with Radeon Graphics",
+    "ram_gib": 15.3,
+    "os": "Microsoft Windows 11 Pro 10.0.26200",
+    "python": "3.11.16",
+    "uv": "0.9.28",
+    "git": "2.55.0.windows.3"
+  },
+  "corpus": {
+    "files": 500,
+    "source": "git",
+    "query_results": 1,
+    "query_result_bytes": 337
+  },
+  "trials_ms": [
+    {"cold_sync": 1269.627, "warm_sync": 214.252, "one_file_sync": 535.562, "query": 31.642},
+    {"cold_sync": 1403.075, "warm_sync": 209.886, "one_file_sync": 417.352, "query": 35.056},
+    {"cold_sync": 1456.206, "warm_sync": 196.785, "one_file_sync": 452.148, "query": 35.594},
+    {"cold_sync": 1432.092, "warm_sync": 207.843, "one_file_sync": 446.816, "query": 35.337},
+    {"cold_sync": 1297.060, "warm_sync": 201.920, "one_file_sync": 431.292, "query": 45.017}
+  ],
+  "median_ms": {
+    "cold_sync": 1403.075,
+    "warm_sync": 207.843,
+    "one_file_sync": 446.816,
+    "query": 35.337
+  },
+  "warm_fast_path": true,
+  "notes": "Synthetic microbenchmark only; no model calls and no cross-agent superiority claim."
+}

@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@panergos/ink": ["src/types/panergos-ink.d.ts"]
+    }
+  }
+}

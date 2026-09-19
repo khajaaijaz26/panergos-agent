@@ -1,0 +1,81 @@
+name: Panergos CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: panergos-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39
+        with:
+          version: "0.9.28"
+          enable-cache: true
+      - run: uv python install 3.11
+      - run: uv sync --locked --python 3.11 --extra dev
+      - name: Static checks
+        run: |
+          python scripts/check_identity.py
+          uv lock --check
+          uv run ruff check .
+          uv run ty check plugins/panergos_missions tools/project_memory_tool.py panergos_cli/model_quickstart.py panergos_cli/connectors.py
+      - name: Panergos, distribution, and updater contracts
+        run: |
+          source .venv/bin/activate
+          scripts/run_tests.sh \
+            tests/plugins/test_panergos_missions.py \
+            tests/tools/test_project_memory_tool.py \
+            tests/agent/test_coding_context.py \
+            tests/scripts/install/test_panergos_distribution_routing.py \
+            tests/scripts/test_release_distribution.py \
+            tests/agent/test_phantom_tool_references.py \
+            tests/panergos_cli/test_cli_skin_integration.py \
+            tests/panergos_cli/test_model_quickstart.py \
+            tests/panergos_cli/test_connectors.py \
+            tests/panergos_cli/test_telegram_managed_bot.py \
+            tests/skills/test_organization_workflows_skill.py \
+            tests/panergos_cli/test_config.py \
+            tests/panergos_cli/test_cmd_update_docker.py \
+            tests/panergos_cli/test_doctor.py \
+            tests/panergos_cli/test_update_check.py \
+            tests/panergos_cli/test_banner_git_state.py \
+            tests/panergos_cli/test_banner.py \
+            tests/panergos_cli/test_startup_fast_guards.py \
+            tests/panergos_cli/test_update_command.py \
+            tests/panergos_cli/test_update_upstream_prompt_noninteractive.py \
+            tests/panergos_cli/test_update_zip_fallback_guards.py \
+            tests/panergos_cli/test_version_command.py \
+            tests/panergos_cli/test_cmd_update.py \
+            tests/panergos_cli/test_update_bootstrap_cache_refresh.py \
+            -q
+
+  desktop:
+    name: Desktop updater contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install --global npm@12.0.2
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck --workspace apps/desktop
+      - run: >-
+          npm exec --workspace apps/desktop -- vitest run --project electron
+          electron/update-remote.test.ts electron/bootstrap-runner.test.ts
