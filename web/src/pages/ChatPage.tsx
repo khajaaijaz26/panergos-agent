@@ -46,7 +46,6 @@ import {
   PTY_RECONNECT_INPUT_MESSAGE,
   PTY_RECONNECT_MAX_ATTEMPTS,
   PTY_RESUME_RECONNECT_THROTTLE_MS,
-  PTY_RESUME_SANITIZE_WINDOW_MS,
   PTY_TICKET_TIMEOUT_MS,
   type PtyConnectionState,
   ptyReconnectDelayMs,
@@ -552,7 +551,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
       fontWeight: "400",
       fontWeightBold: "700",
       macOptionIsMeta: true,
-      // Hold Option (Alt on Linux/Windows) to force native text selection
+      // Hold Option on macOS (Shift on Linux/Windows) to force text selection
       // even when the inner Panergos TUI has enabled xterm mouse-events
       // mode (CSI ?1000h family). Without this, click-and-drag in the
       // chat canvas selects nothing and Cmd+C falls back to copying the
@@ -834,6 +833,14 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
       sendComposedText(data);
     });
     term.open(host);
+    // Establish the real grid before the PTY is requested. The server uses
+    // these dimensions for the child's first frame, so resume output never
+    // paints at xterm's 80x24 constructor default and then rewraps.
+    try {
+      fit.fit();
+    } catch {
+      /* hidden/zero-size host; the scheduled sync below will retry */
+    }
 
     // IME composition guard (fixes #52111).
     //
@@ -1085,14 +1092,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
     let onDataDisposable: { dispose(): void } | null = null;
     let onResizeDisposable: { dispose(): void } | null = null;
     let onScrollDisposable: { dispose(): void } | null = null;
-    let eraseSuppressionTimer: ReturnType<typeof setTimeout> | null = null;
     let resumeMaxTimer: ReturnType<typeof setTimeout> | null = null;
-    const clearEraseSuppressionTimer = () => {
-      if (eraseSuppressionTimer) {
-        clearTimeout(eraseSuppressionTimer);
-        eraseSuppressionTimer = null;
-      }
-    };
     const clearResumeLoadingTimers = () => {
       if (resumeMaxTimer) {
         clearTimeout(resumeMaxTimer);
@@ -1174,6 +1174,8 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
     void (async () => {
       if (unmounting) return;
       const params: Record<string, string> = { channel };
+      params.cols = String(term.cols);
+      params.rows = String(term.rows);
       if (resumeParam) params.resume = resumeParam;
       if (forceFresh) params.fresh = "1";
       // Keep-alive identity: reattach to this tab's living PTY across
@@ -1268,20 +1270,13 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
       }
     };
 
-    // Session resume: Ink's two-pass virtual scroll floods the PTY with
-    // erase codes and blank-line bursts while replaying a long session.
-    // Suppress them for a bounded window after connect, then let ordinary
-    // in-place redraws through untouched. See pty-resume-sanitizer.ts.
+    // Session resume: Ink's two-pass virtual scroll can flood the PTY with
+    // blank-line bursts while replaying a long session. Collapse only those;
+    // ANSI erase controls must reach xterm or stale glyphs remain onscreen.
     const decoder = new TextDecoder();
     const sanitizer = new PtyResumeSanitizer();
     const beginResumeReplay = () => {
       stickToBottomRef.current = true;
-      if (!eraseSuppressionTimer) {
-        eraseSuppressionTimer = setTimeout(() => {
-          eraseSuppressionTimer = null;
-          sanitizer.endEraseSuppression();
-        }, PTY_RESUME_SANITIZE_WINDOW_MS);
-      }
       if (!resumeMaxTimer) {
         setResumeHydrating(true);
         resumeMaxTimer = setTimeout(
@@ -1340,7 +1335,6 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
       // (writing an unterminated CSI would wedge xterm's parser); a buffered
       // newline run is emitted collapsed.
       if (effectiveResume) {
-        clearEraseSuppressionTimer();
         try {
           term.write(sanitizer.flush());
         } catch {
@@ -1513,7 +1507,6 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
       unmounting = true;
       imageUploadDisposed = true;
       syncMetricsRef.current = null;
-      clearEraseSuppressionTimer();
       clearResumeLoadingTimers();
       setResumeHydrating(false);
       onDataDisposable?.dispose();

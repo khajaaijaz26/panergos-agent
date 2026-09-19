@@ -50,6 +50,19 @@ def _get_event_state(app: "FastAPI"):
 
 
 _VALID_CHANNEL_RE = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
+_PTY_DEFAULT_COLS = 80
+_PTY_DEFAULT_ROWS = 24
+_PTY_MAX_COLS = 2000
+_PTY_MAX_ROWS = 1000
+
+
+def _pty_dimension(value: Optional[str], default: int, maximum: int) -> int:
+    """Clamp an untrusted browser PTY dimension to the bridge's safe range."""
+    try:
+        parsed = int(value or "")
+    except (TypeError, ValueError, OverflowError):
+        return default
+    return max(1, min(parsed, maximum))
 
 
 def _ws_auth_mode() -> str:
@@ -442,6 +455,8 @@ async def pty_ws(ws: WebSocket) -> None:
         return
 
     raw_resume = ws.query_params.get("resume") or None
+    cols = _pty_dimension(ws.query_params.get("cols"), _PTY_DEFAULT_COLS, _PTY_MAX_COLS)
+    rows = _pty_dimension(ws.query_params.get("rows"), _PTY_DEFAULT_ROWS, _PTY_MAX_ROWS)
     resume = raw_resume
     profile = ws.query_params.get("profile") or None
     channel = _channel_or_close_code(ws)
@@ -488,7 +503,7 @@ async def pty_ws(ws: WebSocket) -> None:
         attach_token = f"{attach_token}\0{profile or ''}\0{registry_resume or ''}"
 
     def _spawn():
-        return PtyBridge.spawn(argv, cwd=cwd, env=env)
+        return PtyBridge.spawn(argv, cwd=cwd, env=env, cols=cols, rows=rows)
 
     if attach_token is None:
         # Legacy path: 1:1 socket<->PTY, killed on disconnect.
@@ -509,6 +524,11 @@ async def pty_ws(ws: WebSocket) -> None:
     except (PtyUnavailableError, FileNotFoundError, OSError, RegistryFull) as exc:
         await _pty_fail(ws, f"Chat unavailable: {exc}")
         return
+
+    # A reused child must adopt this browser's grid before attach() asks Ink
+    # for a full replay; otherwise the replay is rendered at the prior tab's
+    # width and xterm retains those stale wraps in inline scrollback.
+    session.bridge.resize(cols=cols, rows=rows)
 
     # A fresh xterm can't rebuild the TUI from an arbitrary tail of alternate-
     # screen differential output; reused PTYs emit a full frame after replay.

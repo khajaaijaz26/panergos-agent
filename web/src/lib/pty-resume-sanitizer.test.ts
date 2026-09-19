@@ -49,15 +49,9 @@ describe("applyPtyFilters", () => {
     expect(applyPtyFilters(short)).toBe(short);
   });
 
-  it("strips erase-line CSI sequences", () => {
-    expect(applyPtyFilters("hello\x1b[K world")).toBe("hello world");
-    expect(applyPtyFilters("foo\x1b[2Kbar")).toBe("foobar");
-    expect(applyPtyFilters("\x1b[K")).toBe("");
-  });
-
-  it("strips erase-char CSI sequences", () => {
-    expect(applyPtyFilters("abc\x1b[3Xdef")).toBe("abcdef");
-    expect(applyPtyFilters("\x1b[X")).toBe("");
+  it("preserves ANSI erase controls needed for redraws", () => {
+    const redraw = "old text and stale tail\r\x1b[Knew text\x1b[12X";
+    expect(applyPtyFilters(redraw)).toBe(redraw);
   });
 
   it("leaves normal SGR sequences untouched", () => {
@@ -69,16 +63,6 @@ describe("applyPtyFilters", () => {
     expect(applyPtyFilters("")).toBe("");
   });
 
-  it("preserves erase codes when erase-stripping is disabled", () => {
-    // Post-resume in-place redraw must keep ESC[K or stale glyphs remain.
-    const spinner = "Loading 10%\r\x1b[KLoading 20%\r\x1b[KDone";
-    expect(applyPtyFilters(spinner, false)).toBe(spinner);
-  });
-
-  it("still collapses bursts when erase-stripping is disabled", () => {
-    const burst = "a" + CRLF.repeat(200) + "b";
-    expect(applyPtyFilters(burst, false)).toBe("a\r\n\r\nb");
-  });
 });
 
 describe("PtyResumeSanitizer — stateful frame handling", () => {
@@ -89,23 +73,23 @@ describe("PtyResumeSanitizer — stateful frame handling", () => {
     expect(s.flush()).toBe("\r\n");
   });
 
-  it("buffers a trailing partial escape and resolves in next frame", () => {
+  it("buffers a trailing partial escape and restores it in the next frame", () => {
     const s = new PtyResumeSanitizer();
     expect(s.next("hello\x1b[")).toBe("hello");
-    expect(s.next("2K world\r\n")).toBe(" world");
+    expect(s.next("2K world\r\n")).toBe("\x1b[2K world");
     expect(s.flush()).toBe("\r\n");
   });
 
   it("buffers bare \\x1b and resolves on completion", () => {
     const s = new PtyResumeSanitizer();
     expect(s.next("before\x1b")).toBe("before");
-    expect(s.next("[Kafter")).toBe("after");
+    expect(s.next("[Kafter")).toBe("\x1b[Kafter");
   });
 
   it("buffers \\x1b[\\d+ prefix and resolves", () => {
     const s = new PtyResumeSanitizer();
     expect(s.next("x\x1b[4")).toBe("x");
-    expect(s.next("2Ky")).toBe("y");
+    expect(s.next("2Ky")).toBe("\x1b[42Ky");
   });
 
   it("passes through when no partial escape is buffered", () => {
@@ -135,14 +119,14 @@ describe("PtyResumeSanitizer — stateful frame handling", () => {
     const s = new PtyResumeSanitizer();
     s.next("before\x1b[");
     expect(s.next("")).toBe("");
-    expect(s.next("2Kafter")).toBe("after");
+    expect(s.next("2Kafter")).toBe("\x1b[2Kafter");
   });
 
   it("handles consecutive split escapes across three frames", () => {
     const s = new PtyResumeSanitizer();
     expect(s.next("a\x1b")).toBe("a");
     expect(s.next("[")).toBe("");
-    expect(s.next("2Kb")).toBe("b");
+    expect(s.next("2Kb")).toBe("\x1b[2Kb");
   });
 });
 
@@ -189,30 +173,10 @@ describe("PtyResumeSanitizer — cross-frame blank-line bursts", () => {
   });
 });
 
-describe("PtyResumeSanitizer — bounded erase suppression", () => {
-  it("suppresses erase codes while the resume window is open", () => {
+describe("PtyResumeSanitizer — ANSI redraw preservation", () => {
+  it("preserves a redraw split across frames", () => {
     const s = new PtyResumeSanitizer();
-    expect(s.isSuppressingErase).toBe(true);
-    expect(s.next("a\x1b[Kb")).toBe("ab");
-  });
-
-  it("stops suppressing erase codes once the window closes", () => {
-    const s = new PtyResumeSanitizer();
-    s.endEraseSuppression();
-    expect(s.isSuppressingErase).toBe(false);
-    expect(s.next("a\x1b[Kb")).toBe("a\x1b[Kb");
-  });
-
-  it("keeps collapsing bursts after the window closes", () => {
-    const s = new PtyResumeSanitizer();
-    s.endEraseSuppression();
-    expect(drain(s, ["x" + CRLF.repeat(80) + "y"])).toBe("x\r\n\r\ny");
-  });
-
-  it("preserves a post-resume spinner redraw verbatim", () => {
-    const s = new PtyResumeSanitizer();
-    s.endEraseSuppression();
     const spinner = "Loading 10%\r\x1b[KLoading 20%\r\x1b[KDone";
-    expect(drain(s, [spinner])).toBe(spinner);
+    expect(drain(s, [spinner.slice(0, 14), spinner.slice(14)])).toBe(spinner);
   });
 });

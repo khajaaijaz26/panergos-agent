@@ -75,6 +75,25 @@ class TestWinPtyBridgeUnavailable:
         assert WinPtyBridge is not None
         assert callable(WinPtyBridge.is_available)
 
+    def test_spawn_marks_child_as_dashboard_hosted(self, monkeypatch):
+        captured = {}
+
+        class _FakeProcess:
+            pid = 1
+
+        class _FakePtyProcess:
+            @staticmethod
+            def spawn(_argv, **kwargs):
+                captured.update(kwargs)
+                return _FakeProcess()
+
+        monkeypatch.setattr(win_pty_bridge, "_PTY_AVAILABLE", True)
+        monkeypatch.setattr(win_pty_bridge, "PtyProcess", _FakePtyProcess)
+
+        WinPtyBridge.spawn(["fake"], env={})
+
+        assert captured["env"][win_pty_bridge.PTY_HOST_ENV] == win_pty_bridge.PTY_HOST_DASHBOARD
+
     @pytest.mark.asyncio
     async def test_write_has_nonblocking_async_contract(self):
         class _FakeProc:

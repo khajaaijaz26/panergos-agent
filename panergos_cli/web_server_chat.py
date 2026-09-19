@@ -345,8 +345,9 @@ def _resolve_chat_argv(
     env.setdefault("NODE_ENV", "production")
     # Mouse tracking would swallow wheel events the browser needs for
     # transcript scrolling; disable it for the dashboard PTY only.
-    env.setdefault("PANERGOS_TUI_DISABLE_MOUSE", "1")
-    env.setdefault("PANERGOS_TUI_INLINE", "1")
+    env["PANERGOS_TUI_DISABLE_MOUSE"] = "1"
+    env["PANERGOS_TUI_MOUSE_TRACKING"] = "0"
+    env["PANERGOS_TUI_INLINE"] = "1"
     # chalk in the child picks its color depth from the SERVER env; hosted
     # deploys have no COLORTERM, so hex colors would snap to the 256 palette.
     env.setdefault("COLORTERM", "truecolor")

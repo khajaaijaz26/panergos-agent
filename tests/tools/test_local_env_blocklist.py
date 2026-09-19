@@ -56,11 +56,11 @@ def _run_with_env(extra_os_env=None, self_env=None):
     if extra_os_env:
         test_environ.update(extra_os_env)
 
-    env = LocalEnvironment(cwd="/tmp", timeout=10, env=self_env)
-
-    with patch("tools.environments.local._find_bash", return_value="/bin/bash"), \
+    with patch.object(LocalEnvironment, "init_session"), \
+         patch("tools.environments.local._find_bash", return_value="/bin/bash"), \
          patch("subprocess.Popen", side_effect=_make_fake_popen(captured)), \
          patch.dict(os.environ, test_environ, clear=True):
+        env = LocalEnvironment(cwd="/tmp", timeout=10, env=self_env)
         env.execute("echo hello")
 
     return captured.get("env", {})
@@ -946,12 +946,12 @@ class TestPythonpathSelectiveStrip:
 
     @pytest.mark.parametrize("same_env", [True, False])
     def test_execute_code_composition_strips_inherited_panergos_entries(self, same_env):
-        """Integration: execute_code's real spawn path composes a clean PYTHONPATH.
+        """The shared execute_code child-env builder composes a clean PYTHONPATH.
 
         Seeds a contaminated inherited PYTHONPATH (Panergos repo root + Panergos
-        venv site-packages + user entries) through os.environ and drives
-        execute_code all the way to Popen.  Proves the #84500 conditional
-        composition and the #82581 selective strip compose correctly:
+        venv site-packages + user entries) through the one builder used by both
+        execute_code paths. Proves the #84500 conditional composition and the
+        #82581 selective strip compose correctly:
 
         * inherited Panergos venv site-packages never survive into the sandbox;
         * the staging tmpdir stays the first entry;
@@ -960,45 +960,26 @@ class TestPythonpathSelectiveStrip:
           first) and stays absent for an external-environment child;
         * user entries survive after the controlled entries.
         """
+        import tools.code_execution_env as code_env
         import tools.code_execution_tool as cet
-        from tools.code_execution_tool import execute_code
-
-        def _mock_handle_function_call(function_name, function_args, task_id=None, user_task=None):
-            return '{"output": "mock", "exit_code": 0}'
 
         panergos_root = str(Path(cet.__file__).resolve().parents[1])
         venv_sp = str(_running_venv_site_packages())
         user_a = "/home/user/my-lib"
         user_b = "/opt/project/lib"
-        captured = {}
-
-        def _fake_popen(cmd, **kwargs):
-            captured["env"] = kwargs.get("env", {})
-            captured["staging"] = os.path.dirname(cmd[1])
-            proc = MagicMock()
-            proc.stdout.read.return_value = b""
-            proc.stderr.read.return_value = b""
-            proc.wait.return_value = 0
-            proc.returncode = 0
-            proc.poll.return_value = 0
-            return proc
-
-        with patch("tools.code_execution_tool._load_config",
-                   return_value={"mode": "strict"}), \
-             patch("model_tools.handle_function_call",
-                   side_effect=_mock_handle_function_call), \
-             patch("tools.code_execution_env._uses_panergos_python_environment",
-                   return_value=same_env), \
-             patch("subprocess.Popen", side_effect=_fake_popen), \
+        staging = "/tmp/panergos-kernel-test"
+        with patch.object(code_env, "_uses_panergos_python_environment",
+                          return_value=same_env), \
              patch.dict(os.environ, {
                  "PYTHONPATH": os.pathsep.join(
                      [panergos_root, venv_sp, user_a, user_b]),
              }):
-            execute_code(code="pass", task_id="test-int", enabled_tools=[])
+            child_env = code_env._build_child_env(
+                rpc_endpoint="fixture", rpc_token="fixture",
+                tmpdir=staging, child_python=sys.executable,
+            )
 
-        assert "PYTHONPATH" in captured["env"], \
-            "execute_code never reached Popen"
-        parts = captured["env"]["PYTHONPATH"].split(os.pathsep)
+        parts = child_env["PYTHONPATH"].split(os.pathsep)
         # Windows path comparison is case-insensitive: the inherited entries
         # and the re-added repo root can carry a different case than the
         # resolve()/abspath()-derived spellings used in this test (e.g. a
@@ -1006,7 +987,7 @@ class TestPythonpathSelectiveStrip:
         # os.path.normcase so a case-only difference never fails the
         # composition contract (identity on POSIX).
         norm_parts = [os.path.normcase(p) for p in parts]
-        norm_staging = os.path.normcase(captured["staging"])
+        norm_staging = os.path.normcase(staging)
         norm_root = os.path.normcase(panergos_root)
         norm_venv = os.path.normcase(venv_sp)
         norm_user_a = os.path.normcase(user_a)

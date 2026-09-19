@@ -4,6 +4,7 @@ import pytest
 
 from panergos_cli import web_server
 import panergos_cli.web_server_chat as _web_server_chat
+from panergos_cli.web_routers.chat_ws import _pty_dimension
 
 
 class FakeBridge:
@@ -11,6 +12,7 @@ class FakeBridge:
         self.alive = True
         self.accept_input = True
         self.written = bytearray()
+        self.resized = []
 
     def read(self, timeout):
         return b""        # idle forever
@@ -22,10 +24,18 @@ class FakeBridge:
         return True
 
     def resize(self, cols, rows):
-        pass
+        self.resized.append((cols, rows))
 
     def close(self):
         self.alive = False
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(None, 80), ("invalid", 80), ("0", 1), ("2001", 2000)],
+)
+def test_pty_dimension_defaults_and_clamps_untrusted_values(value, expected):
+    assert _pty_dimension(value, default=80, maximum=2000) == expected
 
 
 @pytest.fixture
@@ -35,11 +45,13 @@ def pty_keepalive_harness(monkeypatch):
 
     spawned = Spawned()
     spawned.bridges = []
+    spawned.dimensions = []
 
-    def fake_spawn(argv, cwd=None, env=None):
+    def fake_spawn(argv, cwd=None, env=None, cols=80, rows=24):
         b = FakeBridge()
         spawned.append(argv)
         spawned.bridges.append(b)
+        spawned.dimensions.append((cols, rows))
         return b
 
     monkeypatch.setattr(_web_server_chat.PtyBridge, "spawn", staticmethod(fake_spawn))
@@ -72,6 +84,20 @@ async def test_attach_token_reuses_same_session(pty_keepalive_harness):
         ws2.send_bytes(b"again")
     assert len(pty_keepalive_harness) == 1                # reattached, did not respawn
     assert bytes(pty_keepalive_harness.bridges[0].written) == b"hi\x0cagain"
+
+
+@pytest.mark.asyncio
+async def test_pty_uses_browser_geometry_before_spawn_and_reattach(pty_keepalive_harness):
+    from starlette.testclient import TestClient
+
+    client = TestClient(web_server.app)
+    with client.websocket_connect("/api/pty?attach=SIZE&cols=132&rows=41") as ws1:
+        ws1.send_bytes(b"hi")
+    with client.websocket_connect("/api/pty?attach=SIZE&cols=96&rows=32") as ws2:
+        ws2.send_bytes(b"again")
+
+    assert pty_keepalive_harness.dimensions == [(132, 41)]
+    assert pty_keepalive_harness.bridges[0].resized == [(132, 41), (96, 32)]
 
 
 @pytest.mark.asyncio

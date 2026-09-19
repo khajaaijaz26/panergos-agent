@@ -20,9 +20,8 @@ describe("shouldFinishResumeHydrationOnChunk", () => {
 
 describe("resume hydration gate over the real sanitizer", () => {
   // Regression: the gate must key off the payload actually written to xterm,
-  // not the raw frame. The sanitizer collapses an erase-only / all-newline /
-  // partial-CSI resume frame to "", so a nonempty raw first frame would
-  // otherwise clear the wait notice while the terminal is still blank.
+  // not the raw frame. The sanitizer preserves semantic ANSI redraw controls,
+  // while the hydration gate separately ignores control-only / blank output.
   const ESC = String.fromCharCode(27);
   const CRLF = String.fromCharCode(13, 10);
   const VISIBLE = `Hello world${CRLF}`;
@@ -38,10 +37,9 @@ describe("resume hydration gate over the real sanitizer", () => {
     (_label, firstFrame) => {
       const sanitizer = new PtyResumeSanitizer();
 
-      // Raw first frame is nonempty, but nothing is written to xterm...
+      // Raw first frame is nonempty, but it paints no visible text.
       expect(firstFrame.length).toBeGreaterThan(0);
       const firstRendered = sanitizer.next(firstFrame);
-      expect(firstRendered).toBe("");
       expect(shouldFinishResumeHydrationOnChunk(firstRendered)).toBe(false);
 
       // ...so the notice only clears once real replay output arrives.

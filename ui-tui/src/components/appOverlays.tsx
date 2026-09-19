@@ -21,6 +21,10 @@ import { WidgetGrid, type WidgetGridWidget } from './widgetGrid.js'
 
 const COMPLETION_WINDOW = 16
 
+export function completionNameCell(display: string, active: boolean): string {
+  return `${active ? '▸ ' : '  '}${display} `
+}
+
 /**
  * A prompt hosted in a single-cell WidgetGrid with the classic 1-cell padding.
  * The inner full-width column restores the horizontal stretch the old plain
@@ -331,7 +335,7 @@ export function FloatingOverlays({
               // visible command, so descriptions align — and wrapped
               // description lines stay inside their own column instead of
               // running under the names.
-              const nameW = Math.max(...visible.map(item => stringWidth(item.display))) + 2
+              const nameW = Math.max(...visible.map(item => stringWidth(completionNameCell(item.display, false))))
 
               return visible.map((item, i) => {
                 const active = start + i === compIdx
@@ -345,9 +349,12 @@ export function FloatingOverlays({
                     width="100%"
                   >
                     <Box flexShrink={0} width={nameW}>
-                      <Text bold color={theme.color.label}>
-                        {' '}
-                        {item.display}
+                      <Text
+                        backgroundColor={row.backgroundColor}
+                        bold
+                        color={active ? row.color : theme.color.label}
+                      >
+                        {completionNameCell(item.display, active)}
                       </Text>
                     </Box>
                     {item.meta ? (

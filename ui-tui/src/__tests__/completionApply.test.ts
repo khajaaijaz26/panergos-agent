@@ -1,6 +1,18 @@
+import { stringWidth } from '@panergos/ink'
 import { describe, expect, it } from 'vitest'
 
+import { completionNameCell } from '../components/appOverlays.js'
 import { applyCompletion, completionToApplyOnSubmit } from '../domain/slash.js'
+
+it('marks the selected completion without collapsing the description gap', () => {
+  const active = completionNameCell('/reset', true)
+  const inactive = completionNameCell('/reset', false)
+
+  expect(active).toBe('▸ /reset ')
+  expect(inactive).toBe('  /reset ')
+  expect(stringWidth(active)).toBe(stringWidth(inactive))
+  expect(stringWidth(active)).toBe(stringWidth('/reset') + 3)
+})
 
 describe('applyCompletion', () => {
   it('replaces from compReplace and drops the leading slash from the row', () => {

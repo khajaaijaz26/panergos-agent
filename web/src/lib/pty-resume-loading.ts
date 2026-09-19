@@ -1,4 +1,5 @@
 import type { PtyConnectionState } from "@/lib/pty-reconnect";
+import { stripAnsi } from "@panergos/shared/ansi";
 
 /**
  * Hard cap so a wedged resume (never gets PTY payload) cannot leave the
@@ -41,7 +42,7 @@ export function shouldShowResumeLoadingOverlay({
   return ptyState === "connecting" || ptyState === "open";
 }
 
-/** First non-empty PTY chunk means the blank window is over. */
+/** First chunk with visible terminal text means the blank window is over. */
 export function shouldFinishResumeHydrationOnChunk(chunkText: string): boolean {
-  return chunkText.length > 0;
+  return stripAnsi(chunkText).trim().length > 0;
 }

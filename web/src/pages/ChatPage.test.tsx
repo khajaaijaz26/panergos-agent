@@ -7,7 +7,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PTY_TICKET_TIMEOUT_MS } from "@/lib/pty-reconnect";
 
 class FakeFitAddon {
-  fit() {}
+  terminal: FakeTerminal | null = null;
+
+  activate(terminal: FakeTerminal) {
+    this.terminal = terminal;
+  }
+
+  fit() {
+    if (!this.terminal) return;
+    this.terminal.cols = 132;
+    this.terminal.rows = 41;
+  }
 }
 
 class FakeWebglAddon {
@@ -47,7 +57,9 @@ class FakeTerminal {
     return "";
   }
 
-  loadAddon() {}
+  loadAddon(addon: { activate?: (terminal: FakeTerminal) => void }) {
+    addon.activate?.(this);
+  }
 
   onData() {
     return { dispose() {} };
@@ -255,6 +267,22 @@ afterEach(async () => {
 });
 
 describe("ChatPage", () => {
+  it("requests the PTY at the fitted terminal geometry", async () => {
+    const { default: ChatPage } = await import("./ChatPage");
+
+    await render(
+      <MemoryRouter initialEntries={["/chat"]}>
+        <ChatPage isActive />
+      </MemoryRouter>,
+    );
+
+    await vi.waitFor(() => expect(FakeWebSocket.instances).toHaveLength(1));
+    expect(apiMocks.buildWsUrl).toHaveBeenCalledWith(
+      "/api/pty",
+      expect.objectContaining({ cols: "132", rows: "41" }),
+    );
+  });
+
   it("treats loopback 4401 closes as stale-token reload candidates", async () => {
     const { default: ChatPage } = await import("./ChatPage");
 

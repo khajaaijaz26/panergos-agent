@@ -18,7 +18,12 @@ except ImportError:  # pragma: no cover - non-Windows or pywinpty missing
 _log = logging.getLogger(__name__)
 
 
-__all__ = ["WinPtyBridge", "PtyUnavailableError"]
+__all__ = ["PTY_HOST_DASHBOARD", "PTY_HOST_ENV", "WinPtyBridge", "PtyUnavailableError"]
+
+# Kept local because importing the POSIX bridge on Windows also imports
+# fcntl/termios. Mirrored in panergos-ink/src/ink/termio/host.ts.
+PTY_HOST_ENV = "PANERGOS_PTY_HOST"
+PTY_HOST_DASHBOARD = "dashboard"
 
 
 # Same clamp ceiling as the POSIX bridge so a broken winsize probe never reaches the resize call.
@@ -67,6 +72,7 @@ class WinPtyBridge:
             build_subprocess_env(scrub_secrets=False, inherit_profile_home=False)
             if env is None else dict(env))
         spawn_env["TERM"] = spawn_env.get("TERM") or "xterm-256color"
+        spawn_env[PTY_HOST_ENV] = PTY_HOST_DASHBOARD
         # pywinpty mirrors ptyprocess: dimensions=(rows, cols).
         return cls(PtyProcess.spawn(list(argv), cwd=cwd, env=spawn_env, dimensions=(rows, cols)))  # type: ignore[union-attr]
 

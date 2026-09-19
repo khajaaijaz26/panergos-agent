@@ -1485,6 +1485,7 @@ class TestWebServerEndpoints:
             "panergos_cli.model_cost_guard.expensive_model_warning",
             lambda *_args, **_kwargs: None,
         )
+        monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-v1-test")
         from panergos_cli.config import load_config, save_config
         cfg = load_config()
         cfg["model"] = {"provider": "openrouter", "default": "openai/gpt-5.5"}
@@ -3329,7 +3330,7 @@ class TestDenormalizeProviderSwitch:
     model string changes to one served by a different provider, the saved
     provider must follow it (issue #14058)."""
 
-    def test_vendor_slug_switches_off_non_aggregator_provider(self):
+    def test_vendor_slug_switches_off_non_aggregator_provider(self, monkeypatch):
         """ollama-local + a vendor/model slug → switch to openrouter and drop
         the stale local base_url (the issue's exact repro)."""
         from panergos_cli.web_server_config import _denormalize_config_from_web
@@ -3344,6 +3345,7 @@ class TestDenormalizeProviderSwitch:
                 "api_mode": "chat_completions",
             }
         })
+        monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-v1-test")
 
         with _patch("panergos_cli.models_detect.provider_has_credentials", lambda p: p == "openrouter"):
             result = _denormalize_config_from_web({"model": "google/gemini-2.5-flash"})
@@ -3355,7 +3357,7 @@ class TestDenormalizeProviderSwitch:
         assert model.get("base_url") != "http://localhost:11434/v1"
 
 
-    def test_context_length_override_survives_provider_switch(self):
+    def test_context_length_override_survives_provider_switch(self, monkeypatch):
         """An explicit context-length override must persist alongside a
         provider switch."""
         from panergos_cli.web_server_config import _denormalize_config_from_web
@@ -3363,6 +3365,7 @@ class TestDenormalizeProviderSwitch:
         from panergos_cli.config import save_config
 
         save_config({"model": {"default": "llama3.2", "provider": "ollama-local"}})
+        monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-v1-test")
 
         with _patch("panergos_cli.models_detect.provider_has_credentials", lambda p: p == "openrouter"):
             result = _denormalize_config_from_web({
@@ -4840,6 +4843,26 @@ def test_resolve_chat_argv_injects_gateway_ws_url(monkeypatch):
     gateway_url = env.get("PANERGOS_TUI_GATEWAY_URL", "")
     assert gateway_url.startswith("ws://127.0.0.1:9119/api/ws?")
     assert "token=" in gateway_url
+
+
+def test_resolve_chat_argv_forces_browser_selection_safe_tui_mode(monkeypatch):
+    import panergos_cli.main_tui_launch as tui_launch
+
+    monkeypatch.setattr(
+        tui_launch,
+        "_make_tui_argv",
+        lambda *_args, **_kwargs: (["node", "fake-tui.js"], Path("/tmp")),
+    )
+    monkeypatch.setenv("PANERGOS_TUI_DISABLE_MOUSE", "0")
+    monkeypatch.setenv("PANERGOS_TUI_MOUSE_TRACKING", "1")
+    monkeypatch.setenv("PANERGOS_TUI_INLINE", "0")
+
+    _argv, _cwd, env = _web_server_chat._resolve_chat_argv()
+
+    assert env is not None
+    assert env["PANERGOS_TUI_DISABLE_MOUSE"] == "1"
+    assert env["PANERGOS_TUI_MOUSE_TRACKING"] == "0"
+    assert env["PANERGOS_TUI_INLINE"] == "1"
 
 
 class TestDashboardPluginStaticAssetAllowlist:

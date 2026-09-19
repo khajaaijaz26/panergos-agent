@@ -1790,6 +1790,7 @@ def _resolve_moa_context_length(model: str, custom_providers: list | None) -> Op
     try:
         from panergos_cli.config import get_compatible_custom_providers, load_config
         from panergos_cli.moa_config import resolve_moa_preset
+        from panergos_cli.providers import resolve_provider_full
         from panergos_cli.runtime_provider import resolve_runtime_provider
         config = load_config()
         if custom_providers is None:
@@ -1798,7 +1799,11 @@ def _resolve_moa_context_length(model: str, custom_providers: list | None) -> Op
         agg_provider = str(agg.get("provider") or "").strip()
         agg_model = str(agg.get("model") or "").strip()
         if agg_model and agg_provider and agg_provider.lower() != "moa":
-            rt = resolve_runtime_provider(requested=agg_provider, target_model=agg_model)
+            try:
+                rt = resolve_runtime_provider(requested=agg_provider, target_model=agg_model)
+            except Exception:
+                pdef = resolve_provider_full(agg_provider, config.get("providers"), custom_providers)
+                rt = {"provider": pdef.id, "base_url": pdef.base_url, "api_key": ""} if pdef else {}
             return get_model_context_length(
                 agg_model, base_url=rt.get("base_url", "") or "", api_key=rt.get("api_key", "") or "",
                 provider=rt.get("provider") or agg_provider, custom_providers=custom_providers,

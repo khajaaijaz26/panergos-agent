@@ -1,6 +1,6 @@
 /**
- * PTY resume output sanitizer — strips pathological ANSI sequences that
- * Ink's two-pass virtual scroll emits during session resume.
+ * PTY resume output sanitizer — collapses pathological blank-line bursts
+ * that Ink's two-pass virtual scroll emits during session resume.
  *
  * Three properties of the real pipeline drive this design:
  *
@@ -16,19 +16,14 @@
  *    point, *and* a long blank-line run can each straddle a frame boundary,
  *    so all three need trailing-state buffering to survive reassembly.
  *
- * 3. **Erase codes are only pathological during the resume replay.** Once the
- *    replay has settled, `ESC[K` / `ESC[X` are exactly how a TUI clears stale
- *    glyphs for spinners, progress bars, and status lines. Stripping them
- *    forever corrupts normal interactive output, so suppression is bounded to
- *    a short window after connect (see PTY_RESUME_SANITIZE_WINDOW_MS).
+ * 3. **ANSI redraw controls must remain intact.** `ESC[K` / `ESC[X` clear the
+ *    previous Ink frame before its replacement is painted. Removing them
+ *    leaves stale text behind, which makes resumed tables and menus appear
+ *    overlaid or misaligned.
  */
 
 /** A blank-line run: CRLF (real PTY, cooked mode) or bare LF (raw-mode PTY). */
 const BLANK_LINE_BURST = /(?:\r?\n){50,}/g;
-// eslint-disable-next-line no-control-regex -- intentional ESC byte in ANSI sequence parser
-const ERASE_LINE = /\x1b\[\d*K/g;
-// eslint-disable-next-line no-control-regex -- intentional ESC byte in ANSI sequence parser
-const ERASE_CHAR = /\x1b\[\d*X/g;
 
 /** Still-incomplete trailing escape: "\x1b", "\x1b[", "\x1b[\d*". */
 // eslint-disable-next-line no-control-regex -- intentional ESC byte in ANSI sequence parser
@@ -49,37 +44,17 @@ const TRAILING_NEWLINES = /(?:\r?\n)*\r?$/;
 const COLLAPSED_BURST = "\r\n\r\n";
 
 /**
- * Apply all suppression rules to a safely-completed string.
- *
- * @param stripErase When false, `ESC[K` / `ESC[X` are preserved. Blank-line
- *   burst collapsing still applies — a thousand-row burst is pathological
- *   whenever it appears, but erase codes are legitimate once resume settles.
+ * Collapse a pathological blank-line burst in a safely-completed string.
+ * ANSI controls pass through unchanged so xterm can perform the TUI redraw.
  * Exported for focused unit-testing of filter behaviour.
  */
-export function applyPtyFilters(input: string, stripErase = true): string {
-  const collapsed = input.replace(BLANK_LINE_BURST, COLLAPSED_BURST);
-  if (!stripErase) return collapsed;
-  return collapsed.replace(ERASE_LINE, "").replace(ERASE_CHAR, "");
+export function applyPtyFilters(input: string): string {
+  return input.replace(BLANK_LINE_BURST, COLLAPSED_BURST);
 }
 
 /** Stateful chunk processor that guards against cross-frame split sequences. */
 export class PtyResumeSanitizer {
   #pending = "";
-  #stripErase = true;
-
-  /**
-   * Stop stripping erase codes while continuing to collapse blank-line bursts.
-   * Called when the resume-replay window closes so that ordinary interactive
-   * redraws (spinners, progress bars, status lines) keep their `ESC[K`.
-   */
-  endEraseSuppression(): void {
-    this.#stripErase = false;
-  }
-
-  /** True while erase-code stripping is still active. */
-  get isSuppressingErase(): boolean {
-    return this.#stripErase;
-  }
 
   /** Feed one decoded WebSocket frame payload. Returns the sanitized output. */
   next(chunk: string): string {
@@ -94,7 +69,7 @@ export class PtyResumeSanitizer {
     const lastEsc = combined.lastIndexOf("\x1b");
     if (lastEsc !== -1 && PARTIAL_ESC.test(combined.slice(lastEsc))) {
       this.#pending = combined.slice(lastEsc);
-      return applyPtyFilters(combined.slice(0, lastEsc), this.#stripErase);
+      return applyPtyFilters(combined.slice(0, lastEsc));
     }
 
     // Hold back a trailing newline run so a burst spanning frames accumulates
@@ -108,7 +83,7 @@ export class PtyResumeSanitizer {
       return "";
     }
     this.#pending = trailing[0];
-    return applyPtyFilters(combined.slice(0, trailing.index), this.#stripErase);
+    return applyPtyFilters(combined.slice(0, trailing.index));
   }
 
   /**
@@ -123,6 +98,6 @@ export class PtyResumeSanitizer {
     const last = this.#pending;
     this.#pending = "";
     if (last === "" || last.includes("\x1b")) return "";
-    return applyPtyFilters(last, this.#stripErase);
+    return applyPtyFilters(last);
   }
 }
