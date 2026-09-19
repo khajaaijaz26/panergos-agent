@@ -200,6 +200,24 @@ Local renderers and open models can avoid API fees when installed on suitable ha
 | **OpenAI-compatible**   | `panergos model --quick --provider openai-compatible --base-url URL --model ID --key-env ENV_VAR` | Works with compatible local servers, self-hosted inference, and cloud endpoints without placing the key value in command history.                                                       |
 | **Advanced routing**    | `panergos model`, `panergos fallback`, `panergos moa`, `panergos auth`                            | Interactive catalogs, fallback providers, Mixture of Agents, and pooled credentials.                                                                                                    |
 
+In the browser dashboard, open **Models → Connect a model**, choose a provider, paste its API key, and select **Connect**. Panergos validates the key, discovers the provider's models, and selects a sensible default for new sessions; keys are redacted after saving and never copied into `config.yaml`. Self-hosted and OpenAI-compatible servers remain available under **Advanced: custom endpoint**.
+
+### Free and included model access
+
+Verified against provider documentation on **2026-09-19**. Connect more than one route, then set the order once under **Models → Automatic fallback** (or with `panergos fallback`). After that, Panergos moves to the next configured model after a supported quota, rate-limit, or availability failure—no manual switching. It does not combine balances or bypass provider limits.
+
+| Provider route | Official free or included allowance | Honest token reading |
+| --- | --- | --- |
+| **OpenRouter** — built-in sign-in or API key | [25+ free models and 50 requests/day](https://openrouter.ai/pricing) | Requests are not tokens; OpenRouter publishes no fixed free-token total. |
+| **Google Gemini API** — built-in API key | Selected models have [free input and output tokens](https://ai.google.dev/gemini-api/docs/pricing); [limits vary by project and model](https://ai.google.dev/gemini-api/docs/rate-limits). | No universal token total; AI Studio shows the active RPM, TPM, and daily limits for the account. |
+| **Groq** — custom OpenAI-compatible endpoint | The [Free Plan table](https://console.groq.com/docs/rate-limits) lists 200K tokens/day, 8K tokens/minute, and 1,000 requests/day for each of `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, and `qwen/qwen3.8-27b`. | **200K tokens/day per listed model** is a rate ceiling, not a promised grant; organization limits and whichever limit is reached first apply. |
+| **Cerebras** — custom OpenAI-compatible endpoint | The [Free Trial](https://inference-docs.cerebras.ai/support/rate-limits) gives $5 credit after payment-method verification, expires after 30 days, and currently lists 1M tokens/day for each of `gpt-oss-120b` and `qwen-3.8-27b`. | **1M tokens/day per named model while trial credit remains**; the credit can run out first, and there is no recurring free tier. |
+| **Hugging Face** — built-in token | [Monthly credits](https://huggingface.co/docs/inference-providers/pricing): $0.10 for Free, $2 for PRO, and $2 per Team/Enterprise seat. | Dollar credits cannot be converted to one token number because model and provider prices differ. |
+| **Mistral Studio** — custom OpenAI-compatible endpoint | [Free mode needs no credit card](https://docs.mistral.ai/getting-started/quickstarts/studio/activate-and-generate-api-key), but its [RPS, tokens/minute, and tokens/month limits](https://help.mistral.ai/en/articles/698531-why-am-i-hitting-api-rate-limits-and-how-do-i-increase-them) are shown in the signed-in Limits page. | No fixed public token amount. |
+| **GitHub Copilot** — built-in account sign-in | [Copilot Free includes an unspecified AI-credit allowance and automatic model selection](https://docs.github.com/en/copilot/get-started/plans); paid individual plans include 1,500, 7,000, or 20,000 monthly AI credits. | AI credits are not API tokens; the separate 2,000 IDE-completion allowance is not Panergos model usage, and access depends on the account entitlement. |
+
+**Published token-denominated ceilings, not a guaranteed combined allowance:** 200K/day on each cited Groq model, and 1M/day on each cited Cerebras trial model while its credit lasts. There is no defensible universal subtotal across these providers, so Panergos does not advertise “billions of free tokens.” Provider catalogs, limits, eligibility, geography, and terms can change; check the linked source and the account's live limits before relying on a number.
+
 Local inference has no Panergos usage fee and can run CPU-only when the selected model fits memory; a compatible GPU is optional and usually much faster. Panergos can also connect to a remote OpenAI-compatible GPU endpoint, but it is a client and orchestrator—not a free cloud-GPU provider. Local hardware still consumes RAM, storage, CPU/GPU time, and electricity, while hosted compute may charge separately.
 
 ### Build a model with Model Foundry
@@ -257,23 +275,16 @@ Sessions are shared through the configured profile, so the same durable work can
 ## Architecture
 
 ```mermaid
-flowchart TB
-    U["You / your team"] --> S["CLI · TUI · Desktop · Web · API · ACP · Messaging"]
-    S --> R["Panergos agent runtime"]
-    R --> M["Local & cloud models<br/>routing · fallback · MoA · credential pools"]
-    R --> C["Capabilities<br/>code · security · image/video · office · browser · computer use"]
-    R --> D["Durable work<br/>missions · Kanban · cron · delegation · peer agents"]
-    R --> P["Continuity<br/>sessions · project memory · handoffs · checkpoints"]
-    R --> G["Control plane<br/>profiles · approvals · secrets · egress · monitoring"]
-    C --> X["Connected platforms & company systems"]
-    D --> X
-
-    classDef core fill:#120B1F,stroke:#2EE6A6,color:#F7F2FF,stroke-width:2px;
-    classDef branch fill:#102A27,stroke:#2EE6A6,color:#F7F2FF;
-    classDef edge fill:#351B2A,stroke:#FF6B5E,color:#F7F2FF;
-    class R core;
-    class S,M,C,D,P,G branch;
-    class U,X edge;
+flowchart TD
+    team["You and your team"] --> surfaces["Interfaces: CLI, TUI, Desktop, Web, API, ACP, Messaging"]
+    surfaces --> runtime["Panergos Agent runtime"]
+    runtime --> models["Models: local and cloud routing, fallback, MoA"]
+    runtime --> capabilities["Capabilities: code, security, media, office, browser"]
+    runtime --> work["Work: missions, Kanban, cron, delegation, peer agents"]
+    runtime --> memory["Continuity: sessions, project memory, handoffs, checkpoints"]
+    runtime --> control["Control: profiles, approvals, secrets, egress, monitoring"]
+    capabilities --> systems["Connected platforms and company systems"]
+    work --> systems
 ```
 
 | Path                          | Responsibility                                                                   |

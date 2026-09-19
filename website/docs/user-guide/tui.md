@@ -61,7 +61,7 @@ The classic CLI remains the shipped default. Anything documented in [CLI Interfa
 - **Alternate-screen rendering** — differential updates mean no flicker when streaming, no scrollback clutter after you quit.
 - **Composer affordances** — inline paste-collapse for long snippets, `Cmd+V` / `Ctrl+V` text paste with clipboard-image fallback, bracketed-paste safety, and image/file-path attachment normalization.
 
-Same [skins](features/skins.md) and [personalities](features/personality.md) apply. Switch mid-session with `/skin ares`, `/personality pirate`, and the UI repaints live. See [Skins & Themes](features/skins.md) for the full list of customizable keys and which ones apply to classic vs TUI — the TUI honors the banner palette, UI colors, prompt glyph/color, session display, completion menu, selection bg, `tool_prefix`, and `help_header`.
+Same [skins](features/skins.md) and [personalities](features/personality.md) apply. Switch mid-session with `/skin crimson`, `/personality pirate`, and the UI repaints live. See [Skins & Themes](features/skins.md) for the full list of customizable keys and which ones apply to classic vs TUI — the TUI honors the banner palette, UI colors, prompt glyph/color, session display, completion menu, selection bg, `tool_prefix`, and `help_header`.
 
 ### Collapsible banner sections
 
@@ -205,7 +205,7 @@ After a session is named, its title appears as an accent-colored badge at the fa
 | `ready` | Agent is idle, accepting input. |
 | `thinking…` / `running…` | Agent is reasoning or running a tool. |
 | `interrupted` | Current turn was cancelled; press Enter to send again. |
-| `forging session…` / `resuming…` | Initial connect or `--resume` handshake. |
+| `starting session…` / `resuming…` | Initial connect or `--resume` handshake. |
 
 The per-skin status-bar colors and thresholds are shared with the classic CLI — see [Skins](features/skins.md) for customization.
 

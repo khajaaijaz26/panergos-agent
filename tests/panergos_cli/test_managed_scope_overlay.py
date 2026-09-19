@@ -34,11 +34,10 @@ def test_overlay_noop_without_scope(tmp_path, monkeypatch):
 def test_overlay_preserves_user_siblings(managed):
     from panergos_cli import managed_scope
 
-    _write(managed, "display:\n  skin: charizard\n")
+    _write(managed, "display:\n  skin: ember\n")
     out = managed_scope.apply_managed_overlay(
         {"display": {"skin": "user", "show_reasoning": True}}
     )
-    assert out["display"]["skin"] == "charizard"
+    assert out["display"]["skin"] == "ember"
     assert out["display"]["show_reasoning"] is True
-
 

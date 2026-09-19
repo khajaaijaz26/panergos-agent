@@ -26,7 +26,7 @@ class SkinConfig:
     tool_prefix: str = "┊"
     tool_emojis: Dict[str, str] = field(default_factory=dict)  # per-tool emoji overrides
     banner_logo: str = ""    # Rich-markup ASCII art logo (replaces PANERGOS_AGENT_LOGO)
-    banner_hero: str = ""    # Rich-markup hero art (replaces PANERGOS_CADUCEUS)
+    banner_hero: str = ""    # Rich-markup hero art (replaces the Panergos mark)
 
     def get_color(self, key: str, fallback: str = "") -> str:
         return self.colors.get(key, fallback)
@@ -57,7 +57,7 @@ def _wings(*glyphs) -> List[List[str]]:
 
 # Branding shared by the neutral built-ins (mono/daylight override help_header).
 _PANERGOS_BRANDING: Dict[str, str] = _branding(
-    "Panergos", "◇", "Goodbye! ◇", prompt="❯", help_header="(◇) Available Commands")
+    "Panergos", "◆", "Goodbye! ◆", prompt="❯", help_header="(◆) Available Commands")
 
 _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
     "default": {
@@ -91,8 +91,8 @@ _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
         "spinner": {},  # empty = hardcoded defaults in display.py
         "branding": _PANERGOS_BRANDING,
         "tool_prefix": "┊"},
-    "ares": {
-        "name": "ares", "description": "War-god theme — crimson and bronze",
+    "crimson": {
+        "name": "crimson", "description": "Crimson and bronze",
         "colors": {
             "banner_border": "#A93333", "banner_title": "#C7A96B", "banner_accent": "#DD4A3A",
             "banner_dim": "#905151", "banner_text": "#F1E6CF", "ui_accent": "#DD4A3A",
@@ -106,34 +106,14 @@ _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
             "completion_menu_current_bg": "#5C221D", "selection_bg": "#692620",
             "shell_dollar": "#DD4A3A", "voice_status_bg": "#2A1212"},
         "spinner": {
-            "waiting_faces": ["(⚔)", "(⛨)", "(▲)", "(<>)", "(/)"],
-            "thinking_faces": ["(⚔)", "(⛨)", "(▲)", "(⌁)", "(<>)"],
+            "waiting_faces": ["(◆)", "(■)", "(▲)", "(<>)", "(/)"],
+            "thinking_faces": ["(◆)", "(■)", "(▲)", "(⌁)", "(<>)"],
             "thinking_verbs": [
-                "forging", "marching", "sizing the field", "holding the line",
-                "hammering plans", "tempering steel", "plotting impact", "raising the shield"],
-            "wings": _wings("⚔", "▲", ("╸", "╺"), "⛨")},
-        "branding": _branding("Ares", "⚔", "Farewell, warrior! ⚔"),
+                "refining", "sequencing work", "sizing the task", "holding context",
+                "shaping plans", "testing assumptions", "plotting impact", "preparing output"],
+            "wings": _wings("◆", "▲", ("╸", "╺"), "■")},
+        "branding": _PANERGOS_BRANDING,
         "tool_prefix": "╎",
-        "banner_logo": """[bold #A3261F] █████╗ ██████╗ ███████╗███████╗       █████╗  ██████╗ ███████╗███╗   ██╗████████╗[/]
-[bold #B73122]██╔══██╗██╔══██╗██╔════╝██╔════╝      ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝[/]
-[#C93C24]███████║██████╔╝█████╗  ███████╗█████╗███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║[/]
-[#D84A28]██╔══██║██╔══██╗██╔══╝  ╚════██║╚════╝██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║[/]
-[#E15A2D]██║  ██║██║  ██║███████╗███████║      ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║[/]
-[#EB6C32]╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚══════╝      ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝[/]""",
-        "banner_hero": """[#9F1C1C]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣤⣤⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#9F1C1C]⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⠟⠻⣿⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#C7A96B]⠀⠀⠀⠀⠀⠀⠀⣠⣾⡿⠋⠀⠀⠀⠙⢿⣷⣄⠀⠀⠀⠀⠀⠀⠀[/]
-[#C7A96B]⠀⠀⠀⠀⠀⢀⣾⡿⠋⠀⠀⢠⡄⠀⠀⠙⢿⣷⡀⠀⠀⠀⠀⠀[/]
-[#DD4A3A]⠀⠀⠀⠀⣰⣿⠟⠀⠀⠀⣰⣿⣿⣆⠀⠀⠀⠻⣿⣆⠀⠀⠀⠀[/]
-[#DD4A3A]⠀⠀⠀⢰⣿⠏⠀⠀⢀⣾⡿⠉⢿⣷⡀⠀⠀⠹⣿⡆⠀⠀⠀[/]
-[#9F1C1C]⠀⠀⠀⣿⡟⠀⠀⣠⣿⠟⠀⠀⠀⠻⣿⣄⠀⠀⢻⣿⠀⠀⠀[/]
-[#9F1C1C]⠀⠀⠀⣿⡇⠀⠀⠙⠋⠀⠀⚔⠀⠀⠙⠋⠀⠀⢸⣿⠀⠀⠀[/]
-[#6B1717]⠀⠀⠀⢿⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣼⡿⠀⠀⠀[/]
-[#6B1717]⠀⠀⠀⠘⢿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣾⡿⠃⠀⠀⠀[/]
-[#C7A96B]⠀⠀⠀⠀⠈⠻⣿⣷⣦⣤⣀⣀⣤⣤⣶⣿⠿⠋⠀⠀⠀⠀[/]
-[#C7A96B]⠀⠀⠀⠀⠀⠀⠀⠉⠛⠿⠿⠿⠿⠛⠉⠀⠀⠀⠀⠀⠀⠀[/]
-[#DD4A3A]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⚔⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[dim #6B1717]⠀⠀⠀⠀⠀⠀⠀⠀war god online⠀⠀⠀⠀⠀⠀⠀⠀[/]""",
     },
     "mono": {
         "name": "mono", "description": "Monochrome — clean grayscale",
@@ -203,8 +183,8 @@ _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
             "completion_menu_meta_current_bg": "#DFCFB0", "selection_bg": "#E8DAD0",
             "shell_dollar": "#8B4513", "voice_status_bg": "#F5F0E8"},
         "spinner": {}, "branding": _PANERGOS_BRANDING, "tool_prefix": "┊"},
-    "poseidon": {
-        "name": "poseidon", "description": "Ocean-god theme — deep blue and seafoam",
+    "tide": {
+        "name": "tide", "description": "Deep blue and seafoam",
         "colors": {
             "banner_border": "#2A6FB9", "banner_title": "#A9DFFF", "banner_accent": "#5DB8F5",
             "banner_dim": "#44638F", "banner_text": "#EAF7FF", "ui_accent": "#5DB8F5",
@@ -218,37 +198,18 @@ _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
             "completion_menu_current_bg": "#254D73", "selection_bg": "#2A587F",
             "shell_dollar": "#5DB8F5", "voice_status_bg": "#0F2440"},
         "spinner": {
-            "waiting_faces": ["(≈)", "(Ψ)", "(∿)", "(◌)", "(◠)"],
-            "thinking_faces": ["(Ψ)", "(∿)", "(≈)", "(⌁)", "(◌)"],
+            "waiting_faces": ["(≈)", "(∼)", "(∿)", "(◌)", "(◠)"],
+            "thinking_faces": ["(∼)", "(∿)", "(≈)", "(⌁)", "(◌)"],
             "thinking_verbs": [
-                "charting currents", "sounding the depth", "reading foam lines",
-                "steering the trident", "tracking undertow", "plotting sea lanes",
-                "calling the swell", "measuring pressure"],
-            "wings": _wings("≈", "Ψ", "∿", "◌")},
-        "branding": _branding("Poseidon", "Ψ", "Fair winds! Ψ"),
+                "mapping flow", "measuring depth", "reading signals",
+                "steering the plan", "tracking changes", "plotting routes",
+                "checking pressure", "preparing output"],
+            "wings": _wings("≈", "∼", "∿", "◌")},
+        "branding": _PANERGOS_BRANDING,
         "tool_prefix": "│",
-        "banner_logo": """[bold #B8E8FF]██████╗  ██████╗ ███████╗███████╗██╗██████╗  ██████╗ ███╗   ██╗       █████╗  ██████╗ ███████╗███╗   ██╗████████╗[/]
-[bold #97D6FF]██╔══██╗██╔═══██╗██╔════╝██╔════╝██║██╔══██╗██╔═══██╗████╗  ██║      ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝[/]
-[#75C1F6]██████╔╝██║   ██║███████╗█████╗  ██║██║  ██║██║   ██║██╔██╗ ██║█████╗███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║[/]
-[#4FA2E0]██╔═══╝ ██║   ██║╚════██║██╔══╝  ██║██║  ██║██║   ██║██║╚██╗██║╚════╝██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║[/]
-[#2E7CC7]██║     ╚██████╔╝███████║███████╗██║██████╔╝╚██████╔╝██║ ╚████║      ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║[/]
-[#1B4F95]╚═╝      ╚═════╝ ╚══════╝╚══════╝╚═╝╚═════╝  ╚═════╝ ╚═╝  ╚═══╝      ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝[/]""",
-        "banner_hero": """[#2A6FB9]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#5DB8F5]⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣾⣿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#5DB8F5]⠀⠀⠀⠀⠀⠀⠀⢠⣿⠏⠀Ψ⠀⠹⣿⡄⠀⠀⠀⠀⠀⠀⠀[/]
-[#A9DFFF]⠀⠀⠀⠀⠀⠀⠀⣿⡟⠀⠀⠀⠀⠀⢻⣿⠀⠀⠀⠀⠀⠀⠀[/]
-[#A9DFFF]⠀⠀⠀≈≈≈≈≈⣿⡇⠀⠀⠀⠀⠀⢸⣿≈≈≈≈≈⠀⠀⠀[/]
-[#5DB8F5]⠀⠀⠀⠀⠀⠀⠀⣿⡇⠀⠀⠀⠀⠀⢸⣿⠀⠀⠀⠀⠀⠀⠀[/]
-[#2A6FB9]⠀⠀⠀⠀⠀⠀⠀⢿⣧⠀⠀⠀⠀⠀⣼⡿⠀⠀⠀⠀⠀⠀⠀[/]
-[#2A6FB9]⠀⠀⠀⠀⠀⠀⠀⠘⢿⣷⣄⣀⣠⣾⡿⠃⠀⠀⠀⠀⠀⠀⠀[/]
-[#153C73]⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣿⣿⡿⠟⠁⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#153C73]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#5DB8F5]⠀⠀⠀⠀⠀≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈⠀⠀⠀⠀⠀[/]
-[#A9DFFF]⠀⠀⠀⠀⠀⠀≈≈≈≈≈≈≈≈≈≈≈≈≈⠀⠀⠀⠀⠀⠀[/]
-[dim #153C73]⠀⠀⠀⠀⠀⠀⠀deep waters hold⠀⠀⠀⠀⠀⠀⠀[/]""",
     },
-    "sisyphus": {
-        "name": "sisyphus", "description": "Sisyphean theme — austere grayscale with persistence",
+    "granite": {
+        "name": "granite", "description": "Austere high-contrast grayscale",
         "colors": {
             "banner_border": "#B7B7B7", "banner_title": "#F5F5F5", "banner_accent": "#E7E7E7",
             "banner_dim": "#5C5C5C", "banner_text": "#D3D3D3", "ui_accent": "#E7E7E7",
@@ -265,35 +226,15 @@ _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
             "waiting_faces": ["(◉)", "(◌)", "(◬)", "(⬤)", "(::)"],
             "thinking_faces": ["(◉)", "(◬)", "(◌)", "(○)", "(●)"],
             "thinking_verbs": [
-                "finding traction", "measuring the grade", "resetting the boulder",
-                "counting the ascent", "testing leverage", "setting the shoulder",
-                "pushing uphill", "enduring the loop"],
+                "finding traction", "measuring progress", "resetting the plan",
+                "counting steps", "testing leverage", "setting the baseline",
+                "working steadily", "closing the loop"],
             "wings": _wings("◉", "◬", "◌", "⬤")},
-        "branding": _branding("Sisyphus", "◉", "The boulder waits. ◉"),
+        "branding": _PANERGOS_BRANDING,
         "tool_prefix": "│",
-        "banner_logo": """[bold #F5F5F5]███████╗██╗███████╗██╗   ██╗██████╗ ██╗  ██╗██╗   ██╗███████╗       █████╗  ██████╗ ███████╗███╗   ██╗████████╗[/]
-[bold #E7E7E7]██╔════╝██║██╔════╝╚██╗ ██╔╝██╔══██╗██║  ██║██║   ██║██╔════╝      ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝[/]
-[#D7D7D7]███████╗██║███████╗ ╚████╔╝ ██████╔╝███████║██║   ██║███████╗█████╗███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║[/]
-[#BFBFBF]╚════██║██║╚════██║  ╚██╔╝  ██╔═══╝ ██╔══██║██║   ██║╚════██║╚════╝██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║[/]
-[#8F8F8F]███████║██║███████║   ██║   ██║     ██║  ██║╚██████╔╝███████║      ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║[/]
-[#626262]╚══════╝╚═╝╚══════╝   ╚═╝   ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝      ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝[/]""",
-        "banner_hero": """[#B7B7B7]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⣀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#D3D3D3]⠀⠀⠀⠀⠀⠀⠀⣠⣾⣿⣿⣿⣿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#E7E7E7]⠀⠀⠀⠀⠀⠀⣾⣿⣿⣿⣿⣿⣿⣿⣷⠀⠀⠀⠀⠀⠀⠀[/]
-[#F5F5F5]⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀[/]
-[#E7E7E7]⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀[/]
-[#D3D3D3]⠀⠀⠀⠀⠀⠀⠘⢿⣿⣿⣿⣿⣿⡿⠃⠀⠀⠀⠀⠀⠀⠀[/]
-[#B7B7B7]⠀⠀⠀⠀⠀⠀⠀⠀⠙⠿⣿⠿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#919191]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#656565]⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#656565]⠀⠀⠀⠀⠀⠀⠀⠀⣰⣿⣿⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#4A4A4A]⠀⠀⠀⠀⠀⠀⠀⣰⣿⣿⣿⣿⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#4A4A4A]⠀⠀⠀⠀⠀⣀⣴⣿⣿⣿⣿⣿⣿⣦⣀⠀⠀⠀⠀⠀⠀[/]
-[#656565]⠀⠀⠀━━━━━━━━━━━━━━━━━━━━━━━⠀⠀⠀[/]
-[dim #4A4A4A]⠀⠀⠀⠀⠀⠀⠀⠀⠀the boulder⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]""",
     },
-    "charizard": {
-        "name": "charizard", "description": "Volcanic theme — burnt orange and ember",
+    "ember": {
+        "name": "ember", "description": "Burnt orange and ember",
         "colors": {
             "banner_border": "#C75B1D", "banner_title": "#FFD39A", "banner_accent": "#F29C38",
             "banner_dim": "#C58A45", "banner_text": "#FFF0D4", "ui_accent": "#F29C38",
@@ -311,32 +252,22 @@ _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
             "waiting_faces": ["(✦)", "(▲)", "(◇)", "(<>)", "(🔥)"],
             "thinking_faces": ["(✦)", "(▲)", "(◇)", "(⌁)", "(🔥)"],
             "thinking_verbs": [
-                "banking into the draft", "measuring burn", "reading the updraft",
-                "tracking ember fall", "setting wing angle", "holding the flame core",
-                "plotting a hot landing", "coiling for lift"],
+                "warming up", "measuring heat", "reading signals",
+                "tracking progress", "setting parameters", "holding steady",
+                "plotting next steps", "preparing output"],
             "wings": _wings("✦", "▲", "◌", "◇")},
-        "branding": _branding("Charizard", "✦", "Flame out! ✦"),
+        "branding": _PANERGOS_BRANDING,
         "tool_prefix": "│",
-        "banner_logo": """[bold #FFF0D4] ██████╗██╗  ██╗ █████╗ ██████╗ ██╗███████╗ █████╗ ██████╗ ██████╗        █████╗  ██████╗ ███████╗███╗   ██╗████████╗[/]
-[bold #FFD39A]██╔════╝██║  ██║██╔══██╗██╔══██╗██║╚══███╔╝██╔══██╗██╔══██╗██╔══██╗      ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝[/]
-[#F29C38]██║     ███████║███████║██████╔╝██║  ███╔╝ ███████║██████╔╝██║  ██║█████╗███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║[/]
-[#E2832B]██║     ██╔══██║██╔══██║██╔══██╗██║ ███╔╝  ██╔══██║██╔══██╗██║  ██║╚════╝██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║[/]
-[#C75B1D]╚██████╗██║  ██║██║  ██║██║  ██║██║███████╗██║  ██║██║  ██║██████╔╝      ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║[/]
-[#7A3511] ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝       ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝[/]""",
-        "banner_hero": """[#FFD39A]⠀⠀⠀⠀⠀⠀⠀⠀⣀⣤⠶⠶⠶⣤⣀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#F29C38]⠀⠀⠀⠀⠀⠀⣴⠟⠁⠀⠀⠀⠀⠈⠻⣦⠀⠀⠀⠀⠀⠀[/]
-[#F29C38]⠀⠀⠀⠀⠀⣼⠏⠀⠀⠀✦⠀⠀⠀⠀⠹⣧⠀⠀⠀⠀⠀[/]
-[#E2832B]⠀⠀⠀⠀⢰⡟⠀⠀⣀⣤⣤⣤⣀⠀⠀⠀⢻⡆⠀⠀⠀⠀[/]
-[#E2832B]⠀⠀⣠⡾⠛⠁⣠⣾⠟⠉⠀⠉⠻⣷⣄⠀⠈⠛⢷⣄⠀⠀[/]
-[#C75B1D]⠀⣼⠟⠀⢀⣾⠟⠁⠀⠀⠀⠀⠀⠈⠻⣷⡀⠀⠻⣧⠀[/]
-[#C75B1D]⢸⡟⠀⠀⣿⡟⠀⠀⠀🔥⠀⠀⠀⠀⢻⣿⠀⠀⢻⡇[/]
-[#7A3511]⠀⠻⣦⡀⠘⢿⣧⡀⠀⠀⠀⠀⠀⢀⣼⡿⠃⢀⣴⠟⠀[/]
-[#7A3511]⠀⠀⠈⠻⣦⣀⠙⢿⣷⣤⣤⣤⣾⡿⠋⣀⣴⠟⠁⠀⠀[/]
-[#C75B1D]⠀⠀⠀⠀⠈⠙⠛⠶⠤⠭⠭⠤⠶⠛⠋⠁⠀⠀⠀⠀[/]
-[#F29C38]⠀⠀⠀⠀⠀⠀⠀⠀⣰⡿⢿⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#F29C38]⠀⠀⠀⠀⠀⠀⠀⣼⡟⠀⠀⢻⣧⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[dim #7A3511]⠀⠀⠀⠀⠀⠀⠀tail flame lit⠀⠀⠀⠀⠀⠀⠀⠀[/]""",
     }}
+
+# Previous built-in identifiers remain accepted for saved config and scripts, but are deliberately
+# absent from ``list_skins()`` so new config, help, and completions use the neutral canonical names.
+_BUILTIN_SKIN_ALIASES = {
+    "ares": "crimson",
+    "poseidon": "tide",
+    "sisyphus": "granite",
+    "charizard": "ember",
+}
 
 _active_skin: Optional[SkinConfig] = None
 _active_skin_name: str = "default"
@@ -361,6 +292,15 @@ def _profile_config() -> dict:
 
 def _skins_dir() -> Path:
     return get_panergos_home() / "skins"
+
+
+def canonical_skin_name(name: str) -> str:
+    """Return a built-in's canonical name without overriding a same-named user skin."""
+    canonical = _BUILTIN_SKIN_ALIASES.get(name)
+    if canonical is None:
+        return name
+    user_file = _skins_dir() / f"{name}.yaml"
+    return name if user_file.is_file() and _load_skin_from_yaml(user_file) else canonical
 
 
 def _load_skin_from_yaml(path: Path) -> Optional[Dict[str, Any]]:
@@ -419,6 +359,7 @@ def list_skins() -> List[Dict[str, str]]:
 
 def load_skin(name: str) -> SkinConfig:
     """Load a skin by name: user skins first, then built-in, then default."""
+    name = canonical_skin_name(name)
     user_file = _skins_dir() / f"{name}.yaml"
     data = _load_skin_from_yaml(user_file) if user_file.is_file() else None
     if not data and name not in _BUILTIN_SKINS:
@@ -445,6 +386,7 @@ def get_active_skin() -> SkinConfig:
 def set_active_skin(name: str) -> SkinConfig:
     """Switch the active skin. Returns the new SkinConfig."""
     global _active_skin, _active_skin_name
+    name = canonical_skin_name(name)
     skin = load_skin(name)
     home_key = _routed_home_key()
     if home_key is not None:
@@ -487,7 +429,7 @@ def get_active_help_header(fallback: str = "(^_^)? Available Commands") -> str:
     return _active_branding("help_header", fallback)
 
 
-def get_active_goodbye(fallback: str = "Goodbye! ☤") -> str:
+def get_active_goodbye(fallback: str = "Goodbye! ◆") -> str:
     return _active_branding("goodbye", fallback)
 
 

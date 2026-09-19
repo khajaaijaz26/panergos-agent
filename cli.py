@@ -2308,7 +2308,7 @@ def _build_compact_banner() -> str:
     dim_color = _color("banner_dim", "#B9A9C8")
 
     if (getattr(_skin, "name", "default") if _skin else "default") == "default":
-        tiny_line = "◇ PANERGOS AGENT"
+        tiny_line = "◆ PANERGOS AGENT"
     else:
         tiny_line = _skin.get_branding("agent_name", "Panergos Agent") if _skin else "Panergos Agent"
     line1 = f"{tiny_line} - AI Agent Framework"
@@ -4648,7 +4648,6 @@ def CanonicalUsage(*args, **kwargs):
 _PLUGIN_COMPAT_LAZY = {
     'DEFAULT_BROWSER_CDP_URL': ('panergos_cli.browser_connect', 'DEFAULT_BROWSER_CDP_URL'),
     'PANERGOS_AGENT_LOGO': ('panergos_cli.banner', 'PANERGOS_AGENT_LOGO'),
-    'PANERGOS_CADUCEUS': ('panergos_cli.banner', 'PANERGOS_CADUCEUS'),
     'SlashCommandAutoSuggest': ('panergos_cli.commands_completion', 'SlashCommandAutoSuggest'),
     'SlashCommandCompleter': ('panergos_cli.commands_completion', 'SlashCommandCompleter'),
     'build_welcome_banner': ('panergos_cli.banner', 'build_welcome_banner'),

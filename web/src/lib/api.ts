@@ -303,6 +303,11 @@ function appendProfileParam(url: string, profile?: string): string {
   return `${url}${url.includes("?") ? "&" : "?"}profile=${encodeURIComponent(profile)}`;
 }
 
+function appendExplicitProfileParam(url: string, profile: string): string {
+  if (url.includes("profile=")) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}profile=${encodeURIComponent(profile)}`;
+}
+
 function appendQueryParam(url: string, key: string, value?: string): string {
   if (!value) return url;
   return `${url}${url.includes("?") ? "&" : "?"}${key}=${encodeURIComponent(value)}`;
@@ -529,9 +534,61 @@ export const api = {
   getSchema: () => fetchJSON<{ fields: Record<string, unknown>; category_order: string[] }>("/api/config/schema"),
   getModelInfo: (profile = getManagementProfile()) =>
     fetchJSON<ModelInfoResponse>(appendProfileParam("/api/model/info", profile)),
+  getCustomEndpoints: (profile = getManagementProfile()) =>
+    fetchJSON<CustomEndpointsResponse>(
+      appendProfileParam("/api/providers/custom-endpoints", profile),
+    ),
+  saveCustomEndpoint: (
+    endpoint: CustomEndpointUpdate,
+    profile = getManagementProfile(),
+  ) =>
+    fetchJSON<CustomEndpointsResponse>(
+      appendProfileParam("/api/providers/custom-endpoints", profile),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(endpoint),
+      },
+    ),
+  validateCustomEndpoint: (endpoint: CustomEndpointUpdate) =>
+    fetchJSON<CustomEndpointValidationResponse>(
+      "/api/providers/custom-endpoints/validate",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(endpoint),
+      },
+    ),
+  activateCustomEndpoint: (
+    id: string,
+    profile = getManagementProfile(),
+  ) =>
+    fetchJSON<{ ok: boolean; provider: string; model: string }>(
+      appendProfileParam(
+        `/api/providers/custom-endpoints/${encodeURIComponent(id)}/activate`,
+        profile,
+      ),
+      { method: "POST" },
+    ),
+  deleteCustomEndpoint: (
+    id: string,
+    profile = getManagementProfile(),
+  ) =>
+    fetchJSON<CustomEndpointsResponse>(
+      appendProfileParam(
+        `/api/providers/custom-endpoints/${encodeURIComponent(id)}`,
+        profile,
+      ),
+      { method: "DELETE" },
+    ),
   getModelOptions: (
     profileOrOptions?: string | { profile?: string; refresh?: boolean },
   ) => {
+    const hasExplicitProfile =
+      typeof profileOrOptions === "string" ||
+      (typeof profileOrOptions === "object" &&
+        profileOrOptions !== null &&
+        Object.prototype.hasOwnProperty.call(profileOrOptions, "profile"));
     const profile =
       typeof profileOrOptions === "string"
         ? profileOrOptions
@@ -539,7 +596,7 @@ export const api = {
     const refresh =
       typeof profileOrOptions === "object" && !!profileOrOptions.refresh;
     const qs = new URLSearchParams();
-    if (profile) qs.set("profile", profile);
+    if (hasExplicitProfile) qs.set("profile", profile ?? "");
     if (refresh) qs.set("refresh", "1");
     // Dashboard surfaces (Models page, profile builder, cron) are
     // management/setup UIs: keep the full provider universe with setup
@@ -562,10 +619,12 @@ export const api = {
     }),
   setModelAssignment: (
     body: ModelAssignmentRequest,
-    profile = getManagementProfile(),
+    profile?: string,
   ) =>
     fetchJSON<ModelAssignmentResponse>(
-      appendProfileParam("/api/model/set", profile),
+      profile === undefined
+        ? "/api/model/set"
+        : appendExplicitProfileParam("/api/model/set", profile),
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -588,13 +647,34 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ yaml_text }),
     }),
-  getEnvVars: () => fetchJSON<Record<string, EnvVarInfo>>("/api/env"),
-  setEnvVar: (key: string, value: string) =>
-    fetchJSON<{ ok: boolean }>("/api/env", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key, value }),
-    }),
+  getEnvVars: (profile?: string) =>
+    fetchJSON<Record<string, EnvVarInfo>>(
+      profile === undefined
+        ? "/api/env"
+        : appendExplicitProfileParam("/api/env", profile),
+    ),
+  setEnvVar: (key: string, value: string, profile?: string) =>
+    fetchJSON<{ ok: boolean }>(
+      profile === undefined
+        ? "/api/env"
+        : appendExplicitProfileParam("/api/env", profile),
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, value }),
+      },
+    ),
+  validateProviderCredential: (key: string, value: string, profile?: string) =>
+    fetchJSON<ProviderCredentialValidationResponse>(
+      profile === undefined
+        ? "/api/providers/validate"
+        : appendExplicitProfileParam("/api/providers/validate", profile),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, value }),
+      },
+    ),
   deleteEnvVar: (key: string) =>
     fetchJSON<{ ok: boolean }>("/api/env", {
       method: "DELETE",
@@ -1993,6 +2073,16 @@ export interface EnvVarInfo {
   channel_managed?: boolean;
   /** True when this key is set in .env but not in any catalog (user-added custom key). */
   custom?: boolean;
+  /** Canonical inference-provider identity supplied by the backend catalog. */
+  provider?: string;
+  provider_label?: string;
+}
+
+export interface ProviderCredentialValidationResponse {
+  message: string;
+  models?: string[];
+  ok: boolean;
+  reachable: boolean;
 }
 
 export interface TelegramOnboardingStartResponse {
@@ -2420,6 +2510,46 @@ export interface ModelInfoResponse {
     max_output_tokens?: number;
     model_family?: string;
   };
+}
+
+export interface CustomEndpoint {
+  base_url: string;
+  context_length?: number | null;
+  discover_models: boolean;
+  has_api_key: boolean;
+  id: string;
+  is_current?: boolean;
+  model: string;
+  models: string[];
+  name: string;
+  source?: string;
+}
+
+export interface CustomEndpointsResponse {
+  current: { base_url: string; model: string; provider: string };
+  endpoints: CustomEndpoint[];
+  id?: string;
+  ok?: boolean;
+}
+
+export interface CustomEndpointUpdate {
+  api_key?: string;
+  base_url: string;
+  context_length?: number;
+  create_only?: boolean;
+  discover_models?: boolean;
+  id?: string;
+  make_default?: boolean;
+  model: string;
+  models?: string[];
+  name: string;
+}
+
+export interface CustomEndpointValidationResponse {
+  message: string;
+  models: string[];
+  ok: boolean;
+  reachable: boolean;
 }
 
 // ── Model options / assignment types ──────────────────────────────────

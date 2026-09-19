@@ -72,9 +72,20 @@ PANERGOS_AGENT_LOGO = """[bold #FF6B5E]██████╗  █████╗
 [bold #F7C453]██║     ██║  ██║██║ ╚████║███████╗██║  ██║╚██████╔╝╚██████╔╝███████║[/]
 [bold #F7C453]╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚══════╝[/]"""
 
-PANERGOS_MARK = """[bold #FF6B5E]       ●────◇────●[/]
-[bold #2EE6A6]   ●── PANERGOS ──●[/]
-[bold #F7C453]       ●────◇────●[/]"""
+PANERGOS_MARK = """[bold #FF6B5E]⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣶⣿⣿⣿⣿⣿⣿⣿⣿⣶⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[bold #FF6B5E]⠀⠀⠀⠀⠀⠀⠀⣠⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[bold #FF6B5E]⠀⠀⠀⠀⠀⠠⠚⠉⠉⠉⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[bold #2EE6A6]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[bold #2EE6A6]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣿⣿⣿⣿⡿⠋⠀⠀⠀⠀⠀⡄⠀⠀⠀[/]
+[bold #2EE6A6]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠀⠀⠈⠻⡿⠋⠀⠀⠀⠀⠀⣠⣾⡇⠀⠀⠀[/]
+[bold #2EE6A6]⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣾⣿⣿⡇⠀⠀⠀[/]
+[bold #2EE6A6]⠀⠀⠀⠀⠀⠀⠀⠀⢠⣿⣿⣿⠀⠀⠀⣷⣤⣀⣀⣠⣴⣾⣿⣿⣿⣿⡇⠀⠀⠀[/]
+[bold #2EE6A6]⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣄⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠏⠀⠀⠀⠀[/]
+[bold #2EE6A6]⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣷⣄⣿⣿⣿⣿⣿⣿⣿⣿⠟⠁⠀⠀⠀⠀⠀[/]
+[bold #2EE6A6]⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⠉⠙⠛⠛⠛⠛⠉⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[bold #2EE6A6]⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[bold #F7C453]⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⡿⠟⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[bold #F7C453]⠀⠀⠀⠀⠀⠀⠀⠀⢸⠿⠛⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]"""
 
 # === Skills scanning ===
 
@@ -923,7 +934,7 @@ def build_welcome_banner(
     session_id: str = None, get_toolset_for_tool=None, context_length: int = None, provider: str = None,
     availability: Dict[str, Any] = None, skills_by_category: Dict[str, List[str]] = None,
 ):
-    """Build and print a welcome banner with caduceus on left and info on right.
+    """Build and print a welcome banner with the Panergos mark on the left.
 
     When ``provider == "moa"``, ``model`` is a MoA preset name and the aggregator is rendered.
     Passing a precomputed ``availability`` together with ``get_toolset_for_tool`` avoids any
@@ -942,7 +953,7 @@ def build_welcome_banner(
     accent = _skin_color("banner_accent", "#2EE6A6")
     dim = _skin_color("banner_dim", "#B9A9C8")
     text = _skin_color("banner_text", "#F7F2FF")
-    # Use skin's custom caduceus art if provided
+    # Use the skin's custom hero art when provided.
     _bskin = _quiet(_active_skin)
     left_lines = ["", getattr(_bskin, "banner_hero", None) or PANERGOS_MARK, ""]
     left_lines += _banner_left_lines(model, cwd, session_id, context_length, provider, accent=accent, dim=dim)

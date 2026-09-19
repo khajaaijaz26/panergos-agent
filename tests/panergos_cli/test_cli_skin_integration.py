@@ -31,18 +31,18 @@ def _make_cli_stub():
 
 class TestCliSkinPromptIntegration:
 
-    def test_ares_prompt_fragments_use_skin_symbol(self):
+    def test_crimson_prompt_fragments_keep_panergos_symbol(self):
         cli = _make_cli_stub()
 
-        set_active_skin("ares")
-        assert cli._get_tui_prompt_fragments() == [("class:prompt", "⚔ ")]
+        set_active_skin("crimson")
+        assert cli._get_tui_prompt_fragments() == [("class:prompt", "❯ ")]
 
     def test_secret_prompt_fragments_preserve_secret_state(self):
         cli = _make_cli_stub()
         cli._secret_state = {"response_queue": object()}
 
-        set_active_skin("ares")
-        assert cli._get_tui_prompt_fragments() == [("class:sudo-prompt", "🔑 ⚔ ")]
+        set_active_skin("crimson")
+        assert cli._get_tui_prompt_fragments() == [("class:sudo-prompt", "🔑 ❯ ")]
 
 
     def test_narrow_terminals_compact_voice_recording_prompt_fragments(self):
@@ -62,7 +62,7 @@ class TestCliSkinPromptIntegration:
     def test_build_tui_style_dict_uses_skin_overrides(self):
         cli = _make_cli_stub()
 
-        set_active_skin("ares")
+        set_active_skin("crimson")
         skin = get_active_skin()
         style_dict = cli._build_tui_style_dict()
 
@@ -77,7 +77,7 @@ class TestCliSkinPromptIntegration:
     def test_apply_tui_skin_style_updates_running_app(self):
         cli = _make_cli_stub()
 
-        set_active_skin("ares")
+        set_active_skin("crimson")
         assert cli._apply_tui_skin_style() is True
         assert cli._app.style is not None
         cli._invalidate.assert_called_once_with(min_interval=0.0)
@@ -85,13 +85,14 @@ class TestCliSkinPromptIntegration:
     def test_handle_skin_command_refreshes_live_tui(self, capsys):
         cli = _make_cli_stub()
 
-        with patch("cli.save_config_value", return_value=True):
+        with patch("cli.save_config_value", return_value=True) as save:
             cli._handle_skin_command("/skin ares")
 
         output = capsys.readouterr().out
-        assert "Skin set to: ares (saved)" in output
+        assert "Skin set to: crimson (saved)" in output
         assert "Prompt + TUI colors updated." in output
         assert cli._app.style is not None
+        save.assert_called_once_with("display.skin", "crimson")
 
 
 class TestCompactBannerSkinIntegration:
@@ -108,8 +109,8 @@ class TestCompactBannerSkinIntegration:
 
 
 
-    def test_poseidon_compact_banner_uses_skin_colors(self):
-        set_active_skin("poseidon")
+    def test_tide_compact_banner_uses_skin_colors(self):
+        set_active_skin("tide")
         skin = get_active_skin()
 
         with patch("cli.shutil.get_terminal_size", return_value=SimpleNamespace(columns=90)), \

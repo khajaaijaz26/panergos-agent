@@ -10,15 +10,16 @@ on:
 
 permissions:
   contents: read
-  actions: write # to trigger deploy-site.yml after a manual build
+  actions: write # to trigger deploy-site.yml after a successful build
 
 jobs:
   build-index:
     # Only run for the canonical Panergos repository, not arbitrary forks.
     if: github.repository == 'khajaaijaz26/panergos-agent'
     runs-on: ubuntu-latest
-    # External catalog sources can take tens of minutes to crawl and enrich.
-    timeout-minutes: 50
+    # A first run has no published snapshot to preserve and may need the full
+    # serial ClawHub bootstrap. Later runs merge a bounded refresh in ~12 min.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -30,6 +31,20 @@ jobs:
         uses: ./.github/actions/retry
         with:
           command: pip install httpx==0.28.1 pyyaml==6.0.2
+
+      - name: Seed the last published index
+        run: |
+          set -euo pipefail
+          index="website/static/api/skills-index.json"
+          mkdir -p "$(dirname "$index")"
+          if curl -fsSL --retry 3 --retry-delay 5 \
+            "https://khajaaijaz26.github.io/panergos-agent/docs/api/skills-index.json" \
+            -o "$index.download"; then
+            mv "$index.download" "$index"
+          else
+            rm -f "$index.download"
+            echo "::notice::No published snapshot found; running the one-time full bootstrap"
+          fi
 
       - name: Build skills index
         env:
@@ -45,10 +60,9 @@ jobs:
 
   # Re-trigger the docs deploy so the refreshed index lands on the live site.
   # The deploy itself is owned by deploy-site.yml (which crawls and deploys
-  # everything in one pipeline); a manual index build can kick it once.
+  # everything in one pipeline); each successful index build kicks it once.
   trigger-deploy:
     needs: build-index
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

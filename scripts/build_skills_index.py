@@ -42,8 +42,12 @@ import httpx
 
 OUTPUT_PATH = os.path.join(REPO_ROOT, "website", "static", "api", "skills-index.json")
 INDEX_VERSION = 1
-CLAWHUB_INDEX_LIMIT = 25_000
-CLAWHUB_CRAWL_BUDGET_SECONDS = 600
+CLAWHUB_INDEX_LIMIT = 10_000
+CLAWHUB_BOUNDED_FLOOR = 9_500
+CLAWHUB_CRAWL_BUDGET_SECONDS = 720
+CLAWHUB_BOOTSTRAP_BUDGET_SECONDS = 5_400
+CLAWHUB_FULL_FLOOR = 20_000
+CLAWHUB_COMPLETE_MIN_RATIO = 0.9
 _LEGACY_PRODUCT = "her" + "mes"
 _LEGACY_VENDOR = "no" + "us"
 _LEGACY_IDENTITY = re.compile(
@@ -55,6 +59,31 @@ _LEGACY_IDENTITY = re.compile(
 
 def _contains_legacy_identity(skill: dict) -> bool:
     return bool(_LEGACY_IDENTITY.search(json.dumps(skill, ensure_ascii=False)))
+
+
+def _load_previous_clawhub() -> list[dict]:
+    """Return a valid prior ClawHub snapshot, if OUTPUT_PATH has one."""
+    try:
+        with open(OUTPUT_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+        skills = data.get("skills")
+        coverage = ((data.get("source_status") or {}).get("clawhub") or {}).get(
+            "coverage"
+        )
+    except (AttributeError, json.JSONDecodeError, OSError):
+        return []
+    if not isinstance(skills, list) or coverage in {"bounded_snapshot", "degraded"}:
+        return []
+    previous = {
+        skill["identifier"]: skill
+        for skill in skills
+        if isinstance(skill, dict)
+        and skill.get("source") == "clawhub"
+        and isinstance(skill.get("identifier"), str)
+        and skill["identifier"]
+        and not _contains_legacy_identity(skill)
+    }
+    return list(previous.values())
 
 
 def _meta_to_dict(meta: SkillMeta) -> dict:
@@ -258,12 +287,20 @@ def main():
         print("WARNING: No GitHub authentication — rate limit is 60/hr. "
               "Set GITHUB_TOKEN for better results.", file=sys.stderr)
 
+    previous_clawhub = _load_previous_clawhub()
+    preserve_clawhub = len(previous_clawhub) >= CLAWHUB_FULL_FLOOR
+    clawhub_limit = CLAWHUB_INDEX_LIMIT if preserve_clawhub else 0
+
     skills_sh_source = SkillsShSource(auth=auth)
     clawhub_source = ClawHubSource()
-    # The public catalog currently needs about 100 sequential pages to reach
-    # our healthy 20k snapshot. Keep that crawl finite without applying the
-    # 12-second interactive browse budget.
-    clawhub_source.CATALOG_WALK_BUDGET_SECONDS = CLAWHUB_CRAWL_BUDGET_SECONDS
+    # Refresh a bounded prefix when a full prior snapshot is available, then
+    # merge it below. A new installation performs one complete bootstrap walk;
+    # publishing a standalone 10k prefix would silently erase most entries.
+    clawhub_source.CATALOG_WALK_BUDGET_SECONDS = (
+        CLAWHUB_CRAWL_BUDGET_SECONDS
+        if preserve_clawhub
+        else CLAWHUB_BOOTSTRAP_BUDGET_SECONDS
+    )
     sources = {
         "official": OptionalSkillSource(),
         "well-known": WellKnownSkillSource(),
@@ -279,12 +316,10 @@ def main():
     all_skills.extend(crawl_skills_sh(skills_sh_source))
 
     # Crawl other sources in parallel. Per-source soft caps are ceilings, not
-    # targets. ClawHub is intentionally a bounded snapshot; its completeness
-    # and stop reason are recorded in source_status below.
+    # targets. ClawHub is capped only when a complete prior snapshot can retain
+    # entries beyond the refreshed prefix.
     SOURCE_LIMITS = {
-        # A deliberately bounded snapshot: source_status in the output records
-        # that this is not the complete ClawHub catalog.
-        "clawhub": CLAWHUB_INDEX_LIMIT,
+        "clawhub": clawhub_limit,
         "lobehub": 100_000,
         "browse-sh": 5_000,
         "github": 5_000,
@@ -303,10 +338,21 @@ def main():
                 all_skills.extend(future.result())
             except Exception as e:
                 print(f"  Error: {e}", file=sys.stderr)
+    fresh_clawhub_count = sum(
+        skill.get("source") == "clawhub" for skill in all_skills
+    )
+    preserve_snapshot = (
+        preserve_clawhub
+        and clawhub_source.catalog_walk_stop_reason == "item_limit"
+    )
+    if preserve_snapshot:
+        all_skills.extend(previous_clawhub)
+
     print(
         "  ClawHub coverage: "
         f"complete={bool(clawhub_source.catalog_walk_complete)}, "
-        f"stop_reason={clawhub_source.catalog_walk_stop_reason or 'complete_or_cached'}",
+        f"stop_reason={clawhub_source.catalog_walk_stop_reason or 'complete_or_cached'}, "
+        f"previous={len(previous_clawhub)}, fresh={fresh_clawhub_count}",
         flush=True,
     )
 
@@ -370,16 +416,41 @@ def main():
         # popular-queries era.
         "skills.sh": 10000,
         "lobehub": 100,
-        # ClawHub had 49,698+ skills as of May 2026 — anything under 20k means
-        # pagination broke or the API surface changed.  Fail loudly rather
-        # than ship a degenerate index (we shipped 200/50000 silently for
-        # weeks because the floor was 50).
-        "clawhub": 20000,
+        # A cap-terminated refresh is merged with the prior full snapshot.
+        # Without one, only a completed full crawl is publishable.
+        "clawhub": (
+            max(
+                CLAWHUB_FULL_FLOOR,
+                int(len(previous_clawhub) * CLAWHUB_COMPLETE_MIN_RATIO),
+            )
+            if preserve_snapshot
+            else CLAWHUB_FULL_FLOOR
+        ),
         "official": 50,
         "github": 30,        # collapsed across all GitHub taps
         "browse-sh": 50,
     }
     health_errors = []
+    if preserve_snapshot and fresh_clawhub_count < CLAWHUB_BOUNDED_FLOOR:
+        health_errors.append(
+            f"  clawhub refresh: {fresh_clawhub_count} < expected floor "
+            f"{CLAWHUB_BOUNDED_FLOOR}"
+        )
+    if not preserve_snapshot and not clawhub_source.catalog_walk_complete:
+        health_errors.append(
+            "  clawhub: no complete prior snapshot and bootstrap crawl did not finish"
+        )
+    if (
+        preserve_clawhub
+        and not preserve_snapshot
+        and by_source.get("clawhub", 0)
+        < len(previous_clawhub) * CLAWHUB_COMPLETE_MIN_RATIO
+    ):
+        health_errors.append(
+            f"  clawhub: complete crawl returned {by_source.get('clawhub', 0)}, "
+            f"more than {1 - CLAWHUB_COMPLETE_MIN_RATIO:.0%} below prior "
+            f"snapshot {len(previous_clawhub)}"
+        )
     for src, floor in EXPECTED_FLOORS.items():
         # 'skills-sh' and 'skills.sh' are the same source; both labels exist.
         count = by_source.get(src, 0)
@@ -437,12 +508,16 @@ def main():
                 "catalog_complete": bool(clawhub_source.catalog_walk_complete),
                 "coverage": (
                     "complete" if clawhub_source.catalog_walk_complete
-                    else "bounded_snapshot" if clawhub_source.catalog_walk_stop_reason == "item_limit"
+                    else "merged_snapshot" if preserve_snapshot
                     else "degraded"
                 ),
                 "stop_reason": clawhub_source.catalog_walk_stop_reason,
-                "item_limit": CLAWHUB_INDEX_LIMIT,
-                "returned": by_source.get("clawhub", 0),
+                "item_limit": clawhub_limit or None,
+                "returned": fresh_clawhub_count,
+                "published": by_source.get("clawhub", 0),
+                "retained_from_previous": max(
+                    by_source.get("clawhub", 0) - fresh_clawhub_count, 0
+                ),
                 "owner_enrichment": "omitted",
             },
             "skills.sh": {"github_path_resolution": "deferred"},

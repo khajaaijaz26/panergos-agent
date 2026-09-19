@@ -330,7 +330,7 @@ class CLIAgentSetupMixin:
         source of truth. True when a provider was configured."""
         from cli import _cprint, logger
         _cprint("")
-        _cprint("☤ No inference provider is configured yet — let's fix that.")
+        _cprint("◆ No inference provider is configured yet — let's fix that.")
         _cprint("  You'll pick a provider and model.")
         try:
             answer = input("  Set up a provider now? [Y/n]: ").strip().lower()
@@ -681,8 +681,8 @@ class CLIAgentSetupMixin:
         # role -> (label, label style, body style, continuation indent)
         role_styles = {
             "user": ("  ● You: ", f"dim bold {_session_label_c}", "dim", " " * 9),
-            "assistant": ("  ◇ Panergos: ", f"dim bold {_assistant_label_c}", "dim", " " * 14),
-            "assistant_last": ("  ◇ Panergos: ", f"bold {_assistant_label_c}", "", " " * 14),  # full, non-dim
+            "assistant": ("  ◆ Panergos: ", f"dim bold {_assistant_label_c}", "dim", " " * 14),
+            "assistant_last": ("  ◆ Panergos: ", f"bold {_assistant_label_c}", "", " " * 14),  # full, non-dim
         }
         lines = Text()
         if skipped:

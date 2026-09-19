@@ -399,7 +399,7 @@ gateway:
     not_git_repo:            "✗ Not a git repository — cannot update."
     panergos_cmd_not_found:    "✗ Could not locate the `panergos` command. Panergos is running, but the update command could not find the executable on PATH or via the current Python interpreter. Try running `panergos update` manually in your terminal."
     start_failed:            "✗ Failed to start update: {error}"
-    starting:                "☤ Starting Panergos update… I'll stream progress here."
+    starting:                "◆ Starting Panergos update… I'll stream progress here."
 
   usage:
     rate_limits:              "⏱️ **Rate Limits:** {state}"

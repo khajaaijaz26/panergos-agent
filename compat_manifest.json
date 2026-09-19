@@ -1438,12 +1438,6 @@
     },
     {
       "facade": "cli",
-      "name": "PANERGOS_CADUCEUS",
-      "kind": "moved-lazy",
-      "target": "panergos_cli.banner"
-    },
-    {
-      "facade": "cli",
       "name": "HSplit",
       "kind": "import",
       "target": "prompt_toolkit.layout"

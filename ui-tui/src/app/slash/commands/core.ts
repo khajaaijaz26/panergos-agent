@@ -195,7 +195,7 @@ export const coreCommands: SlashCommand[] = [
       const requestedTitle = isNew ? arg.trim() : ''
 
       const commit = () => {
-        patchUiState({ status: 'forging session…' })
+        patchUiState({ status: 'starting session…' })
         ctx.session.newSession(isNew ? 'new session started' : undefined, requestedTitle || undefined)
       }
 

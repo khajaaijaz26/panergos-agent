@@ -1809,15 +1809,15 @@ display:
   # response box label, and branding text. Change at runtime with /skin <name>.
   #
   # Built-in skins:
-  #   default        — Classic Panergos gold/kawaii
-  #   ares           — Crimson/bronze war-god theme with spinner wings
+  #   default        — Panergos Eclipse in plum, coral, jade, and gold
+  #   crimson        — Crimson/bronze theme with geometric spinner wings
   #   mono           — Clean grayscale monochrome
   #   slate          — Cool blue developer-focused
   #   daylight       — Bright light-mode theme
   #   warm-lightmode — Warm paper-tone light-mode theme
-  #   poseidon       — Sea-green/teal Olympian theme
-  #   sisyphus       — Earthy stone-and-moss theme
-  #   charizard      — Fiery orange dragon theme
+  #   tide           — Deep blue and seafoam theme
+  #   granite        — High-contrast grayscale theme
+  #   ember          — Burnt orange and ember theme
   #
   # Custom skins: drop a YAML file in ~/.panergos/skins/<name>.yaml
   # Schema (all fields optional, missing values inherit from default):
@@ -1833,17 +1833,17 @@ display:
   #     ui_accent: "#HEX"        # UI accent color
   #     response_border: "#HEX"  # Response box border color
   #   spinner:
-  #     waiting_faces: ["(⚔)", "(⛨)"]       # Faces shown while waiting
-  #     thinking_faces: ["(⚔)", "(⌁)"]      # Faces shown while thinking
-  #     thinking_verbs: ["forging", "plotting"]  # Verbs for spinner messages
+  #     waiting_faces: ["(◆)", "(■)"]       # Faces shown while waiting
+  #     thinking_faces: ["(◆)", "(⌁)"]      # Faces shown while thinking
+  #     thinking_verbs: ["refining", "plotting"]  # Verbs for spinner messages
   #     wings:                                # Optional left/right spinner decorations
-  #       - ["⟪⚔", "⚔⟫"]
+  #       - ["⟪◆", "◆⟫"]
   #       - ["⟪▲", "▲⟫"]
   #   branding:
   #     agent_name: "My Agent"               # Banner title and branding
   #     welcome: "Welcome message"           # Shown at CLI startup
-  #     response_label: " ⚔ Agent "         # Response box header label
-  #     prompt_symbol: "⚔"                  # Prompt symbol (bare token; renderers add trailing space)
+  #     response_label: " ◆ Agent "         # Response box header label
+  #     prompt_symbol: "◆"                  # Prompt symbol (bare token; renderers add trailing space)
   #   tool_prefix: "╎"                       # Tool output line prefix (default: ┊)
   #
   skin: default

@@ -293,7 +293,8 @@ function EnvVarRow({
         <div className="flex items-center gap-2">
           <Input
             autoFocus
-            type="text"
+            type={info.is_password ? "password" : "text"}
+            autoComplete={info.is_password ? "new-password" : "off"}
             value={edits[varKey]}
             onChange={(e) =>
               setEdits((prev) => ({ ...prev, [varKey]: e.target.value }))
@@ -812,7 +813,7 @@ export default function EnvPage() {
     // Group by provider
     const groupMap = new Map<string, [string, EnvVarInfo][]>();
     for (const entry of providerEntries) {
-      const groupName = getProviderGroup(entry[0]);
+      const groupName = entry[1].provider_label || getProviderGroup(entry[0]);
       if (!groupMap.has(groupName)) groupMap.set(groupName, []);
       groupMap.get(groupName)!.push(entry);
     }

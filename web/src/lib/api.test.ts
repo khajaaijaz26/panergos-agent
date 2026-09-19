@@ -119,6 +119,98 @@ describe("api.getModelOptions", () => {
   });
 });
 
+describe("api.validateProviderCredential", () => {
+  it("sends the credential only in the validation request body", async () => {
+    vi.stubGlobal("window", {});
+    const fetchMock = jsonFetchMock({
+      message: "",
+      ok: true,
+      reachable: true,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.validateProviderCredential("OPENAI_API_KEY", "sk-test-secret");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/providers/validate",
+      expect.objectContaining({
+        body: JSON.stringify({
+          key: "OPENAI_API_KEY",
+          value: "sk-test-secret",
+        }),
+        method: "POST",
+      }),
+    );
+  });
+
+  it("keeps an explicitly captured default profile pinned across mutations", async () => {
+    vi.stubGlobal("window", {});
+    const fetchMock = jsonFetchMock({ ok: true, providers: [] });
+    vi.stubGlobal("fetch", fetchMock);
+    setManagementProfile("switched-profile");
+
+    await api.validateProviderCredential("OPENAI_API_KEY", "secret", "");
+    await api.setEnvVar("OPENAI_API_KEY", "secret", "");
+    await api.getModelOptions({ profile: "", refresh: true });
+    await api.setModelAssignment(
+      { model: "gpt-test", provider: "openai-api", scope: "main", task: "main" },
+      "",
+    );
+
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "/api/providers/validate?profile=",
+      "/api/env?profile=",
+      "/api/model/options?profile=&refresh=1&include_unconfigured=1",
+      "/api/model/set?profile=",
+    ]);
+  });
+});
+
+describe("api custom endpoint helpers", () => {
+  it("keeps persisted endpoint operations profile-scoped", async () => {
+    vi.stubGlobal("window", {});
+    const fetchMock = jsonFetchMock({
+      current: { base_url: "", model: "", provider: "" },
+      endpoints: [],
+      ok: true,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    setManagementProfile("worker");
+
+    const endpoint = {
+      api_key: "test-secret",
+      base_url: "https://models.example.test/v1",
+      model: "test-model",
+      name: "Example",
+    };
+    await api.getCustomEndpoints();
+    await api.validateCustomEndpoint(endpoint);
+    await api.saveCustomEndpoint(endpoint);
+    await api.activateCustomEndpoint("example/id");
+    await api.deleteCustomEndpoint("example/id");
+
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "/api/providers/custom-endpoints?profile=worker",
+      "/api/providers/custom-endpoints/validate",
+      "/api/providers/custom-endpoints?profile=worker",
+      "/api/providers/custom-endpoints/example%2Fid/activate?profile=worker",
+      "/api/providers/custom-endpoints/example%2Fid?profile=worker",
+    ]);
+    expect(fetchMock.mock.calls[1][1]).toEqual(
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(fetchMock.mock.calls[2][1]).toEqual(
+      expect.objectContaining({
+        body: JSON.stringify(endpoint),
+        method: "POST",
+      }),
+    );
+    expect(fetchMock.mock.calls[4][1]).toEqual(
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+});
+
 describe("api OAuth helpers", () => {
   it("starts OAuth login in gated mode without requiring an injected session token", async () => {
     vi.stubGlobal("window", { __PANERGOS_AUTH_REQUIRED__: true });

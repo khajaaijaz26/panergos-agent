@@ -14,7 +14,7 @@
 // That way local `npm run build` doesn't have to wait on
 // scripts/build_skills_index.py crawling every skill source — which takes
 // several minutes and burns GitHub API quota — but still gets the same
-// 2000+ external skills the deployed site has.
+// published snapshot as the deployed site.
 //
 // If Python 3 or its deps (pyyaml) aren't available on the local machine, we
 // fall back to writing an empty skills.json so `npm run build` still

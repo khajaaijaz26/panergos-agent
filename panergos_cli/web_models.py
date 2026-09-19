@@ -38,6 +38,7 @@ class CustomEndpointUpdate(BaseModel):
     name: str
     base_url: str
     model: str
+    create_only: bool = False
     api_key: Optional[str] = None
     context_length: Optional[int] = None
     discover_models: bool = True
@@ -519,4 +520,3 @@ class _PluginProvidersPutBody(BaseModel):
 
 class _PluginVisibilityBody(BaseModel):
     hidden: bool
-

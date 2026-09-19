@@ -219,7 +219,7 @@ print_banner() {
     echo ""
     echo -e "${MAGENTA}${BOLD}"
     echo "┌─────────────────────────────────────────────────────────┐"
-    echo "│             ◇ Panergos Agent Installer                  │"
+    echo "│             ◆ Panergos Agent Installer                  │"
     echo "├─────────────────────────────────────────────────────────┤"
     echo "│  The open agent for any work.                           │"
     echo "└─────────────────────────────────────────────────────────┘"

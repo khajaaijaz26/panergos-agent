@@ -304,7 +304,7 @@ export interface GatewayEventHandlerContext {
     newSession: (msg?: string, title?: string) => void
     // Set by useMainApp's exit handler to the session that was live when the
     // gateway died unexpectedly; consumed once by the next `gateway.ready` so a
-    // respawn resumes that session instead of forging a fresh one.
+    // respawn resumes that session instead of starting a fresh one.
     recoverSidRef?: MutableRefObject<null | string>
     resetSession: () => void
     resumeById: (id: string) => void

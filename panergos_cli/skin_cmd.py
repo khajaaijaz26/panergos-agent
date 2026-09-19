@@ -23,14 +23,18 @@ def _skins_dir() -> Path:
 
 def _active_skin() -> str:
     from panergos_cli.config import load_config
+    from panergos_cli.skin_engine import canonical_skin_name
     display = (load_config() or {}).get("display") or {}
-    return str(display.get("skin") or "default")
+    return canonical_skin_name(str(display.get("skin") or "default"))
 
 
-def _use(name: str) -> None:
+def _use(name: str) -> str:
     """Activate a skin (persists display.skin via the shared config writer)."""
     from panergos_cli.config import config_command
+    from panergos_cli.skin_engine import canonical_skin_name
+    name = canonical_skin_name(name)
     config_command(argparse.Namespace(config_command="set", key="display.skin", value=name, force=True))
+    return name
 
 
 def _skin_set(key: str, value: str, skin: str | None) -> int:
@@ -39,7 +43,8 @@ def _skin_set(key: str, value: str, skin: str | None) -> int:
         print(f"✗ {value!r} is not a #rrggbb hex color", file=sys.stderr)
         return 1
 
-    name = skin or _active_skin()
+    from panergos_cli.skin_engine import canonical_skin_name
+    name = canonical_skin_name(skin or _active_skin())
     path = _skins_dir() / f"{name}.yaml"
 
     if path.exists():
@@ -85,7 +90,7 @@ def skin_command(args) -> None:
     if verb == "set":
         sys.exit(_skin_set(args.key, args.value, getattr(args, "skin", None)))
     elif verb == "use":
-        _use(args.name)
-        print(f"✓ active skin → {args.name} (live within ~1s)")
+        name = _use(args.name)
+        print(f"✓ active skin → {name} (live within ~1s)")
     else:  # list / default
         sys.exit(_skin_list())

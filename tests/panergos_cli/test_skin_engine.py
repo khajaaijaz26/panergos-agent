@@ -32,25 +32,35 @@ class TestSkinConfig:
 
 
 class TestBuiltinSkins:
-    def test_ares_skin_loads(self):
+    def test_crimson_skin_loads(self):
         from panergos_cli.skin_engine import load_skin
-        skin = load_skin("ares")
-        assert skin.name == "ares"
+        skin = load_skin("crimson")
+        assert skin.name == "crimson"
         assert skin.tool_prefix == "╎"
         # Crimson identity: border stays red-dominant (exact values are owned
         # by the palette audit in test_skin_palettes.py, which enforces
         # contrast floors — don't pin literals here).
         border = skin.get_color("banner_border")
         r, g, b = (int(border[i:i + 2], 16) for i in (1, 3, 5))
-        assert r > g and r > b, f"ares border lost its crimson: {border}"
+        assert r > g and r > b, f"crimson border lost its red dominance: {border}"
         assert skin.get_color("response_border") == "#C7A96B"
         assert skin.get_color("session_label") == "#C7A96B"
         assert skin.get_color("session_border") == "#6E584B"
-        assert skin.get_branding("agent_name") == "Ares Agent"
+        assert skin.get_branding("agent_name") == "Panergos Agent"
 
-    def test_ares_has_spinner_customization(self):
+    def test_builtin_skins_preserve_panergos_brand(self):
+        from panergos_cli.skin_engine import _BUILTIN_SKINS, load_skin
+
+        for name in _BUILTIN_SKINS:
+            skin = load_skin(name)
+            assert skin.get_branding("agent_name") == "Panergos Agent"
+            assert skin.get_branding("prompt_symbol") == "❯"
+            assert skin.banner_logo == ""
+            assert skin.banner_hero == ""
+
+    def test_crimson_has_spinner_customization(self):
         from panergos_cli.skin_engine import load_skin
-        skin = load_skin("ares")
+        skin = load_skin("crimson")
         wings = skin.get_spinner_wings()
         assert len(wings) > 0
         assert isinstance(wings[0], tuple)
@@ -66,10 +76,10 @@ class TestBuiltinSkins:
 class TestSkinManagement:
     def test_set_active_skin(self):
         from panergos_cli.skin_engine import set_active_skin, get_active_skin, get_active_skin_name
-        skin = set_active_skin("ares")
-        assert skin.name == "ares"
-        assert get_active_skin_name() == "ares"
-        assert get_active_skin().name == "ares"
+        skin = set_active_skin("crimson")
+        assert skin.name == "crimson"
+        assert get_active_skin_name() == "crimson"
+        assert get_active_skin().name == "crimson"
 
 
     def test_list_skins_includes_builtins(self):
@@ -77,14 +87,32 @@ class TestSkinManagement:
         skins = list_skins()
         names = [s["name"] for s in skins]
         assert "default" in names
-        assert "ares" in names
+        assert "crimson" in names
         assert "mono" in names
         assert "slate" in names
         assert "daylight" in names
         assert "warm-lightmode" in names
+        assert "tide" in names
+        assert "granite" in names
+        assert "ember" in names
         for s in skins:
             assert "source" in s
             assert s["source"] == "builtin"
+
+    def test_legacy_builtin_ids_resolve_but_stay_out_of_catalog(self):
+        from panergos_cli.skin_engine import list_skins, load_skin
+
+        aliases = {
+            "ares": "crimson",
+            "poseidon": "tide",
+            "sisyphus": "granite",
+            "charizard": "ember",
+        }
+        names = {skin["name"] for skin in list_skins()}
+        for legacy, canonical in aliases.items():
+            assert load_skin(legacy).name == canonical
+            assert canonical in names
+            assert legacy not in names
 
 
 
@@ -116,6 +144,20 @@ class TestUserSkins:
         assert skin.tool_prefix == "▸"
         # Should inherit defaults for unspecified colors
         assert skin.get_color("banner_border") == "#FF6B5E"  # from default
+
+    def test_user_skin_keeps_precedence_over_a_legacy_builtin_alias(self, tmp_path, monkeypatch):
+        from panergos_cli.skin_engine import load_skin
+
+        skins_dir = tmp_path / "skins"
+        skins_dir.mkdir()
+        (skins_dir / "ares.yaml").write_text(
+            'name: ares\ncolors:\n  banner_title: "#123456"\n', encoding="utf-8"
+        )
+        monkeypatch.setattr("panergos_cli.skin_engine._skins_dir", lambda: skins_dir)
+
+        skin = load_skin("ares")
+        assert skin.name == "ares"
+        assert skin.get_color("banner_title") == "#123456"
 
     def test_load_user_skin_invalid_section_types_fall_back_to_defaults(self, tmp_path, monkeypatch):
         from panergos_cli.skin_engine import load_skin
@@ -172,7 +214,7 @@ class TestDisplayIntegration:
     def test_tool_message_uses_skin_prefix(self):
         from panergos_cli.skin_engine import set_active_skin
         from agent.display import get_cute_tool_message
-        set_active_skin("ares")
+        set_active_skin("crimson")
         msg = get_cute_tool_message("terminal", {"command": "ls"}, 0.5)
         assert msg.startswith("╎")
         assert "┊" not in msg
@@ -181,15 +223,15 @@ class TestDisplayIntegration:
 class TestCliBrandingHelpers:
 
 
-    def test_active_goodbye_ares(self):
+    def test_active_goodbye_keeps_panergos_brand(self):
         from panergos_cli.skin_engine import set_active_skin, get_active_goodbye
 
-        set_active_skin("ares")
-        assert get_active_goodbye() == "Farewell, warrior! ⚔"
+        set_active_skin("crimson")
+        assert get_active_goodbye() == "Goodbye! ◆"
 
     def test_prompt_toolkit_style_overrides_cover_tui_classes(self):
         from panergos_cli.skin_engine import set_active_skin, get_prompt_toolkit_style_overrides
-        set_active_skin("ares")
+        set_active_skin("crimson")
         overrides = get_prompt_toolkit_style_overrides()
         required = {
             "input-area",
@@ -247,7 +289,7 @@ class TestCliBrandingHelpers:
             get_prompt_toolkit_style_overrides,
         )
 
-        set_active_skin("ares")
+        set_active_skin("crimson")
         skin = get_active_skin()
         overrides = get_prompt_toolkit_style_overrides()
         assert overrides["prompt"] == skin.get_color("prompt")

@@ -33,8 +33,9 @@ name: Install & Update E2E
 # after it ships, and would pin an "oldest" that nobody still runs.
 #
 # Triggers:
-#   * when a release tag is created -- the moment the set of versions users can
-#     update FROM changes, and the moment a broken updater would strand them;
+#   * when a release is published (including a tag created by `gh release
+#     create`) -- the moment the set of versions users can update FROM changes;
+#   * when a release tag is pushed directly;
 #   * manually, where you can pick the route and how many releases to sample.
 #
 # Deliberately NOT on pull_request: a leg takes ~11 minutes of real toolchain
@@ -42,6 +43,8 @@ name: Install & Update E2E
 # so it is gated on release tags and explicit manual runs.
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       route:

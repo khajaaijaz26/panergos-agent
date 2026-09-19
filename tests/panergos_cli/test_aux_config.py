@@ -6,15 +6,21 @@ Covers the helper functions:
   - ``_format_aux_current`` renders current task config for the menu
   - ``_AUX_TASKS`` stays in sync with ``DEFAULT_CONFIG["auxiliary"]``
 
-These are pure-function tests — the interactive menu loops are not covered
-here (they're stdin-driven curses prompts).
+These are focused helper tests; the interactive menu loops are not covered here
+(they're stdin-driven curses prompts).
 """
 
 from __future__ import annotations
 
 import pytest
 
-from panergos_cli.config import DEFAULT_CONFIG, load_config
+from panergos_cli.config import (
+    DEFAULT_CONFIG,
+    custom_endpoint_key_env,
+    get_env_value,
+    load_config,
+    read_user_config_raw,
+)
 from panergos_cli.main_provider_setup import _AUX_TASKS, _DELEGATION_TASK_KEY, _delegation_cfg_as_task, _format_aux_current, _reset_aux_to_auto, _save_aux_choice
 
 
@@ -67,6 +73,33 @@ def test_save_aux_choice_persists_to_config_yaml(tmp_path, monkeypatch):
     assert v["model"] == "google/gemini-2.5-flash"
     assert v["base_url"] == ""
     assert v["api_key"] == ""
+
+
+@pytest.mark.parametrize("task", ["vision", _DELEGATION_TASK_KEY])
+def test_save_custom_aux_choice_keeps_api_key_out_of_config(task, tmp_path, monkeypatch):
+    _isolate_home(tmp_path, monkeypatch)
+    key_env = custom_endpoint_key_env(f"aux-{task}")
+    monkeypatch.delenv(key_env, raising=False)
+
+    _save_aux_choice(
+        task,
+        provider="custom",
+        model="private-model",
+        base_url="https://models.example.test/v1",
+        api_key="super-secret-value",
+    )
+
+    raw = read_user_config_raw()
+    raw_entry = raw["delegation"] if task == _DELEGATION_TASK_KEY else raw["auxiliary"][task]
+    effective = load_config()
+    effective_entry = (
+        effective["delegation"]
+        if task == _DELEGATION_TASK_KEY
+        else effective["auxiliary"][task]
+    )
+    assert raw_entry["api_key"] == f"${{{key_env}}}"
+    assert get_env_value(key_env) == "super-secret-value"
+    assert effective_entry["api_key"] == "super-secret-value"
 
 
 

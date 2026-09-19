@@ -17,7 +17,7 @@ Conversational style and visual style are separate concepts:
 
 ```bash
 /skin                # show the current skin and list available skins
-/skin ares           # switch to a built-in skin
+/skin crimson        # switch to a built-in skin
 /skin mytheme        # switch to a custom skin from ~/.panergos/skins/mytheme.yaml
 ```
 
@@ -30,17 +30,19 @@ display:
 
 ## Built-in skins
 
+Every built-in skin keeps the `Panergos Agent` name and the shared Panergos wordmark and Knot. A skin can change the palette and spinner character, but not the product identity.
+
 | Skin | Description | Agent branding | Visual character |
 |------|-------------|----------------|------------------|
-| `default` | Classic Panergos — gold and kawaii | `Panergos Agent` | Warm gold borders, cornsilk text, kawaii faces in spinners. The familiar caduceus banner. Clean and inviting. |
-| `ares` | War-god theme — crimson and bronze | `Ares Agent` | Deep crimson borders with bronze accents. Aggressive spinner verbs ("forging", "marching", "tempering steel"). Custom sword-and-shield ASCII art banner. |
+| `default` | Panergos Eclipse — plum, coral, jade, and gold | `Panergos Agent` | Deep plum surfaces, coral accents, jade actions and success states, gold highlights, and the shared Panergos Knot. |
+| `crimson` | Crimson and bronze | `Panergos Agent` | Deep crimson borders, bronze accents, geometric spinner wings, and focused progress messages. |
 | `mono` | Monochrome — clean grayscale | `Panergos Agent` | All grays — no color. Borders are `#555555`, text is `#c9d1d9`. Ideal for minimal terminal setups or screen recordings. |
 | `slate` | Cool blue — developer-focused | `Panergos Agent` | Royal blue borders (`#4169e1`), soft blue text. Calm and professional. No custom spinner — uses default faces. |
 | `daylight` | Light theme for bright terminals with dark text and cool blue accents | `Panergos Agent` | Designed for white or bright terminals. Dark slate text with blue borders, pale status surfaces, and a light completion menu that stays readable in light terminal profiles. |
 | `warm-lightmode` | Warm brown/gold text for light terminal backgrounds | `Panergos Agent` | Warm parchment tones for light terminals. Dark brown text with saddle-brown accents, cream-colored status surfaces. An earthy alternative to the cooler daylight theme. |
-| `poseidon` | Ocean-god theme — deep blue and seafoam | `Poseidon Agent` | Deep blue to seafoam gradient. Ocean-themed spinners ("charting currents", "sounding the depth"). Trident ASCII art banner. |
-| `sisyphus` | Sisyphean theme — austere grayscale with persistence | `Sisyphus Agent` | Light grays with stark contrast. Boulder-themed spinners ("pushing uphill", "resetting the boulder", "enduring the loop"). Boulder-and-hill ASCII art banner. |
-| `charizard` | Volcanic theme — burnt orange and ember | `Charizard Agent` | Warm burnt orange to ember gradient. Fire-themed spinners ("banking into the draft", "measuring burn"). Dragon-silhouette ASCII art banner. |
+| `tide` | Deep blue and seafoam | `Panergos Agent` | Deep blue to seafoam gradient with fluid geometric spinners and concise progress messages. |
+| `granite` | Austere high-contrast grayscale | `Panergos Agent` | Light grays, stark contrast, geometric spinner faces, and steady progress messages. |
+| `ember` | Burnt orange and ember | `Panergos Agent` | Warm burnt orange to ember gradient with abstract fire and geometric spinner faces. |
 
 ## Complete list of configurable keys
 
@@ -79,10 +81,10 @@ Controls the animated spinner shown while waiting for API responses.
 
 | Key | Type | Description | Example |
 |-----|------|-------------|---------|
-| `waiting_faces` | list of strings | Faces cycled while waiting for API response | `["(⚔)", "(⛨)", "(▲)"]` |
-| `thinking_faces` | list of strings | Faces cycled during model reasoning | `["(⚔)", "(⌁)", "(<>)"]` |
-| `thinking_verbs` | list of strings | Verbs shown in spinner messages | `["forging", "plotting", "hammering plans"]` |
-| `wings` | list of [left, right] pairs | Decorative brackets around the spinner | `[["⟪⚔", "⚔⟫"], ["⟪▲", "▲⟫"]]` |
+| `waiting_faces` | list of strings | Faces cycled while waiting for API response | `["(◆)", "(■)", "(▲)"]` |
+| `thinking_faces` | list of strings | Faces cycled during model reasoning | `["(◆)", "(⌁)", "(<>)"]` |
+| `thinking_verbs` | list of strings | Verbs shown in spinner messages | `["refining", "plotting", "shaping plans"]` |
+| `wings` | list of [left, right] pairs | Decorative brackets around the spinner | `[["⟪◆", "◆⟫"], ["⟪▲", "▲⟫"]]` |
 
 When spinner values are empty (like in `default` and `mono`), hardcoded defaults from `display.py` are used.
 
@@ -94,8 +96,8 @@ Text strings used throughout the CLI interface.
 |-----|-------------|---------|
 | `agent_name` | Name shown in banner title and status display | `Panergos Agent` |
 | `welcome` | Welcome message shown at CLI startup | `Welcome to Panergos Agent! Type your message or /help for commands.` |
-| `goodbye` | Message shown on exit | `Goodbye! ☤` |
-| `response_label` | Label on the response box header | ` ☤ Panergos ` |
+| `goodbye` | Message shown on exit | `Goodbye! ◆` |
+| `response_label` | Label on the response box header | ` ◆ Panergos ` |
 | `prompt_symbol` | Symbol before the user input prompt (bare token, renderers add a trailing space) | `❯` |
 | `help_header` | Header text for the `/help` command output | `(^_^)? Available Commands` |
 
@@ -106,7 +108,7 @@ Text strings used throughout the CLI interface.
 | `tool_prefix` | string | Character prefixed to tool output lines in the CLI | `┊` |
 | `tool_emojis` | dict | Per-tool emoji overrides for spinners and progress (`{tool_name: emoji}`) | `{}` |
 | `banner_logo` | string | Rich-markup ASCII art logo (replaces the default PANERGOS_AGENT banner) | `""` |
-| `banner_hero` | string | Rich-markup hero art (replaces the default caduceus art) | `""` |
+| `banner_hero` | string | Rich-markup hero art (replaces the default Panergos Knot art) | `""` |
 
 ## Custom skins
 
@@ -148,11 +150,11 @@ colors:
 
 spinner:
   waiting_faces:
-    - "(⚔)"
-    - "(⛨)"
+    - "(◆)"
+    - "(■)"
     - "(▲)"
   thinking_faces:
-    - "(⚔)"
+    - "(◆)"
     - "(⌁)"
     - "(<>)"
   thinking_verbs:
@@ -176,7 +178,7 @@ tool_prefix: "┊"
 
 # Per-tool emoji overrides (optional)
 tool_emojis:
-  terminal: "⚔"
+  terminal: "◆"
   web_search: "🔮"
   read_file: "📄"
 

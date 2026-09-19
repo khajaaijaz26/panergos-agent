@@ -39,7 +39,7 @@ jobs:
   deploy-docs:
     if: github.repository == 'khajaaijaz26/panergos-agent'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -76,13 +76,12 @@ jobs:
           # through the repository installation's GitHub API quota when several
           # docs deploys land close together.  Normal docs deploys therefore
           # reuse the latest healthy catalog: first the artifact from a
-          # scheduled skills-index run, then the currently live index.  Only a
+          # dedicated skills-index run, then the currently live index. Only a
           # manual force rebuild does a fresh crawl here.
           #
-          # If we do crawl, the build remains fatal. build_skills_index.py runs
-          # the health check BEFORE writing and exits non-zero on source
-          # collapse, keeping the last good Pages deployment live instead of
-          # publishing a degenerate catalog.
+          # If we do crawl, the build remains fatal. build_skills_index.py
+          # preserves a prior full snapshot or requires a completed bootstrap,
+          # so a bounded prefix can never replace the published catalog.
           set -euo pipefail
           INDEX_PATH="website/static/api/skills-index.json"
           mkdir -p "$(dirname "$INDEX_PATH")"
@@ -104,11 +103,20 @@ jobs:
               count = len(skills) if isinstance(skills, list) else "missing"
               print(f"skills index too small: {count}", file=sys.stderr)
               sys.exit(1)
+          clawhub = sum(s.get("source") == "clawhub" for s in skills if isinstance(s, dict))
+          coverage = ((data.get("source_status") or {}).get("clawhub") or {}).get("coverage")
+          if clawhub < 20_000 or coverage in {"bounded_snapshot", "degraded"}:
+              print(
+                  f"unsafe ClawHub snapshot: count={clawhub}, coverage={coverage}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
           print(f"skills index ready: {len(skills)} skills")
           PY
           }
 
           if [ "$REBUILD_SKILLS_INDEX" = "true" ]; then
+            rm -f "$INDEX_PATH"
             python3 scripts/build_skills_index.py
             validate_index
             exit 0
@@ -136,10 +144,9 @@ jobs:
             exit 0
           fi
 
-          echo "::warning::Live skills index unavailable or unhealthy; falling back to a fresh crawl"
+          echo "::error::No healthy skills index is available. Run the Build Skills Index workflow to bootstrap it."
           rm -f "$INDEX_PATH"
-          python3 scripts/build_skills_index.py
-          validate_index
+          exit 1
 
       - name: Extract skill metadata for dashboard
         run: python3 website/scripts/extract-skills.py

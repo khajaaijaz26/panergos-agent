@@ -27,6 +27,10 @@ interface Props {
   onSuccess?: (msg: string) => void;
 }
 
+// Qwen retired new OAuth sign-ins on 2026-04-15. Keep legacy runtime support,
+// but do not offer a login Panergos knows the provider now rejects.
+const RETIRED_PROVIDER_IDS = new Set(["qwen-oauth"]);
+
 function formatExpiresAt(
   expiresAt: string | null | undefined,
   expiresInTemplate: string,
@@ -65,7 +69,13 @@ export function OAuthProvidersCard({ onError, onSuccess }: Props) {
     setLoading(true);
     api
       .getOAuthProviders()
-      .then((resp) => setProviders(resp.providers))
+      .then((resp) =>
+        setProviders(
+          resp.providers.filter(
+            (provider) => !RETIRED_PROVIDER_IDS.has(provider.id),
+          ),
+        ),
+      )
       .catch((e) => onErrorRef.current?.(`Failed to load providers: ${e}`))
       .finally(() => setLoading(false));
   }, []);

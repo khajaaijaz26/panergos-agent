@@ -82,6 +82,12 @@ function paletteVars(palette: ThemePalette): Record<string, string> {
     ...layerVars("background", palette.background),
     ...layerVars("midground", palette.midground),
     ...layerVars("foreground", palette.foreground),
+    "--text-primary": palette.foreground.hex,
+    "--text-secondary": `color-mix(in srgb, ${palette.foreground.hex} 78%, transparent)`,
+    "--text-tertiary": `color-mix(in srgb, ${palette.foreground.hex} 62%, transparent)`,
+    "--text-disabled": `color-mix(in srgb, ${palette.foreground.hex} 42%, transparent)`,
+    "--text-on-accent": palette.background.hex,
+    "--text-display": palette.midground.hex,
   };
 }
 

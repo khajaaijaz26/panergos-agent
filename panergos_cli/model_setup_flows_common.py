@@ -10,11 +10,30 @@ from __future__ import annotations
 
 import contextlib
 import subprocess
+import urllib.parse
 
 from panergos_cli.cli_output import line_input
 from panergos_cli.config import clear_model_endpoint_credentials
 
 _HTTP = ("http://", "https://")
+_PLAINTEXT_AUTH_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def _require_safe_authenticated_endpoint(base_url: str, api_key: str) -> str:
+    """Validate a custom endpoint and reject plaintext bearer auth off-loopback."""
+    base_url = base_url.strip().rstrip("/")
+    try:
+        parsed = urllib.parse.urlsplit(base_url)
+        hostname = parsed.hostname
+    except ValueError as exc:
+        raise RuntimeError("base URL must be an absolute http:// or https:// URL") from exc
+    if parsed.scheme.lower() not in {"http", "https"} or not hostname:
+        raise RuntimeError("base URL must be an absolute http:// or https:// URL")
+    if parsed.username is not None or parsed.password is not None:
+        raise RuntimeError("do not put credentials in the base URL; use --key-env")
+    if api_key and parsed.scheme.lower() == "http" and hostname.lower() not in _PLAINTEXT_AUTH_HOSTS:
+        raise RuntimeError("an authenticated non-loopback endpoint must use https://")
+    return base_url
 
 
 def _say(*lines: str) -> None:

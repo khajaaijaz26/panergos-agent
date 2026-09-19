@@ -1,3 +1,5 @@
+.gitattributes text eol=lf
+
 # Auto-generated files — collapse diffs and exclude from language stats
 web/package-lock.json linguist-generated=true
 
@@ -32,6 +34,7 @@ scripts/panergos-gateway text eol=lf
 *.json  text eol=lf
 *.yaml  text eol=lf
 *.yml   text eol=lf
+*.yaml.example text eol=lf
 *.toml  text eol=lf
 *.md    text eol=lf
 *.css   text eol=lf

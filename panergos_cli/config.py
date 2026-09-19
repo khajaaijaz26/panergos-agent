@@ -2575,10 +2575,10 @@ def save_env_value(key: str, value: str):
 def custom_endpoint_key_env(identity: str) -> str:
     """Env var name holding a custom endpoint's API key.
     ``identity`` is the endpoint's own id (Desktop endpoint id, or ``host:port`` for CLI setup),
-    so two endpoints on one host get separate slots. The fixed ``PANERGOS_CUSTOM_`` prefix keeps the
-    name POSIX-valid when the slug starts with a digit (``save_env_value`` rejects those)."""
-    slug = re.sub(r"[^A-Z0-9]+", "_", str(identity or "").upper()).strip("_")
-    return f"PANERGOS_CUSTOM_{slug}_API_KEY" if slug else "PANERGOS_CUSTOM_API_KEY"
+    so two endpoints on one host get separate slots. Hex encoding is reversible and keeps identities
+    such as ``foo-bar``, ``foo_bar`` and ``foo--bar`` from collapsing onto the same credential."""
+    encoded = str(identity or "").encode("utf-8").hex().upper()
+    return f"PANERGOS_CUSTOM_{encoded}_API_KEY" if encoded else "PANERGOS_CUSTOM_API_KEY"
 
 
 def remove_env_value(key: str) -> bool:
@@ -2884,7 +2884,7 @@ def show_config():
 
     print()
     print(color("┌─────────────────────────────────────────────────────────┐", Colors.CYAN))
-    print(color("│             ◇ Panergos Configuration                   │", Colors.CYAN))
+    print(color("│             ◆ Panergos Configuration                   │", Colors.CYAN))
     print(color("└─────────────────────────────────────────────────────────┘", Colors.CYAN))
     _show_managed_banner()
 

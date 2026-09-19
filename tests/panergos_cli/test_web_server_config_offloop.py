@@ -318,3 +318,59 @@ class TestConfigMutationLock:
             "PUT /api/dashboard/plugin-providers is not holding "
             "_CONFIG_MUTATION_LOCK around its read-modify-write span"
         )
+
+    def test_custom_endpoint_save_serialized_against_other_writers(self):
+        try:
+            from starlette.testclient import TestClient
+        except ImportError:
+            pytest.skip("fastapi/starlette not installed")
+        from panergos_cli import config as config_mod
+        from panergos_cli import web_server
+        from panergos_cli.config import load_config
+
+        client = TestClient(web_server.app)
+        client.headers[web_server._SESSION_HEADER_NAME] = web_server._SESSION_TOKEN
+        results = []
+
+        def _post_endpoint():
+            response = client.post(
+                "/api/providers/custom-endpoints",
+                json={
+                    "id": "locked-endpoint",
+                    "name": "Locked endpoint",
+                    "base_url": "http://127.0.0.1:9911/v1",
+                    "model": "m",
+                    "create_only": True,
+                },
+            )
+            results.append(("endpoint", response.status_code))
+
+        def _put_theme():
+            response = client.put("/api/dashboard/theme", json={"name": "midnight"})
+            results.append(("theme", response.status_code))
+
+        real_save = config_mod.save_config
+
+        def _slow_save(cfg, **kwargs):
+            time.sleep(0.15)
+            return real_save(cfg, **kwargs)
+
+        threads = []
+        try:
+            config_mod.save_config = _slow_save
+            threads = [
+                threading.Thread(target=_post_endpoint),
+                threading.Thread(target=_put_theme),
+            ]
+            threads[0].start()
+            time.sleep(0.05)
+            threads[1].start()
+        finally:
+            for thread in threads:
+                thread.join()
+            config_mod.save_config = real_save
+
+        assert all(code == 200 for _, code in results), results
+        cfg = load_config()
+        assert "locked-endpoint" in (cfg.get("providers") or {})
+        assert (cfg.get("dashboard") or {}).get("theme") == "midnight"

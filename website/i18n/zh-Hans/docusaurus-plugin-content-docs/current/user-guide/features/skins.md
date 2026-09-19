@@ -17,7 +17,7 @@ description: "使用内置和用户自定义皮肤定制 Panergos CLI 的外观"
 
 ```bash
 /skin                # show the current skin and list available skins
-/skin ares           # switch to a built-in skin
+/skin crimson        # switch to a built-in skin
 /skin mytheme        # switch to a custom skin from ~/.panergos/skins/mytheme.yaml
 ```
 
@@ -30,17 +30,19 @@ display:
 
 ## 内置皮肤
 
+所有内置皮肤都保留 `Panergos Agent` 名称，并共用 Panergos 字标和 Panergos Knot 标志。皮肤可以改变配色和 spinner 风格，但不会改变产品身份。
+
 | 皮肤 | 描述 | Agent 品牌 | 视觉特征 |
 |------|------|-----------|---------|
-| `default` | 经典 Panergos — 金色与 kawaii 风格 | `Panergos Agent` | 暖金色边框，cornsilk 文字，spinner 中的 kawaii 面孔。熟悉的双蛇杖横幅。简洁亲切。 |
-| `ares` | 战神主题 — 深红与青铜 | `Ares Agent` | 深红色边框配青铜点缀。激进的 spinner 动词（"forging"、"marching"、"tempering steel"）。自定义剑盾 ASCII 艺术横幅。 |
+| `default` | Panergos Eclipse — 梅紫、珊瑚、翡翠与金色 | `Panergos Agent` | 深梅紫界面搭配珊瑚色强调、翡翠绿操作与成功状态、金色高光，以及共享的 Panergos Knot 标志。 |
+| `crimson` | 深红与青铜 | `Panergos Agent` | 深红色边框配青铜点缀、几何 spinner 翼与专注的进度消息。 |
 | `mono` | 单色 — 简洁灰度 | `Panergos Agent` | 全灰色，无彩色。边框为 `#555555`，文字为 `#c9d1d9`。适合极简终端或录屏场景。 |
 | `slate` | 冷蓝色 — 面向开发者 | `Panergos Agent` | 皇家蓝边框（`#4169e1`），柔和蓝色文字。沉稳专业。无自定义 spinner，使用默认面孔。 |
 | `daylight` | 适用于亮色终端的浅色主题，深色文字配冷蓝点缀 | `Panergos Agent` | 专为白色或亮色终端设计。深石板色文字配蓝色边框，浅色状态面板，补全菜单在亮色终端配置下保持清晰可读。 |
 | `warm-lightmode` | 适用于浅色终端背景的暖棕/金色文字 | `Panergos Agent` | 适合浅色终端的暖羊皮纸色调。深棕色文字配马鞍棕点缀，奶油色状态面板。比 daylight 主题更温暖的大地色系选择。 |
-| `poseidon` | 海神主题 — 深蓝与海沫绿 | `Poseidon Agent` | 深蓝到海沫绿渐变。海洋主题 spinner（"charting currents"、"sounding the depth"）。三叉戟 ASCII 艺术横幅。 |
-| `sisyphus` | 西西弗斯主题 — 朴素灰度，彰显坚韧 | `Sisyphus Agent` | 浅灰色配强烈对比。巨石主题 spinner（"pushing uphill"、"resetting the boulder"、"enduring the loop"）。巨石与山丘 ASCII 艺术横幅。 |
-| `charizard` | 火山主题 — 焦橙与余烬色 | `Charizard Agent` | 暖焦橙到余烬色渐变。火焰主题 spinner（"banking into the draft"、"measuring burn"）。龙剪影 ASCII 艺术横幅。 |
+| `tide` | 深蓝与海沫绿 | `Panergos Agent` | 深蓝到海沫绿渐变，搭配流动的几何 spinner 和简洁的进度消息。 |
+| `granite` | 朴素高对比灰度 | `Panergos Agent` | 浅灰色配强烈对比、几何 spinner 面孔与稳健的进度消息。 |
+| `ember` | 焦橙与余烬色 | `Panergos Agent` | 暖焦橙到余烬色渐变，搭配抽象火焰与几何 spinner 面孔。 |
 
 ## 可配置键完整列表
 
@@ -79,10 +81,10 @@ display:
 
 | 键 | 类型 | 描述 | 示例 |
 |----|------|------|------|
-| `waiting_faces` | 字符串列表 | 等待 API 响应时循环显示的面孔 | `["(⚔)", "(⛨)", "(▲)"]` |
-| `thinking_faces` | 字符串列表 | 模型推理期间循环显示的面孔 | `["(⚔)", "(⌁)", "(<>)"]` |
-| `thinking_verbs` | 字符串列表 | spinner 消息中显示的动词 | `["forging", "plotting", "hammering plans"]` |
-| `wings` | [左, 右] 对的列表 | spinner 周围的装饰括号 | `[["⟪⚔", "⚔⟫"], ["⟪▲", "▲⟫"]]` |
+| `waiting_faces` | 字符串列表 | 等待 API 响应时循环显示的面孔 | `["(◆)", "(■)", "(▲)"]` |
+| `thinking_faces` | 字符串列表 | 模型推理期间循环显示的面孔 | `["(◆)", "(⌁)", "(<>)"]` |
+| `thinking_verbs` | 字符串列表 | spinner 消息中显示的动词 | `["refining", "plotting", "shaping plans"]` |
+| `wings` | [左, 右] 对的列表 | spinner 周围的装饰括号 | `[["⟪◆", "◆⟫"], ["⟪▲", "▲⟫"]]` |
 
 当 spinner 值为空时（如 `default` 和 `mono`），将使用 `display.py` 中的硬编码默认值。
 
@@ -94,8 +96,8 @@ CLI 界面中使用的文字字符串。
 |----|------|--------|
 | `agent_name` | 横幅标题和状态显示中的名称 | `Panergos Agent` |
 | `welcome` | CLI 启动时显示的欢迎消息 | `Welcome to Panergos Agent! Type your message or /help for commands.` |
-| `goodbye` | 退出时显示的消息 | `Goodbye! ☤` |
-| `response_label` | 响应框标题上的标签 | ` ☤ Panergos ` |
+| `goodbye` | 退出时显示的消息 | `Goodbye! ◆` |
+| `response_label` | 响应框标题上的标签 | ` ◆ Panergos ` |
 | `prompt_symbol` | 用户输入 prompt 前的符号（裸 token，渲染器会在后面添加空格） | `❯` |
 | `help_header` | `/help` 命令输出的标题文字 | `(^_^)? Available Commands` |
 
@@ -106,7 +108,7 @@ CLI 界面中使用的文字字符串。
 | `tool_prefix` | 字符串 | CLI 中工具输出行的前缀字符 | `┊` |
 | `tool_emojis` | 字典 | 各工具的 emoji 覆盖，用于 spinner 和进度显示（`{tool_name: emoji}`） | `{}` |
 | `banner_logo` | 字符串 | Rich 标记 ASCII 艺术 logo（替换默认的 PANERGOS_AGENT 横幅） | `""` |
-| `banner_hero` | 字符串 | Rich 标记英雄艺术图（替换默认的双蛇杖图案） | `""` |
+| `banner_hero` | 字符串 | Rich 标记英雄艺术图（替换默认的 Panergos Knot 图案） | `""` |
 
 ## 自定义皮肤
 
@@ -148,11 +150,11 @@ colors:
 
 spinner:
   waiting_faces:
-    - "(⚔)"
-    - "(⛨)"
+    - "(◆)"
+    - "(■)"
     - "(▲)"
   thinking_faces:
-    - "(⚔)"
+    - "(◆)"
     - "(⌁)"
     - "(<>)"
   thinking_verbs:
@@ -176,7 +178,7 @@ tool_prefix: "┊"
 
 # Per-tool emoji overrides (optional)
 tool_emojis:
-  terminal: "⚔"
+  terminal: "◆"
   web_search: "🔮"
   read_file: "📄"
 

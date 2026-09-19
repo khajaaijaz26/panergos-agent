@@ -46,7 +46,7 @@ def test_set_forks_a_builtin_without_inventing_a_background():
 
     fork = _skins() / "default-custom.yaml"
     assert fork.exists()
-    data = yaml.safe_load(fork.read_text())
+    data = yaml.safe_load(fork.read_text(encoding="utf-8"))
     assert data["colors"]["ui_tool"] == "#00FFFF"
     # default has no background, so the fork must not invent one (terminal stays put).
     assert "background" not in data["colors"]
@@ -58,6 +58,13 @@ def test_set_forks_a_builtin_without_inventing_a_background():
 def test_set_rejects_non_hex():
     _activate("default")
     assert skin_cmd._skin_set("ui_tool", "teal", None) == 1
+
+
+def test_use_persists_the_canonical_name_for_a_legacy_alias():
+    assert skin_cmd._use("ares") == "crimson"
+
+    data = yaml.safe_load((get_panergos_home() / "config.yaml").read_text(encoding="utf-8"))
+    assert data["display"]["skin"] == "crimson"
 
 
 def test_set_persists_the_skin_durably():

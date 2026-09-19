@@ -14,8 +14,9 @@ import urllib.parse
 from panergos_cli.cli_output import line_input
 from panergos_cli.providers import custom_provider_slug
 from panergos_cli.model_setup_flows_common import (
-    _HTTP, _ask, _commit_model_config, _load_config_model_section,
-    _prune_replaced_custom_model_config_credentials, _radiolist, _say)
+    _ask, _commit_model_config, _load_config_model_section,
+    _prune_replaced_custom_model_config_credentials, _radiolist,
+    _require_safe_authenticated_endpoint, _say)
 
 
 def _parse_context_length(text: str):
@@ -121,10 +122,12 @@ def _model_flow_custom(config):
         print("No URL provided. Cancelled.")
         return
     effective_url = base_url or current_url
-    if not effective_url.startswith(_HTTP):
-        print(f"Invalid URL: {effective_url} (must start with http:// or https://)")
-        return
     effective_key = api_key or current_key
+    try:
+        effective_url = _require_safe_authenticated_endpoint(effective_url, effective_key)
+    except RuntimeError as exc:
+        print(f"Invalid URL: {exc}")
+        return
 
     # Most local servers (Ollama, vLLM, llama.cpp) need /v1 for OpenAI-compatible
     # chat completions — offer to append it when the URL looks local without it.

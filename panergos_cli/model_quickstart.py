@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import re
 import sys
-import urllib.parse
 from dataclasses import dataclass
 from typing import TypeVar
 
@@ -276,23 +275,12 @@ def _configure_anthropic(requested_model: str, assume_yes: bool) -> bool:
 _ENV_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
-def _validated_url(value: str) -> str:
-    value = value.strip().rstrip("/")
-    parsed = urllib.parse.urlsplit(value)
-    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-        raise RuntimeError("base URL must be an absolute http:// or https:// URL")
-    if parsed.username or parsed.password:
-        raise RuntimeError("do not put credentials in the base URL; use --key-env")
-    return value
-
-
 def _configure_openai_compatible(args) -> bool:
     base_url = str(getattr(args, "base_url", "") or "").strip()
     if not base_url and sys.stdin.isatty() and not getattr(args, "yes", False):
         base_url = input("  OpenAI-compatible base URL (include /v1): ").strip()
     if not base_url:
         raise RuntimeError("--base-url is required for an OpenAI-compatible endpoint")
-    base_url = _validated_url(base_url)
 
     key_env = str(getattr(args, "key_env", "") or "").strip()
     if key_env and not _ENV_NAME.fullmatch(key_env):
@@ -300,13 +288,9 @@ def _configure_openai_compatible(args) -> bool:
     api_key = os.getenv(key_env, "") if key_env else ""
     if key_env and not api_key:
         raise RuntimeError(f"{key_env} is not set")
-    parsed_url = urllib.parse.urlsplit(base_url)
-    if key_env and parsed_url.scheme == "http" and parsed_url.hostname not in {
-        "localhost",
-        "127.0.0.1",
-        "::1",
-    }:
-        raise RuntimeError("an authenticated non-loopback endpoint must use https://")
+    from panergos_cli.model_setup_flows_common import _require_safe_authenticated_endpoint
+
+    base_url = _require_safe_authenticated_endpoint(base_url, api_key)
 
     from panergos_cli.models import fetch_api_models, pick_silent_default_model
 

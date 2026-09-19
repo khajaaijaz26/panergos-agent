@@ -143,8 +143,13 @@ def _save_aux_choice(task: str, *, provider: str, model: str = "", base_url: str
                      api_key: str = "", reasoning_effort: Optional[str] = None) -> None:
     """Persist an aux task's four routing fields (timeout etc. untouched; main model config never
     modified). ``delegation`` writes the top-level section, with "auto" stored as an empty provider.
+    Custom endpoint secrets go to the profile ``.env``; config stores only their ``${ENV}`` reference.
     ``reasoning_effort``: a level word or "" (provider default) to write; None leaves the key alone."""
-    from panergos_cli.config import load_config, save_config
+    from panergos_cli.config import custom_endpoint_key_env, load_config, save_config, save_env_value
+    if provider == "custom" and api_key and not (api_key.startswith("${") and api_key.endswith("}")):
+        key_env = custom_endpoint_key_env(f"aux-{task}")
+        save_env_value(key_env, api_key)
+        api_key = f"${{{key_env}}}"
     cfg = load_config()
     if task == _DELEGATION_TASK_KEY:
         entry = _ensure_dict_section(cfg, "delegation")

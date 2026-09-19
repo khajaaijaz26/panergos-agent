@@ -8,7 +8,7 @@ Two data sources:
    license, env vars, commands — that the unified index doesn't carry.
 
 2. The unified Panergos Skills Index at ``website/static/api/skills-index.json``,
-   built twice daily by ``scripts/build_skills_index.py`` (workflow
+   built by ``scripts/build_skills_index.py`` (workflow
    ``.github/workflows/skills-index.yml``). Covers skills.sh, ClawHub, browse.sh,
    LobeHub, well-known endpoints, and the GitHub taps
    (openai/skills, anthropics/skills, huggingface/skills, VoltAgent, etc.).

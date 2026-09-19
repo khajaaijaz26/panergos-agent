@@ -63,9 +63,9 @@ jobs:
 
           # Floors — same as build_skills_index.py EXPECTED_FLOORS.
           floors = {
-              "skills.sh": 100,
+              "skills.sh": 10000,
               "lobehub": 100,
-              "clawhub": 50,
+              "clawhub": 20000,
               "official": 50,
               "github": 30,
               "browse-sh": 50,
@@ -79,6 +79,9 @@ jobs:
                   count = by_src.get("skills.sh", 0) + by_src.get("skills-sh", 0)
               if count < floor:
                   issues.append(f"{src}: {count} < {floor}")
+          coverage = ((data.get("source_status") or {}).get("clawhub") or {}).get("coverage")
+          if coverage in {"bounded_snapshot", "degraded"}:
+              issues.append(f"clawhub coverage is {coverage}")
           if total < 1500:
               issues.append(f"total skills: {total} < 1500")
 

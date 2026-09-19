@@ -9,6 +9,16 @@ import model_tools
 import tools.mcp_tool_discovery
 
 
+def test_default_hero_is_the_fourteen_line_panergos_knot():
+    from rich.markup import render
+
+    lines = banner.PANERGOS_MARK.splitlines()
+
+    assert len(lines) == 14
+    assert all(render(line).plain.strip() for line in lines)
+    assert "PANERGOS" not in render(banner.PANERGOS_MARK).plain
+
+
 def test_cprint_falls_back_to_plain_print_when_prompt_toolkit_has_no_console(capsys):
     with patch(
         "prompt_toolkit.print_formatted_text",

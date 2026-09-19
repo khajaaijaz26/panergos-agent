@@ -519,6 +519,9 @@ function ProviderColumn({
 
       {providers.map((p) => {
         const active = p.slug === selectedSlug;
+        const freeModels = Object.values(p.pricing ?? {}).filter(
+          (price) => price.free,
+        ).length;
         return (
           <ListItem
             key={p.slug}
@@ -535,6 +538,7 @@ function ProviderColumn({
               </div>
               <div className="text-xs text-text-secondary font-mono truncate">
                 {p.slug} · {p.total_models ?? p.models?.length ?? 0} models
+                {freeModels > 0 && ` · ${freeModels} free`}
               </div>
             </div>
           </ListItem>
@@ -596,6 +600,7 @@ function ModelColumn({
           const active = m === selectedModel;
           const isCurrent =
             m === currentModel && provider.slug === currentProviderSlug;
+          const price = provider.pricing?.[m];
 
           return (
             <ListItem
@@ -611,6 +616,18 @@ function ModelColumn({
               <span className="flex-1 truncate">
                 <HighlightedText text={m} positions={positions} />
               </span>
+              {price?.free ? (
+                <span className="shrink-0 border border-success/50 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-success">
+                  free
+                </span>
+              ) : price?.input || price?.output ? (
+                <span
+                  className="shrink-0 text-[10px] text-text-tertiary"
+                  title="Input / output price per 1M tokens"
+                >
+                  {price.input || "?"} / {price.output || "?"}
+                </span>
+              ) : null}
               {isCurrent && <CurrentTag />}
             </ListItem>
           );

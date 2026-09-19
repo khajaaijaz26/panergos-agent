@@ -413,6 +413,27 @@ def test_model_flow_custom_saves_verified_v1_base_url(monkeypatch, capsys):
     assert saved_env["MODEL"] == "llm"
 
 
+def test_model_flow_custom_rejects_authenticated_remote_http_before_probe(monkeypatch, capsys):
+    monkeypatch.setattr("panergos_cli.config.get_env_value", lambda _key: "")
+    monkeypatch.setattr(
+        "panergos_cli.model_setup_flows_custom.line_input",
+        lambda _prompt="": "http://models.example.test/v1",
+    )
+    monkeypatch.setattr(
+        "panergos_cli.secret_prompt.masked_secret_prompt", lambda _prompt="": "secret"
+    )
+    probes = []
+    monkeypatch.setattr(
+        "panergos_cli.models.probe_api_models",
+        lambda *args, **kwargs: probes.append((args, kwargs)),
+    )
+
+    panergos_main._model_flow_custom({})
+
+    assert probes == []
+    assert "authenticated non-loopback endpoint must use https://" in capsys.readouterr().out
+
+
 def test_model_flow_custom_persists_selected_api_mode(monkeypatch):
     saved_cfg = {"model": {"default": "", "provider": "custom", "base_url": ""}}
     captured_provider = {}

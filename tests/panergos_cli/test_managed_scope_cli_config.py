@@ -47,12 +47,12 @@ def test_cli_config_honors_managed_skin(homes):
     """A managed display.skin must reach CLI_CONFIG (the TUI's source)."""
     home, managed = homes
     (home / "config.yaml").write_text("display:\n  skin: user_skin\n", encoding="utf-8")
-    (managed / "config.yaml").write_text("display:\n  skin: charizard\n", encoding="utf-8")
+    (managed / "config.yaml").write_text("display:\n  skin: ember\n", encoding="utf-8")
     from panergos_cli import managed_scope
 
     managed_scope.invalidate_managed_cache()
     cfg = _load_cli_config(home)
-    assert (cfg.get("display") or {}).get("skin") == "charizard"
+    assert (cfg.get("display") or {}).get("skin") == "ember"
 
 
 def test_cli_config_managed_leaf_preserves_user_siblings(homes):
@@ -61,13 +61,12 @@ def test_cli_config_managed_leaf_preserves_user_siblings(homes):
     (home / "config.yaml").write_text(
         "display:\n  skin: user_skin\n  show_reasoning: true\n", encoding="utf-8"
     )
-    (managed / "config.yaml").write_text("display:\n  skin: charizard\n", encoding="utf-8")
+    (managed / "config.yaml").write_text("display:\n  skin: ember\n", encoding="utf-8")
     from panergos_cli import managed_scope
 
     managed_scope.invalidate_managed_cache()
     cfg = _load_cli_config(home)
     display = cfg.get("display") or {}
-    assert display.get("skin") == "charizard"  # managed wins
+    assert display.get("skin") == "ember"  # managed wins
     assert display.get("show_reasoning") is True  # user sibling preserved
-
 

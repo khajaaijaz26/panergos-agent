@@ -3,10 +3,10 @@
  *
  * Themes customise three orthogonal layers:
  *
- *   1. `palette`       — the 3-layer color triplet (background/midground/
- *                         foreground). Legacy `warmGlow` / `noiseOpacity`
- *                         fields remain for theme YAML compat but are unused
- *                         by the lightweight shell.
+ *   1. `palette`       — the 3-layer color triplet (canvas/brand/text).
+ *                         Legacy `warmGlow` / `noiseOpacity` fields remain
+ *                         for theme YAML compat but are unused by the
+ *                         lightweight shell.
  *   2. `typography`    — font families, base font size, line height,
  *                         letter spacing. An optional `fontUrl` is injected
  *                         as `<link rel="stylesheet">` so self-hosted and
@@ -27,10 +27,9 @@ export interface ThemeLayer {
 export interface ThemePalette {
   /** Deepest canvas color (typically near-black). */
   background: ThemeLayer;
-  /** Primary text + accent. Most UI chrome reads this. */
+  /** Brand action/stroke colour. */
   midground: ThemeLayer;
-  /** Top-layer highlight. In LENS_0 this is white @ alpha 0 — invisible by
-   *  default but still drives `--color-ring`-style accents. */
+  /** Readable foreground text/highlight colour. */
   foreground: ThemeLayer;
   /** Legacy palette field — kept for theme YAML compat. */
   warmGlow: string;

@@ -424,10 +424,10 @@ class CLIStreamMixin:
             try:
                 from panergos_cli.skin_engine import get_active_skin
                 _skin = get_active_skin()
-                label = _skin.get_branding("response_label", "◇ Panergos")
+                label = _skin.get_branding("response_label", "◆ Panergos")
                 _text_hex = _skin.get_color("banner_text", "#F7F2FF")
             except Exception:
-                label = "◇ Panergos"
+                label = "◆ Panergos"
                 _text_hex = "#F7F2FF"
             try:  # true-color escape so streamed text matches the Rich Panel appearance
                 _r, _g, _b = (int(_text_hex[i:i + 2], 16) for i in (1, 3, 5))
@@ -660,7 +660,7 @@ class CLIStreamMixin:
                 self._flush_reasoning_preview(force=True)
             except Exception:
                 pass
-            _cprint(f"  {_DIM}┊ ◇ {header}{_RST}")
+            _cprint(f"  {_DIM}┊ ◆ {header}{_RST}")
             try:
                 self._emit_reasoning_preview(text)
             except Exception:

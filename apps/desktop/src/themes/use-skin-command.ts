@@ -2,9 +2,10 @@ import { useCallback } from 'react'
 
 import { useTheme } from './context'
 
-// Generic aliases land on the canonical Eclipse skin.
+// CLI palette names map to the closest desktop theme; legacy IDs remain input-only.
 const ALIASES: Record<string, string> = {
   ares: 'ember',
+  crimson: 'ember',
   default: 'eclipse',
   gold: 'eclipse',
   panergos: 'eclipse'

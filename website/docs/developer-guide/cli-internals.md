@@ -61,8 +61,10 @@ subcommand. Rules:
 | Tool output prefix / per-tool emojis | `tool_prefix`, `tool_emojis` | `display.py` → `get_tool_emoji()` |
 | Agent name / welcome / response label / prompt symbol | `branding.agent_name`, `welcome`, `response_label`, `prompt_symbol` | `banner.py`, `cli.py` |
 
-Built-in skins (`_BUILTIN_SKINS` in `panergos_cli/skin_engine.py`): `default` (classic gold/kawaii),
-`ares` (crimson/bronze with custom spinner wings), `mono` (grayscale), `slate` (cool blue). Add a
+Built-in skins (`_BUILTIN_SKINS` in `panergos_cli/skin_engine.py`): `default` (Panergos Eclipse),
+`crimson` (crimson/bronze), `mono` (grayscale), `slate` (cool blue), `daylight` and
+`warm-lightmode` (light themes), `tide` (blue/seafoam), `granite` (high-contrast grayscale), and
+`ember` (burnt orange). Add a
 built-in as a dict entry `{"name", "description", "colors", "spinner", "branding", "tool_prefix"}`.
 User skins are `~/.panergos/skins/<name>.yaml` with the same keys, activated with `/skin <name>` or
 `display.skin: <name>`; the full YAML template is in the

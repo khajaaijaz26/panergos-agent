@@ -187,6 +187,7 @@ def test_active_skin_is_per_profile_and_leaves_launch_slot_alone(homes):
     a, b = homes
     from panergos_cli import skin_engine
 
+    # Old saved identifiers still load, but runtime state is normalized to the canonical name.
     (a / "config.yaml").write_text("display:\n  skin: ares\n", encoding="utf-8")
     (b / "config.yaml").write_text("display:\n  skin: mono\n", encoding="utf-8")
     skin_engine._active_skin = None
@@ -195,11 +196,11 @@ def test_active_skin_is_per_profile_and_leaves_launch_slot_alone(homes):
     try:
         with _Scoped(a):
             skin_engine.init_skin_from_config({"display": {"skin": "ares"}})
-            assert skin_engine.get_active_skin().name == "ares"
+            assert skin_engine.get_active_skin().name == "crimson"
         with _Scoped(b):
             assert skin_engine.get_active_skin().name == "mono"  # B's own display.skin, never A's
         with _Scoped(a):
-            assert skin_engine.get_active_skin().name == "ares"
+            assert skin_engine.get_active_skin().name == "crimson"
         assert skin_engine.get_active_skin_name() == "default"  # routed turns never touch the launch slot
     finally:
         skin_engine._active_skin = None

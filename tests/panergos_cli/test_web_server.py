@@ -1954,6 +1954,99 @@ class TestWebServerEndpoints:
         assert "sk-super-secret" not in yaml.safe_dump(cfg)
 
 
+    def test_custom_endpoint_create_rejects_id_and_name_collisions_without_reusing_key(self):
+        from panergos_cli.config import custom_endpoint_key_env, get_env_value, load_config
+
+        assert self.client.post(
+            "/api/providers/custom-endpoints",
+            json={
+                "id": "acme",
+                "name": "Acme",
+                "base_url": "https://old.example.test/v1",
+                "model": "old-model",
+                "api_key": "old-key",
+            },
+        ).status_code == 200
+
+        for endpoint_id, name in (("acme", "Other"), ("other", "Acme")):
+            response = self.client.post(
+                "/api/providers/custom-endpoints",
+                json={
+                    "id": endpoint_id,
+                    "name": name,
+                    "base_url": "https://new.example.test/v1",
+                    "model": "new-model",
+                    "create_only": True,
+                },
+            )
+            assert response.status_code == 409
+            assert response.json()["detail"] == "custom endpoint ID or name already exists"
+
+        entry = load_config()["providers"]["acme"]
+        assert entry["base_url"] == "https://old.example.test/v1"
+        assert entry["model"] == "old-model"
+        assert get_env_value(custom_endpoint_key_env("acme")) == "old-key"
+
+
+    def test_custom_endpoint_save_rejects_authenticated_remote_http_before_write(self, monkeypatch):
+        env_writes = []
+        config_writes = []
+        monkeypatch.setattr(
+            "panergos_cli.config.save_env_value",
+            lambda *args: env_writes.append(args),
+        )
+        monkeypatch.setattr(
+            "panergos_cli.config.save_config",
+            lambda *args: config_writes.append(args),
+        )
+
+        response = self.client.post(
+            "/api/providers/custom-endpoints",
+            json={
+                "id": "unsafe",
+                "name": "Unsafe",
+                "base_url": "http://models.example.test/v1",
+                "model": "m",
+                "api_key": "secret",
+            },
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "an authenticated non-loopback endpoint must use https://"
+        assert env_writes == []
+        assert config_writes == []
+
+
+    def test_custom_endpoint_save_rejects_remote_http_when_retaining_existing_key(self):
+        from panergos_cli.config import custom_endpoint_key_env, get_env_value, load_config
+
+        assert self.client.post(
+            "/api/providers/custom-endpoints",
+            json={
+                "id": "secure",
+                "name": "Secure",
+                "base_url": "https://models.example.test/v1",
+                "model": "m",
+                "api_key": "secret",
+            },
+        ).status_code == 200
+
+        response = self.client.post(
+            "/api/providers/custom-endpoints",
+            json={
+                "id": "secure",
+                "name": "Secure",
+                "base_url": "http://models.example.test/v1",
+                "model": "m",
+            },
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "an authenticated non-loopback endpoint must use https://"
+        assert load_config()["providers"]["secure"]["base_url"] == "https://models.example.test/v1"
+        assert get_env_value(custom_endpoint_key_env("secure")) == "secret"
+
+
     def test_custom_endpoint_save_leaves_a_hand_written_env_ref_alone(self, monkeypatch):
         """``api_key: ${MY_KEY}`` is already safe — don't copy it elsewhere.
 
@@ -2018,6 +2111,24 @@ class TestWebServerEndpoints:
 
         assert get_env_value(custom_endpoint_key_env("local-8000")) == "sk-first"
         assert get_env_value(custom_endpoint_key_env("local-8001")) == "sk-second"
+
+        collision_ids = ("foo-bar", "foo_bar", "foo--bar")
+        env_vars = [custom_endpoint_key_env(endpoint_id) for endpoint_id in collision_ids]
+        assert len(set(env_vars)) == len(collision_ids)
+        for index, endpoint_id in enumerate(collision_ids):
+            response = self.client.post(
+                "/api/providers/custom-endpoints",
+                json={
+                    "id": endpoint_id,
+                    "name": f"Collision check {index}",
+                    "base_url": f"http://127.0.0.1:{9000 + index}/v1",
+                    "model": "m",
+                    "api_key": f"key-{index}",
+                    "create_only": True,
+                },
+            )
+            assert response.status_code == 200
+            assert get_env_value(env_vars[index]) == f"key-{index}"
 
     def test_custom_endpoint_response_reports_a_key_held_in_env(self):
         """has_api_key must follow key_env, not just a plaintext api_key.

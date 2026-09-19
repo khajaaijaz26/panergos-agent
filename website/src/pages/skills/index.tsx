@@ -675,7 +675,7 @@ export default function SkillsDashboard() {
   return (
     <Layout
       title="Skills Hub"
-      description="Browse all skills and plugins available for Panergos Agent"
+      description="Browse the published Panergos Agent skills catalog"
     >
       <div className={`${styles.page} ${pickerMode ? styles.pickerMode : ""}`}>
         <header className={styles.hero}>
@@ -705,13 +705,12 @@ export default function SkillsDashboard() {
             </p>
             {(indexMetaLocal?.indexGeneratedAt || indexMetaLocal?.extractedAt) && (
               <p className={styles.heroSub} style={{ fontSize: "0.85rem", opacity: 0.75 }}>
-                Catalog refreshed{" "}
+                Catalog snapshot published{" "}
                 <span title={indexMetaLocal.indexGeneratedAt || indexMetaLocal.extractedAt}>
                   {formatRelativeTime(
                     indexMetaLocal.indexGeneratedAt || indexMetaLocal.extractedAt,
                   ) || "recently"}
                 </span>
-                {" "}· auto-rebuilt twice daily
               </p>
             )}
 
@@ -898,7 +897,7 @@ export default function SkillsDashboard() {
                 <div className={styles.loadingSpinner} />
                 <h3 className={styles.emptyTitle}>Loading the catalog…</h3>
                 <p className={styles.emptyDesc}>
-                  Fetching 88k+ skills across every registry. One moment.
+                  Loading the published catalog. One moment.
                 </p>
               </div>
             ) : visible.length > 0 ? (

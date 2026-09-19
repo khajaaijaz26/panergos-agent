@@ -42,6 +42,11 @@ import { useI18n } from "@/i18n";
 import { PluginSlot } from "@/plugins";
 import { ModelPickerDialog } from "@/components/ModelPickerDialog";
 import { ModelReloadConfirm } from "@/components/ModelReloadConfirm";
+import { CustomEndpointsPanel } from "@/components/CustomEndpointsPanel";
+import { ConnectModelCard } from "@/components/ConnectModelCard";
+import { FallbackModelsCard } from "@/components/FallbackModelsCard";
+import { FreeModelAccess } from "@/components/FreeModelAccess";
+import { OAuthProvidersCard } from "@/components/OAuthProvidersCard";
 
 const PERIODS = [
   { label: "7d", days: 7 },
@@ -1017,55 +1022,69 @@ function ModelSettingsPanel({
           </Button>
         </div>
 
-        {/* Auxiliary tasks summary + open modal */}
-        <div className="flex min-w-0 flex-col gap-2 bg-muted/20 border border-border/50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 mb-0.5">
-              <Cpu className="h-3 w-3 text-text-tertiary" />
-              <span className="text-display text-xs font-medium tracking-wider">
-                Auxiliary tasks
+        <details className="group border border-border/50 bg-muted/10 p-3">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs font-medium">
+            <span>
+              Advanced routing
+              <span className="ml-2 font-normal text-text-secondary">
+                auxiliary tasks and Mixture of Agents
               </span>
-            </div>
-            <div className="text-xs font-mono text-text-secondary truncate">
-              {auxOverrideCount > 0
-                ? `${auxOverrideCount} override${auxOverrideCount > 1 ? "s" : ""} · ${AUX_TASKS.length - auxOverrideCount} auto`
-                : `${AUX_TASKS.length} tasks · all auto`}
-            </div>
-          </div>
-          <Button
-            size="sm"
-            outlined
-            onClick={() => setAuxModalOpen(true)}
-            className="shrink-0 self-start text-xs uppercase sm:self-center"
-          >
-            Configure
-          </Button>
-        </div>
+            </span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 transition-transform group-open:rotate-180" />
+          </summary>
 
-        <div className="flex min-w-0 flex-col gap-2 bg-muted/20 border border-border/50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 mb-0.5">
-              <Brain className="h-3 w-3 text-text-tertiary" />
-              <span className="text-display text-xs font-medium tracking-wider">
-                Mixture of Agents
-              </span>
+          <div className="mt-3 space-y-3">
+            {/* Auxiliary tasks summary + open modal */}
+            <div className="flex min-w-0 flex-col gap-2 bg-muted/20 border border-border/50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <Cpu className="h-3 w-3 text-text-tertiary" />
+                  <span className="text-display text-xs font-medium tracking-wider">
+                    Auxiliary tasks
+                  </span>
+                </div>
+                <div className="text-xs font-mono text-text-secondary truncate">
+                  {auxOverrideCount > 0
+                    ? `${auxOverrideCount} override${auxOverrideCount > 1 ? "s" : ""} · ${AUX_TASKS.length - auxOverrideCount} auto`
+                    : `${AUX_TASKS.length} tasks · all auto`}
+                </div>
+              </div>
+              <Button
+                size="sm"
+                outlined
+                onClick={() => setAuxModalOpen(true)}
+                className="shrink-0 self-start text-xs uppercase sm:self-center"
+              >
+                Configure
+              </Button>
             </div>
-            <div className="text-xs font-mono text-text-secondary truncate">
-              {moa
-                ? `${moa.reference_models.length} reference${moa.reference_models.length === 1 ? "" : "s"} · ${moa.aggregator.provider}/${shortModelName(moa.aggregator.model)}`
-                : "not loaded"}
+
+            <div className="flex min-w-0 flex-col gap-2 bg-muted/20 border border-border/50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <Brain className="h-3 w-3 text-text-tertiary" />
+                  <span className="text-display text-xs font-medium tracking-wider">
+                    Mixture of Agents
+                  </span>
+                </div>
+                <div className="text-xs font-mono text-text-secondary truncate">
+                  {moa
+                    ? `${moa.reference_models.length} reference${moa.reference_models.length === 1 ? "" : "s"} · ${moa.aggregator.provider}/${shortModelName(moa.aggregator.model)}`
+                    : "not loaded"}
+                </div>
+              </div>
+              <Button
+                size="sm"
+                outlined
+                onClick={() => setMoaModalOpen(true)}
+                disabled={!moa}
+                className="shrink-0 self-start text-xs uppercase sm:self-center"
+              >
+                Configure
+              </Button>
             </div>
           </div>
-          <Button
-            size="sm"
-            outlined
-            onClick={() => setMoaModalOpen(true)}
-            disabled={!moa}
-            className="shrink-0 self-start text-xs uppercase sm:self-center"
-          >
-            Configure
-          </Button>
-        </div>
+        </details>
 
         {picker && (
           <ModelPickerDialog
@@ -1243,6 +1262,33 @@ export default function ModelsPage() {
     <div className="flex min-w-0 max-w-full flex-col gap-6">
       <PluginSlot name="models:top" />
 
+      <ConnectModelCard onChanged={onAssigned} />
+
+      <FreeModelAccess />
+
+      <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+        <details className="group border border-border/60 bg-card/40 p-4">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium">
+            <span>
+              Sign in with an AI account
+              <span className="ml-2 text-xs font-normal text-text-secondary">
+                supported subscriptions and premium accounts
+              </span>
+            </span>
+            <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+          </summary>
+          <p className="mt-2 text-xs text-text-secondary">
+            Use a provider-supported browser or device login instead of an API
+            key. Availability and usage follow your provider plan.
+          </p>
+          <div className="mt-4">
+            <OAuthProvidersCard onSuccess={onAssigned} />
+          </div>
+        </details>
+
+        <FallbackModelsCard onChanged={onAssigned} />
+      </div>
+
       <div className="grid min-w-0 gap-6 lg:grid-cols-2">
         <ModelSettingsPanel
           aux={aux}
@@ -1314,6 +1360,21 @@ export default function ModelsPage() {
           </Card>
         )}
       </div>
+
+      <details className="group border border-border/60 bg-card/40 p-4">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium">
+          <span>
+            Advanced: custom endpoint
+            <span className="ml-2 text-xs font-normal text-text-secondary">
+              OpenAI-compatible and local servers
+            </span>
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="mt-4">
+          <CustomEndpointsPanel onChanged={onAssigned} />
+        </div>
+      </details>
 
       {loading && !data && (
         <div className="flex items-center justify-center py-24">

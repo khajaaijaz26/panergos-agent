@@ -63,7 +63,9 @@ For detailed installation options, prerequisites, and troubleshooting, see the [
 
 ## 2. Choose a Provider
 
-The single most important setup step. Use `panergos model` to walk through the choice interactively:
+The easiest browser path is **Models → Connect a model**: choose the provider, use **Get API key**, paste the key, and select **Connect**. Panergos validates it, discovers the available models, and chooses a sensible default for new sessions. Custom and local OpenAI-compatible servers are under the collapsed advanced section.
+
+From a terminal, use `panergos model` to walk through the same choice interactively:
 
 ```bash
 panergos model

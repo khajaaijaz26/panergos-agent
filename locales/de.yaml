@@ -386,7 +386,7 @@ Future messages in this room will use that transcript until `/reset` or another 
     not_git_repo:            "✗ Kein Git-Repository — Update nicht möglich."
     panergos_cmd_not_found:    "✗ Der Befehl `panergos` konnte nicht gefunden werden. Panergos läuft, aber der Update-Befehl konnte das ausführbare Programm weder im PATH noch über den aktuellen Python-Interpreter finden. Versuchen Sie, `panergos update` manuell im Terminal auszuführen."
     start_failed:            "✗ Update konnte nicht gestartet werden: {error}"
-    starting:                "☤ Panergos-Update wird gestartet… Ich streame den Fortschritt hier."
+    starting:                "◆ Panergos-Update wird gestartet… Ich streame den Fortschritt hier."
 
   usage:
     rate_limits:              "⏱️ **Ratenlimits:** {state}"

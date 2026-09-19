@@ -37,7 +37,7 @@ to the public equivalent or the new module. Test monkeypatch seams are likewise 
 | kind | count | meaning |
 |---|---:|---|
 | moved | 0 | name now defined in `new location`; re-exported from the old module |
-| moved-lazy | 1108 | same, resolved lazily via `__getattr__` to avoid an import cycle |
+| moved-lazy | 1107 | same, resolved lazily via `__getattr__` to avoid an import cycle |
 | import | 582 | a third-party/stdlib name the old module used to expose; original import restored |
 | restored-def | 281 | public name deleted as unused; its earlier definition is restored |
 | restored-helper | 33 | private helper restored because a restored definition depends on it |
@@ -634,7 +634,6 @@ to the public equivalent or the new module. Test monkeypatch seams are likewise 
 | `FileHistory` | import | `prompt_toolkit.history` |
 | `FormattedTextControl` | import | `prompt_toolkit.layout` |
 | `PANERGOS_AGENT_LOGO` | moved-lazy | `panergos_cli.banner` |
-| `PANERGOS_CADUCEUS` | moved-lazy | `panergos_cli.banner` |
 | `HSplit` | import | `prompt_toolkit.layout` |
 | `KeyBindings` | import | `prompt_toolkit.key_binding` |
 | `Layout` | import | `prompt_toolkit.layout` |

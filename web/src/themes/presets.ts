@@ -1,5 +1,11 @@
 import { parseColor, THEME_PRESET_PALETTES, type ThemePresetPalette } from "@panergos/shared";
-import type { DashboardTheme, ThemePalette, ThemeTypography, ThemeLayout } from "./types";
+import type {
+  DashboardTheme,
+  ThemeColorOverrides,
+  ThemeLayout,
+  ThemePalette,
+  ThemeTypography,
+} from "./types";
 
 /**
  * Built-in dashboard themes.
@@ -41,12 +47,9 @@ const DEFAULT_LAYOUT: ThemeLayout = {
 
 /**
  * Project a shared (desktop-shaped) preset palette onto the dashboard's
- * 3-slot model. The dashboard's `midground` is its text + primary-fill
- * colour, which is the desktop's `primary`; its `warmGlow` is the brand
- * accent stroke, which is the desktop's `midground` (falling back to `ring`).
- * `foreground` stays the dashboard's invisible white overlay. Dark palettes
- * are the dashboard's home turf, so a preset shipping `darkColors` is read
- * from that side.
+ * 3-slot model. `foreground` owns readable text, while `midground` remains
+ * the branded action/stroke colour. Dark palettes are the dashboard's home
+ * turf, so a preset shipping `darkColors` is read from that side.
  */
 export function webPresetFromShared(
   preset: ThemePresetPalette,
@@ -55,9 +58,36 @@ export function webPresetFromShared(
   const [r, g, b] = parseColor(colors.midground ?? colors.ring) ?? [255, 255, 255];
   return {
     background: { hex: colors.background, alpha: 1 },
-    midground: { hex: colors.primary, alpha: 1 },
-    foreground: { hex: "#ffffff", alpha: 0 },
+    midground: { hex: colors.midground ?? colors.ring, alpha: 1 },
+    foreground: { hex: colors.foreground, alpha: 1 },
     warmGlow: `rgba(${r}, ${g}, ${b}, 0.3)`,
+  };
+}
+
+/** Preserve the shared palette's semantic roles instead of tinting every
+ * dashboard surface with the single `midground` brand colour. */
+export function webOverridesFromShared(
+  preset: ThemePresetPalette,
+): ThemeColorOverrides {
+  const colors = preset.darkColors ?? preset.colors;
+  return {
+    card: colors.card,
+    cardForeground: colors.cardForeground,
+    popover: colors.popover,
+    popoverForeground: colors.popoverForeground,
+    primary: colors.primary,
+    primaryForeground: colors.primaryForeground,
+    secondary: colors.secondary,
+    secondaryForeground: colors.secondaryForeground,
+    muted: colors.muted,
+    mutedForeground: colors.mutedForeground,
+    accent: colors.accent,
+    accentForeground: colors.accentForeground,
+    destructive: colors.destructive,
+    destructiveForeground: colors.destructiveForeground,
+    border: colors.border,
+    input: colors.input,
+    ring: colors.ring,
   };
 }
 
@@ -65,30 +95,42 @@ export function webPresetFromShared(
 // Themes
 // ---------------------------------------------------------------------------
 
+const ECLIPSE_DARK = THEME_PRESET_PALETTES.eclipse.darkColors!;
+const ECLIPSE_LIGHT = THEME_PRESET_PALETTES.eclipse.colors;
+const PANERGOS_JADE = "#2ee6a6";
+const PANERGOS_AMBER = "#f7c453";
+const PORCELAIN_JADE = "#14755d";
+const PORCELAIN_AMBER = "#8a6110";
+
 export const defaultTheme: DashboardTheme = {
   name: "default",
   label: "Panergos Eclipse",
   description: "Eclipse plum with coral, jade, and gold signals",
   palette: {
     ...webPresetFromShared(THEME_PRESET_PALETTES.eclipse),
-    midground: { hex: "#2ee6a6", alpha: 1 },
+    midground: { hex: PANERGOS_JADE, alpha: 1 },
     warmGlow: "rgba(46, 230, 166, 0.2)",
     noiseOpacity: 1,
   },
   typography: DEFAULT_TYPOGRAPHY,
   layout: DEFAULT_LAYOUT,
-  terminalBackground: "#120b1f",
-  terminalForeground: "#f7f2ff",
+  terminalBackground: ECLIPSE_DARK.background,
+  terminalForeground: ECLIPSE_DARK.foreground,
   colorOverrides: {
-    destructive: "#ff4773",
-    destructiveForeground: "#200b13",
-    warning: "#f7c453",
+    ...webOverridesFromShared(THEME_PRESET_PALETTES.eclipse),
+    primary: PANERGOS_JADE,
+    primaryForeground: ECLIPSE_DARK.background,
+    accent: ECLIPSE_DARK.primary,
+    accentForeground: ECLIPSE_DARK.primaryForeground,
+    ring: PANERGOS_AMBER,
+    success: PANERGOS_JADE,
+    warning: PANERGOS_AMBER,
   },
   seriesColors: {
-    inputTokenAccent: "#f7c453",
-    outputTokenAccent: "#2ee6a6",
+    inputTokenAccent: PANERGOS_AMBER,
+    outputTokenAccent: PANERGOS_JADE,
   },
-  swatchColors: ["#120b1f", "#ff6b5e", "#2ee6a6"],
+  swatchColors: [ECLIPSE_DARK.background, ECLIPSE_DARK.primary, PANERGOS_JADE],
 };
 
 export const midnightTheme: DashboardTheme = {
@@ -111,6 +153,7 @@ export const midnightTheme: DashboardTheme = {
     ...DEFAULT_LAYOUT,
     radius: "0.75rem",
   },
+  colorOverrides: webOverridesFromShared(THEME_PRESET_PALETTES.midnight),
 };
 
 export const emberTheme: DashboardTheme = {
@@ -133,6 +176,7 @@ export const emberTheme: DashboardTheme = {
     radius: "0.25rem",
   },
   colorOverrides: {
+    ...webOverridesFromShared(THEME_PRESET_PALETTES.ember),
     destructive: "#c92d0f",
     warning: "#f97316",
   },
@@ -157,6 +201,7 @@ export const monoTheme: DashboardTheme = {
     ...DEFAULT_LAYOUT,
     radius: "0",
   },
+  colorOverrides: webOverridesFromShared(THEME_PRESET_PALETTES.mono),
 };
 
 export const cyberpunkTheme: DashboardTheme = {
@@ -179,6 +224,7 @@ export const cyberpunkTheme: DashboardTheme = {
     radius: "0",
   },
   colorOverrides: {
+    ...webOverridesFromShared(THEME_PRESET_PALETTES.cyberpunk),
     success: "#00ff88",
     warning: "#f7c453",
     destructive: "#ff0055",
@@ -215,26 +261,33 @@ export const porcelainTheme: DashboardTheme = {
   label: "Panergos Porcelain",
   description: "Light mode — deep coral on warm porcelain",
   palette: {
-    background: { hex: THEME_PRESET_PALETTES.eclipse.colors.background, alpha: 1 },
-    midground: { hex: "#14755d", alpha: 1 },
-    foreground: { hex: "#20142b", alpha: 0 },
+    background: { hex: ECLIPSE_LIGHT.background, alpha: 1 },
+    midground: { hex: PORCELAIN_JADE, alpha: 1 },
+    foreground: { hex: ECLIPSE_LIGHT.foreground, alpha: 1 },
     warmGlow: "rgba(46, 230, 166, 0.1)",
     noiseOpacity: 0,
   },
   typography: DEFAULT_TYPOGRAPHY,
   layout: DEFAULT_LAYOUT,
-  terminalBackground: "#fff9f6",
-  terminalForeground: "#20142b",
+  terminalBackground: ECLIPSE_LIGHT.background,
+  terminalForeground: ECLIPSE_LIGHT.foreground,
   colorOverrides: {
+    ...webOverridesFromShared({ colors: ECLIPSE_LIGHT }),
+    primary: PORCELAIN_JADE,
+    primaryForeground: "#ffffff",
+    accent: ECLIPSE_LIGHT.primary,
+    accentForeground: ECLIPSE_LIGHT.primaryForeground,
+    ring: PORCELAIN_AMBER,
+    success: PORCELAIN_JADE,
     destructive: "#b42342",
     destructiveForeground: "#ffffff",
-    warning: "#8a6110",
+    warning: PORCELAIN_AMBER,
   },
   seriesColors: {
-    inputTokenAccent: "#8a6110",
-    outputTokenAccent: "#14755d",
+    inputTokenAccent: PORCELAIN_AMBER,
+    outputTokenAccent: PORCELAIN_JADE,
   },
-  swatchColors: ["#fff9f6", "#b03a32", "#2ee6a6"],
+  swatchColors: [ECLIPSE_LIGHT.background, ECLIPSE_LIGHT.primary, PANERGOS_JADE],
 };
 
 /**
@@ -256,6 +309,11 @@ export const defaultLargeTheme: DashboardTheme = {
     ...DEFAULT_LAYOUT,
     density: "spacious",
   },
+  terminalBackground: defaultTheme.terminalBackground,
+  terminalForeground: defaultTheme.terminalForeground,
+  colorOverrides: defaultTheme.colorOverrides,
+  seriesColors: defaultTheme.seriesColors,
+  swatchColors: defaultTheme.swatchColors,
 };
 
 export const BUILTIN_THEMES: Record<string, DashboardTheme> = {

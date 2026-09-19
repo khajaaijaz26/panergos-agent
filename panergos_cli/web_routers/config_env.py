@@ -9,9 +9,8 @@ import logging
 import re
 import asyncio
 import time
-import urllib.parse
 from fastapi import APIRouter
-from panergos_cli.web_routers._common import http_failure, scoped_to_thread
+from panergos_cli.web_routers._common import config_write_scope, http_failure, scoped_to_thread
 from panergos_cli.web_deps import LateState, late
 from panergos_cli.web_server_config import (
     _apply_main_model_assignment, _denormalize_config_from_web, _normalize_config_for_web, _schema_with_dynamic_provider_options,
@@ -20,6 +19,7 @@ from panergos_cli.web_server_config import (
 from panergos_cli.web_server_profiles import (
     _approval_mode_of, _broadcast_gateway_session_info, _is_other_profile, _parse_model_ids,
 )
+from panergos_cli.model_setup_flows_common import _require_safe_authenticated_endpoint
 from fastapi import HTTPException, Request
 from panergos_cli.config import DEFAULT_CONFIG, OPTIONAL_ENV_VARS, read_raw_config, custom_endpoint_key_env, coerce_provider_id, find_provider_entry, redact_key, _deep_merge
 from panergos_cli.web_models import ConfigUpdate, EnvVarUpdate, EnvVarDelete, EnvVarReveal, CustomEndpointUpdate
@@ -435,6 +435,14 @@ def _detach_main_model_from_provider(cfg: Dict[str, Any], provider_key: str) -> 
     cfg["model"] = model_cfg
 
 
+def _validated_custom_endpoint_url(base_url: str, api_key: str = "") -> str:
+    """Apply the shared custom-endpoint trust policy at the HTTP boundary."""
+    try:
+        return _require_safe_authenticated_endpoint(base_url, api_key)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 def _write_custom_endpoint(cfg: Dict[str, Any], body: CustomEndpointUpdate) -> Tuple[str, Dict[str, Any]]:
     endpoint_id = _custom_endpoint_id(body.id or body.name)
     name = (body.name or "").strip()
@@ -445,9 +453,6 @@ def _write_custom_endpoint(cfg: Dict[str, Any], body: CustomEndpointUpdate) -> T
         raise HTTPException(status_code=400, detail="name required")
     if not base_url:
         raise HTTPException(status_code=400, detail="base_url required")
-    parsed = urllib.parse.urlparse(base_url)
-    if not parsed.scheme or not parsed.netloc:
-        raise HTTPException(status_code=400, detail="base_url must include scheme and host")
     if not model:
         raise HTTPException(status_code=400, detail="model required")
 
@@ -458,8 +463,23 @@ def _write_custom_endpoint(cfg: Dict[str, Any], body: CustomEndpointUpdate) -> T
     if not isinstance(providers, dict):
         providers = {}
     stored_key, existing = find_provider_entry(providers, endpoint_id)
+    if body.create_only:
+        duplicate_name = any(
+            isinstance(candidate, dict)
+            and str(candidate.get("name") or "").strip().casefold() == name.casefold()
+            for candidate in providers.values()
+        )
+        if stored_key is not None or duplicate_name:
+            raise HTTPException(status_code=409, detail="custom endpoint ID or name already exists")
     if existing is None:
         existing = {}
+    submitted_key = body.api_key.strip() if body.api_key is not None else None
+    existing_key = str(existing.get("api_key") or "").strip()
+    key_env = str(existing.get("key_env") or "").strip()
+    if not existing_key and key_env:
+        existing_key = str(load_env().get(key_env) or "").strip()
+    effective_key = submitted_key if submitted_key is not None else existing_key
+    base_url = _validated_custom_endpoint_url(base_url, effective_key)
 
     # Merge onto the existing entry rather than replacing it: a providers.<name>
     # block can carry hand-written keys the dashboard has no field for
@@ -493,15 +513,20 @@ def _write_custom_endpoint(cfg: Dict[str, Any], body: CustomEndpointUpdate) -> T
     # ``key_env`` — the indirection built-in providers use and that
     # runtime_provider.py resolves at load time.
     # See #69449.
-    env_var = custom_endpoint_key_env(endpoint_id)
-    submitted_key = body.api_key.strip() if body.api_key is not None else None
+    existing_env_var = str(existing.get("key_env") or "").strip()
+    env_var = (
+        existing_env_var
+        if existing_env_var.startswith("PANERGOS_CUSTOM_")
+        else custom_endpoint_key_env(endpoint_id)
+    )
     if submitted_key:
         save_env_value(env_var, submitted_key)
         entry["key_env"] = env_var
         entry.pop("api_key", None)
     elif submitted_key is not None:
         # Blank field means "clear the key", not "leave it alone".
-        remove_env_value(env_var)
+        if env_var.startswith("PANERGOS_CUSTOM_"):
+            remove_env_value(env_var)
         entry.pop("key_env", None)
         entry.pop("api_key", None)
     elif str(entry.get("api_key") or "").strip() and not _config_api_key_is_env_ref(endpoint_id):
@@ -543,7 +568,7 @@ def list_custom_endpoints(profile: Optional[str] = None):
 def upsert_custom_endpoint(body: CustomEndpointUpdate, profile: Optional[str] = None):
     """Create or update a v12+ ``providers`` custom endpoint entry."""
     with http_failure("POST /api/providers/custom-endpoints failed", 500, detail="Failed to save custom endpoint"):
-        with _config_profile_scope(profile):
+        with config_write_scope(profile):
             cfg = load_config()
             endpoint_id, _entry = _write_custom_endpoint(cfg, body)
             save_config(cfg)
@@ -560,7 +585,7 @@ def activate_custom_endpoint(endpoint_id: str, profile: Optional[str] = None):
         f"POST /api/providers/custom-endpoints/{endpoint_id}/activate failed", 500,
         detail="Failed to activate custom endpoint",
     ):
-        with _config_profile_scope(profile):
+        with config_write_scope(profile):
             cfg = load_config()
             provider_key = _custom_endpoint_id(endpoint_id)
             _stored, entry = find_provider_entry(cfg.get("providers"), provider_key)
@@ -601,17 +626,24 @@ def delete_custom_endpoint(endpoint_id: str, profile: Optional[str] = None):
         f"DELETE /api/providers/custom-endpoints/{endpoint_id} failed", 500,
         detail="Failed to delete custom endpoint",
     ):
-        with _config_profile_scope(profile):
+        with config_write_scope(profile):
             cfg = load_config()
             provider_key = _custom_endpoint_id(endpoint_id)
             providers = cfg.get("providers")
             stored_key, entry = find_provider_entry(providers, provider_key)
             if entry is None or not isinstance(providers, dict):
                 raise HTTPException(status_code=404, detail="custom endpoint not found")
+            key_env = str(entry.get("key_env") or "").strip()
             providers.pop(stored_key, None)
             cfg["providers"] = providers
             _detach_main_model_from_provider(cfg, provider_key)
-            remove_env_value(custom_endpoint_key_env(provider_key))
+            key_is_still_used = any(
+                isinstance(candidate, dict)
+                and str(candidate.get("key_env") or "").strip() == key_env
+                for candidate in providers.values()
+            )
+            if key_env.startswith("PANERGOS_CUSTOM_") and not key_is_still_used:
+                remove_env_value(key_env)
             save_config(cfg)
             response = _custom_endpoint_response(cfg)
         response["ok"] = True
@@ -619,16 +651,19 @@ def delete_custom_endpoint(endpoint_id: str, profile: Optional[str] = None):
 
 
 @router.post("/api/providers/custom-endpoints/validate")
-async def validate_custom_endpoint(body: CustomEndpointUpdate):
+async def validate_custom_endpoint(body: CustomEndpointUpdate, request: Request):
     """Probe a custom endpoint by calling its OpenAI-compatible /models URL."""
+    _require_token(request)
     base_url = (body.base_url or "").strip().rstrip("/")
     if not base_url:
         return {"ok": False, "reachable": True, "message": "Enter an endpoint URL first.", "models": []}
+    api_key = (body.api_key or "").strip()
+    base_url = _validated_custom_endpoint_url(base_url, api_key)
 
     url = base_url + "/models"
     headers = {"Accept": "application/json"}
-    if body.api_key and body.api_key.strip():
-        headers["Authorization"] = f"Bearer {body.api_key.strip()}"
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
 
     try:
         async with _endpoint_probe_client(url, 8.0) as client:
@@ -677,8 +712,9 @@ async def validate_provider_credential(body: EnvVarUpdate, request: Request):
     # default. The optional API key is sent so servers that require auth on
     # ``/v1/models`` still enumerate instead of returning an empty list.
     if key == "OPENAI_BASE_URL":
-        url = value.rstrip("/") + "/models"
         api_key = (body.api_key or "").strip()
+        value = _validated_custom_endpoint_url(value, api_key)
+        url = value + "/models"
         headers = {"Authorization": f"Bearer {api_key}"} if api_key else None
         try:
             async with _endpoint_probe_client(url, 8.0) as client:

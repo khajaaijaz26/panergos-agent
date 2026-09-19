@@ -64,3 +64,108 @@ def test_openai_base_url_probe_names_the_http_status_instead_of_no_models(monkey
 
     assert out["ok"] is False and out["reachable"] is True
     assert "HTTP 502" in out["message"]
+
+
+@pytest.mark.parametrize(
+    "base_url,api_key,detail",
+    [
+        (
+            "http://models.example.test/v1",
+            "secret",
+            "an authenticated non-loopback endpoint must use https://",
+        ),
+        (
+            "ftp://models.example.test/v1",
+            "",
+            "base URL must be an absolute http:// or https:// URL",
+        ),
+        (
+            "https://user:password@models.example.test/v1",
+            "",
+            "do not put credentials in the base URL; use --key-env",
+        ),
+    ],
+)
+def test_custom_endpoint_probe_rejects_unsafe_url_before_network(
+    base_url, api_key, detail, monkeypatch
+):
+    import panergos_cli.web_routers.config_env as mod
+    from fastapi import HTTPException
+    from panergos_cli.web_models import CustomEndpointUpdate
+
+    probes = []
+    monkeypatch.setattr(mod, "_require_token", lambda request: None)
+    monkeypatch.setattr(
+        mod,
+        "_endpoint_probe_client",
+        lambda *args, **kwargs: probes.append((args, kwargs)),
+    )
+
+    body = CustomEndpointUpdate(
+        name="Unsafe",
+        base_url=base_url,
+        model="m",
+        api_key=api_key,
+    )
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(mod.validate_custom_endpoint(body, request=None))  # type: ignore[arg-type]
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == detail
+    assert probes == []
+
+
+def test_custom_endpoint_probe_requires_session_token_before_handling_key(monkeypatch):
+    import panergos_cli.web_routers.config_env as mod
+    from fastapi import HTTPException
+    from panergos_cli.web_models import CustomEndpointUpdate
+
+    probes = []
+
+    def reject(_request):
+        raise HTTPException(status_code=401, detail="unauthorized")
+
+    monkeypatch.setattr(mod, "_require_token", reject)
+    monkeypatch.setattr(
+        mod,
+        "_endpoint_probe_client",
+        lambda *args, **kwargs: probes.append((args, kwargs)),
+    )
+    body = CustomEndpointUpdate(
+        name="Protected",
+        base_url="https://models.example.test/v1",
+        model="m",
+        api_key="secret",
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(mod.validate_custom_endpoint(body, request=None))  # type: ignore[arg-type]
+
+    assert exc_info.value.status_code == 401
+    assert probes == []
+
+
+def test_openai_base_url_probe_rejects_authenticated_remote_http_before_network(monkeypatch):
+    import panergos_cli.web_routers.config_env as mod
+    from fastapi import HTTPException
+    from panergos_cli.web_models import EnvVarUpdate
+
+    probes = []
+    monkeypatch.setattr(mod, "_require_token", lambda request: None)
+    monkeypatch.setattr(
+        mod,
+        "_endpoint_probe_client",
+        lambda *args, **kwargs: probes.append((args, kwargs)),
+    )
+
+    body = EnvVarUpdate(
+        key="OPENAI_BASE_URL",
+        value="http://models.example.test/v1",
+        api_key="secret",
+    )
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(mod.validate_provider_credential(body, request=None))  # type: ignore[arg-type]
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "an authenticated non-loopback endpoint must use https://"
+    assert probes == []
