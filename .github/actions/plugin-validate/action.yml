@@ -1,0 +1,71 @@
+name: Panergos Plugin Validate
+description: >-
+  Validate a Panergos Agent plugin (plugin.yaml manifest schema AND
+  declared-vs-actually-registered capabilities) using
+  `panergos plugins validate`. Drop this into your plugin repo's CI:
+
+    - uses: actions/checkout@<sha>
+    - uses: khajaaijaz26/panergos-agent/.github/actions/plugin-validate@<commit-sha>
+      with:
+        path: .
+        panergos-ref: <release-tag-or-commit-sha>
+
+  The caller's job owns checkout; this action installs Python + Panergos Agent
+  (git install — a supported CI-context install route) and runs the
+  validator against your plugin directory.
+
+inputs:
+  path:
+    description: Path to the plugin directory (containing plugin.yaml).
+    default: "."
+  panergos-ref:
+    description: Pinned panergos-agent release tag or commit SHA to install and validate with.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      with:
+        python-version: "3.11"
+
+    - name: Install Panergos Agent
+      shell: bash
+      env:
+        _PANERGOS_REF: ${{ inputs.panergos-ref }}
+      run: |
+        set -euo pipefail
+        # Panergos intentionally blocks wheels and sdists. Clone the requested
+        # immutable ref, then use the supported editable source install.
+        case "$_PANERGOS_REF" in
+          ''|-*|*[!A-Za-z0-9._/-]*)
+            echo "panergos-ref must be a release tag or commit SHA" >&2
+            exit 2
+            ;;
+        esac
+        _PANERGOS_CLONE="$(mktemp -d)"
+        # Keep the checkout for the next composite step: an editable install
+        # resolves modules from this path. Hosted runners clean their temp
+        # directory after the job.
+        git -C "$_PANERGOS_CLONE" init --quiet
+        git -C "$_PANERGOS_CLONE" remote add origin https://github.com/khajaaijaz26/panergos-agent.git
+        git -C "$_PANERGOS_CLONE" fetch --quiet --depth 1 origin "$_PANERGOS_REF"
+        git -C "$_PANERGOS_CLONE" checkout --quiet --detach FETCH_HEAD
+        pip install --editable "$_PANERGOS_CLONE"
+
+    - name: Validate plugin
+      shell: bash
+      env:
+        _PLUGIN_PATH: ${{ inputs.path }}
+      run: |
+        set -uo pipefail
+        # `panergos plugins validate` checks the plugin.yaml manifest schema
+        # and loads the plugin in a scratch subprocess to verify that the
+        # capabilities it DECLARES match what it actually registers.
+        if panergos plugins validate "$_PLUGIN_PATH"; then
+          echo "✅ PASS: plugin at '$_PLUGIN_PATH' validated cleanly"
+        else
+          echo "❌ FAIL: plugin at '$_PLUGIN_PATH' failed validation (see output above)"
+          exit 1
+        fi

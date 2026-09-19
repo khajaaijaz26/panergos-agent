@@ -1,0 +1,77 @@
+/*
+ * Panergos Setup — defer entirely to the desktop's styles.css.
+ *
+ * Rather than re-implement the Panergos design system (and inevitably drift
+ * from it), we import apps/desktop/src/styles.css wholesale. The desktop
+ * is the canonical source of truth for fonts, color tokens, button chrome,
+ * scrollbars, layout utilities, and animations. Any change to the
+ * Panergos look propagates here automatically with no copy-paste maintenance.
+ *
+ * Follows the OS appearance: the installer has no in-app theme switcher, so
+ * src/theme.ts tracks the Tauri window theme and toggles `.dark` on
+ * <html>. The desktop's runtime applyTheme() normally PAINTS the dark seed
+ * colors inline (its imported :root.dark below only flips the per-mode mix
+ * knobs + neutral chrome), so we supply the Panergos dark seeds ourselves in the
+ * :root.dark block at the end of this file.
+ */
+@import '../../desktop/src/styles.css';
+
+/* Installer-only additions: a fade-in animation and a branded radial glow
+   for the welcome screen. Everything else inherits from the desktop. */
+@keyframes panergos-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.panergos-fade-in {
+  animation: panergos-fade-in 0.45s ease-out both;
+}
+
+.panergos-glow {
+  background: radial-gradient(
+    ellipse at center,
+    color-mix(in srgb, var(--ui-warm) 18%, transparent) 0%,
+    transparent 60%
+  );
+}
+
+/*
+ * Dark appearance — Panergos dark seeds.
+ *
+ * The imported desktop :root.dark only flips the per-mode mix knobs + neutral
+ * chrome; the seed COLORS are normally painted at runtime by the desktop's
+ * applyTheme(). The installer has no theme runtime, so we mirror them here from
+ * apps/shared/src/theme-presets.ts. The whole
+ * --ui-* / --dt-* chain in the imported stylesheet derives from these seeds, so
+ * flipping them is enough — we only additionally override the few tokens
+ * applyTheme() sets inline that DON'T derive from a seed (primary-foreground
+ * and destructive). Unlayered on purpose so it wins over the imported @layer
+ * base :root light seeds. Keep in sync with the dark palette if it
+ * is retuned.
+ */
+:root.dark {
+  color-scheme: dark;
+
+  --theme-foreground: #f7f2ff;
+  --theme-primary: #ff6b5e;
+  --theme-secondary: #332440;
+  --theme-accent-soft: #2d1e3c;
+  --theme-midground: #ff6b5e;
+  --theme-warm: #2ee6a6;
+  --theme-background-seed: #120b1f;
+  --theme-sidebar-seed: #0d0718;
+  --theme-card-seed: #1a122a;
+  --theme-elevated-seed: #211631;
+  --theme-bubble-seed: #2a1934;
+
+  /* Non-derived shadcn tokens applyTheme() paints inline. */
+  --dt-primary-foreground: #200b13;
+  --dt-destructive: #ff4773;
+  --dt-destructive-foreground: #200b13;
+}
