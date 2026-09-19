@@ -247,6 +247,15 @@ def _runtime(provider: str, api_mode: str, base_url: Any, api_key: Any, **extra:
     if is_actual_route(provider, base_url):
         api_mode = "chat_completions"
         base_url = normalize_actual_base_url(base_url)
+    if provider == "openrouter" and base_url_host_matches(str(base_url or ""), "openrouter.ai"):
+        api_key = auth_mod._usable_declared_secret(
+            "openrouter", api_key, str(extra.get("source") or "configured credential"))
+        if not api_key:
+            raise AuthError(
+                "No usable OpenRouter API key found. Reconnect OpenRouter with a key copied directly from its dashboard.",
+                provider="openrouter",
+                code="missing_api_key",
+            )
     return {"provider": provider, "api_mode": api_mode, "base_url": base_url, "api_key": api_key, **extra}
 
 

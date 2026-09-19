@@ -143,6 +143,21 @@ def test_update_rotates_config_yaml_model_mirror(panergos_home):
     assert load_env()["OPENAI_API_KEY"] == new
 
 
+def test_put_rejects_malformed_provider_key_without_marking_it_connected(panergos_home):
+    bad_key = "sk-or-v1-bad—key"
+    response = client.put(
+        "/api/env",
+        json={"key": "OPENROUTER_API_KEY", "value": bad_key},
+        headers=HEADERS,
+    )
+    assert response.status_code == 400
+    assert not panergos_home.joinpath(".env").exists()
+
+    _write_env(panergos_home, OPENROUTER_API_KEY="not a provider key")
+    row = client.get("/api/env", headers=HEADERS).json()["OPENROUTER_API_KEY"]
+    assert row["is_set"] is False
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -334,5 +349,3 @@ def test_scrub_never_touches_providers_base_url_alias(panergos_home):
 # ---------------------------------------------------------------------------
 # Suppression round-trip: delete sticks, re-add lifts it
 # ---------------------------------------------------------------------------
-
-

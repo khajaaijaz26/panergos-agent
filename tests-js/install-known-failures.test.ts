@@ -84,3 +84,17 @@ it('renders known receipts as footnotes, without suppressing a red job', async (
   const passed = renderMarkdownResults([{ name: name + ' / e2e', conclusion: 'success' }])
   expect(passed).toContain('1 passed, 0 failed, 0 known failures')
 })
+
+it('reports a first release without an empty matrix table', async () => {
+  const modulePath = new URL('../scripts/sandbox/generate-e2e-matrix.mjs', import.meta.url).href
+  const { renderMarkdownPlan, renderMarkdownResults } = await import(/* @vite-ignore */ modulePath)
+  expect(renderMarkdownPlan([], [])).toContain('No previous release exists before HEAD')
+  expect(renderMarkdownPlan([], [])).not.toContain('| combination |')
+  const setupJobs = [
+    { name: 'Pick release tags', conclusion: 'success' },
+    { name: 'Expand combinations', conclusion: 'success' },
+    { name: 'Upload leg player', conclusion: 'success' },
+    { name: 'Result chart', conclusion: null },
+  ]
+  expect(renderMarkdownResults(setupJobs, [])).toContain('no update path to test for this first release')
+})

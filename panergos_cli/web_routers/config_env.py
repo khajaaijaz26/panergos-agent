@@ -165,6 +165,15 @@ _AUTH_TYPE_ENV_VARS = {
     "vertex": (("VERTEX_CREDENTIALS_PATH", lambda d, var: f"{d.label} — service account JSON path (or use ADC)"),),
 }
 
+_API_KEY_FORMAT_MESSAGE = (
+    "API keys must contain only printable ASCII characters with no spaces. "
+    "Copy the key directly from the provider dashboard."
+)
+
+
+def _api_key_format_error(value: str) -> str:
+    return "" if not value or all(0x21 <= ord(char) <= 0x7E for char in value) else _API_KEY_FORMAT_MESSAGE
+
 
 def _catalog_provider_env_metadata() -> dict:
     """Map provider env vars -> desktop card metadata, derived from the catalog.
@@ -238,15 +247,18 @@ def _get_env_vars_sync(profile: Optional[str] = None):
     def _row(var_name: str, info: dict, *, custom: bool = False) -> dict:
         value = env_on_disk.get(var_name)
         cat_meta = catalog_meta.get(var_name) or {}
+        category = info.get("category") or cat_meta.get("category", "")
+        is_password = info.get("password", cat_meta.get("is_password", False))
+        malformed = bool(value and category == "provider" and is_password and _api_key_format_error(value))
         # Hand OPTIONAL_ENV_VARS prose wins where present; the catalog fills any
         # gaps (description/url) and always supplies provider grouping hints.
         return {
-            "is_set": bool(value),
+            "is_set": bool(value) and not malformed,
             "redacted_value": redact_key(value) if value else None,
             "description": info.get("description") or cat_meta.get("description", ""),
             "url": info.get("url") if info.get("url") is not None else cat_meta.get("url"),
-            "category": info.get("category") or cat_meta.get("category", ""),
-            "is_password": info.get("password", cat_meta.get("is_password", False)),
+            "category": category,
+            "is_password": is_password,
             "tools": info.get("tools", []),
             "advanced": info.get("advanced", cat_meta.get("advanced", False)),
             # Messaging-platform credential owned by a Channels page card; the
@@ -290,6 +302,13 @@ async def set_env_var(body: EnvVarUpdate, profile: Optional[str] = None):
     # stale higher-precedence copy that keeps authenticating with the old key.
     with _env_write_errors("PUT /api/env failed", http_passthrough=False):
         from panergos_cli.credential_lifecycle import save_provider_env_credential
+
+        info = OPTIONAL_ENV_VARS.get(body.key) or _catalog_provider_env_metadata().get(body.key) or {}
+        is_provider_key = (
+            info.get("category") == "provider" and info.get("password", info.get("is_password", False))
+        ) or (body.key.startswith("PANERGOS_CUSTOM_") and body.key.endswith("_API_KEY"))
+        if is_provider_key and (error := _api_key_format_error(body.value)):
+            raise ValueError(error)
 
         return await scoped_to_thread(
             body.profile or profile, lambda: save_provider_env_credential(body.key, body.value)
@@ -474,6 +493,8 @@ def _write_custom_endpoint(cfg: Dict[str, Any], body: CustomEndpointUpdate) -> T
     if existing is None:
         existing = {}
     submitted_key = body.api_key.strip() if body.api_key is not None else None
+    if submitted_key and (error := _api_key_format_error(submitted_key)):
+        raise HTTPException(status_code=400, detail=error)
     existing_key = str(existing.get("api_key") or "").strip()
     key_env = str(existing.get("key_env") or "").strip()
     if not existing_key and key_env:
@@ -658,6 +679,8 @@ async def validate_custom_endpoint(body: CustomEndpointUpdate, request: Request)
     if not base_url:
         return {"ok": False, "reachable": True, "message": "Enter an endpoint URL first.", "models": []}
     api_key = (body.api_key or "").strip()
+    if error := _api_key_format_error(api_key):
+        return {"ok": False, "reachable": True, "message": error, "models": []}
     base_url = _validated_custom_endpoint_url(base_url, api_key)
 
     url = base_url + "/models"
@@ -705,7 +728,6 @@ async def validate_provider_credential(body: EnvVarUpdate, request: Request):
     value = (body.value or "").strip()
     if not value:
         return {"ok": False, "reachable": True, "message": "Enter a value first."}
-
     # Local / custom endpoint: validate connectivity, not auth — any HTTP
     # response (even 401) proves the endpoint is up. Also surface the model ids
     # it advertises (OpenAI ``/v1/models`` shape) so the GUI can auto-pick a
@@ -713,6 +735,8 @@ async def validate_provider_credential(body: EnvVarUpdate, request: Request):
     # ``/v1/models`` still enumerate instead of returning an empty list.
     if key == "OPENAI_BASE_URL":
         api_key = (body.api_key or "").strip()
+        if error := _api_key_format_error(api_key):
+            return {"ok": False, "reachable": True, "message": error, "models": []}
         value = _validated_custom_endpoint_url(value, api_key)
         url = value + "/models"
         headers = {"Authorization": f"Bearer {api_key}"} if api_key else None
@@ -727,6 +751,9 @@ async def validate_provider_credential(body: EnvVarUpdate, request: Request):
             # GUI does not tell the user to "start a model" on a server that answered.
             return {"ok": False, "reachable": True, "message": f"{url} answered HTTP {resp.status_code}.", "models": []}
         return {"ok": True, "reachable": True, "message": "", "models": models}
+
+    if error := _api_key_format_error(value):
+        return {"ok": False, "reachable": True, "message": error}
 
     probe = _CREDENTIAL_PROBES.get(key)
     if not probe:

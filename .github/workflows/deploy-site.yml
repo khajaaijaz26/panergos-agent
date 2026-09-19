@@ -171,6 +171,7 @@ jobs:
         run: |
           mkdir -p _site/docs
           cp -r website/build/* _site/docs/
+          printf '%s\n' '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=docs/"><title>Panergos Agent</title><a href="docs/">Open Panergos Agent docs</a>' > _site/index.html
           # llms.txt / llms-full.txt are also published at the site root
           # (the project Pages root /llms.txt) because some
           # agents and IDE plugins probe the classic root-level path rather

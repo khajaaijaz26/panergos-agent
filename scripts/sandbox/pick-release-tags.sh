@@ -7,7 +7,9 @@
 # newest release the day after it ships, and pins the "oldest" forever even
 # after it stops being a version anyone still runs.
 #
-# Selection: the newest tag, the oldest tag, and evenly spaced tags in between.
+# Selection: release tags excluding tags that resolve to HEAD itself, then the
+# newest tag, the oldest tag, and evenly spaced tags in between. A tag at HEAD
+# is the release under test, not an update source.
 # Newest catches "did the last release break updating?", oldest is the longest
 # upgrade jump anyone can still make, and the spread samples the migrations in
 # between (config-schema bumps, venv layout changes, dependency floors).
@@ -66,19 +68,31 @@ fi
 
 # sort -V orders numeric release components correctly, which a plain
 # lexicographic sort gets wrong.
-mapfile -t tags < <(
+mapfile -t release_tags < <(
   git -C "$REPO" tag --list 'v*' \
     | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$' \
     | sort -V
 )
 
-total="${#tags[@]}"
-if [ "$total" -eq 0 ]; then
+if [ "${#release_tags[@]}" -eq 0 ]; then
   echo "error: no release tags found in $REPO" >&2
   echo '       A shallow clone has no tags: fetch with tags (actions/checkout' >&2
   echo '       with fetch-depth: 0, or fetch-tags: true).' >&2
   exit 1
 fi
+
+# Only released commits behind HEAD can be genuine update sources. This also
+# makes the first release a valid zero-leg matrix instead of OLD == HEAD.
+head_sha="$(git -C "$REPO" rev-parse HEAD)"
+tags=()
+for tag in "${release_tags[@]}"; do
+  tag_sha="$(git -C "$REPO" rev-parse "${tag}^{commit}")"
+  if [ "$tag_sha" != "$head_sha" ]; then
+    tags+=("$tag")
+  fi
+done
+
+total="${#tags[@]}"
 
 if [ "$total" -le "$COUNT" ]; then
   picked=("${tags[@]}")

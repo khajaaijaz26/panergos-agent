@@ -313,6 +313,12 @@ def _usable_declared_secret(provider_id: str, value: Any, source: str) -> Option
     val = str(value or "").strip()
     if not has_usable_secret(val):
         return None
+    if not all(0x21 <= ord(char) <= 0x7E for char in val):
+        logger.warning(
+            "Ignoring %s for provider %r: value is not a printable ASCII API key. "
+            "Falling back to the next credential source.",
+            source, provider_id)
+        return None
     prefixes = KNOWN_PROVIDER_KEY_PREFIXES.get(provider_id)
     if prefixes and not any(val.startswith(p) for p in prefixes):
         logger.warning(

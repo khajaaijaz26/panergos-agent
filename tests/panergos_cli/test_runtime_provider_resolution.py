@@ -166,7 +166,7 @@ def test_qwen_oauth_auto_fallthrough_on_auth_failure(monkeypatch):
         lambda **kw: (_ for _ in ()).throw(AuthError("stale", provider="qwen-oauth", code="qwen_auth_missing")),
     )
     monkeypatch.setattr(rp, "_get_model_config", lambda: {})
-    monkeypatch.setenv("OPENROUTER_API_KEY", "test-or-key")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-v1-test-key")
 
     # Should NOT raise — falls through to OpenRouter
     resolved = rp.resolve_runtime_provider(requested="auto")
@@ -411,7 +411,7 @@ def test_resolve_runtime_provider_gemini_explicit_api_mode_provider_guard(
 
 def test_resolve_runtime_provider_auto_uses_openrouter_pool(monkeypatch):
     class _Entry:
-        access_token = "pool-key"
+        access_token = "sk-or-v1-pool-key"
         source = "manual"
         base_url = "https://openrouter.ai/api/v1"
 
@@ -433,7 +433,7 @@ def test_resolve_runtime_provider_auto_uses_openrouter_pool(monkeypatch):
     resolved = rp.resolve_runtime_provider(requested="auto")
 
     assert resolved["provider"] == "openrouter"
-    assert resolved["api_key"] == "pool-key"
+    assert resolved["api_key"] == "sk-or-v1-pool-key"
     assert resolved["base_url"] == "https://openrouter.ai/api/v1"
     assert resolved["source"] == "manual"
     assert resolved.get("credential_pool") is not None
@@ -462,11 +462,11 @@ def test_resolve_runtime_provider_openrouter_explicit_api_key_skips_pool(monkeyp
 
     resolved = rp.resolve_runtime_provider(
         requested="openrouter",
-        explicit_api_key="explicit-key",
+        explicit_api_key="sk-or-v1-explicit-key",
     )
 
     assert resolved["provider"] == "openrouter"
-    assert resolved["api_key"] == "explicit-key"
+    assert resolved["api_key"] == "sk-or-v1-explicit-key"
     assert resolved["base_url"] == rp.OPENROUTER_BASE_URL
     assert resolved["source"] == "explicit"
     assert resolved.get("credential_pool") is None
@@ -487,10 +487,8 @@ def test_resolve_runtime_provider_openrouter_ignores_codex_config_base_url(monke
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
 
-    resolved = rp.resolve_runtime_provider(requested="openrouter")
-
-    assert resolved["provider"] == "openrouter"
-    assert resolved["base_url"] == rp.OPENROUTER_BASE_URL
+    with pytest.raises(rp.AuthError, match="No usable OpenRouter API key"):
+        rp.resolve_runtime_provider(requested="openrouter")
 
 
 def test_resolve_runtime_provider_auto_uses_custom_config_base_url(monkeypatch):
@@ -532,18 +530,36 @@ def test_openrouter_key_takes_priority_over_openai_key(monkeypatch):
     assert resolved["api_key"] == "sk-or-should-win"
 
 
-def test_openai_key_used_when_no_openrouter_key(monkeypatch):
-    """OPENAI_API_KEY is used as fallback when OPENROUTER_API_KEY is not set."""
+def test_openrouter_key_in_openai_slot_used_when_no_openrouter_key(monkeypatch):
+    """OPENAI_API_KEY remains a fallback slot when it contains an OpenRouter key."""
     monkeypatch.setattr(rp, "resolve_provider", lambda *a, **k: "openrouter")
     monkeypatch.setattr(rp, "_get_model_config", lambda: {})
     monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
     monkeypatch.delenv("OPENROUTER_BASE_URL", raising=False)
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai-fallback")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-or-v1-fallback")
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
 
     resolved = rp.resolve_runtime_provider(requested="openrouter")
 
-    assert resolved["api_key"] == "sk-openai-fallback"
+    assert resolved["api_key"] == "sk-or-v1-fallback"
+
+
+@pytest.mark.parametrize("bad_key", ["not-an-openrouter-key", "sk-or-v1-bad key", "sk-or-v1-bad—key"])
+def test_canonical_openrouter_rejects_malformed_key(monkeypatch, bad_key):
+    monkeypatch.setattr(rp, "resolve_provider", lambda *a, **k: "openrouter")
+    monkeypatch.setattr(rp, "_get_model_config", lambda: {})
+    monkeypatch.setattr(
+        rp,
+        "load_pool",
+        lambda _provider: SimpleNamespace(has_credentials=lambda: False),
+    )
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    monkeypatch.delenv("OPENROUTER_BASE_URL", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", bad_key)
+
+    with pytest.raises(rp.AuthError, match="No usable OpenRouter API key"):
+        rp.resolve_runtime_provider(requested="openrouter")
 
 
 def test_custom_endpoint_uses_saved_config_base_url_when_env_missing(monkeypatch):
@@ -856,7 +872,7 @@ def test_explicit_openrouter_skips_openai_base_url(monkeypatch):
     monkeypatch.setattr(rp, "resolve_provider", lambda *a, **k: "openrouter")
     monkeypatch.setattr(rp, "_get_model_config", lambda: {})
     monkeypatch.setenv("OPENAI_BASE_URL", "https://my-custom-llm.example.com/v1")
-    monkeypatch.setenv("OPENROUTER_API_KEY", "or-test-key")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-v1-test-key")
     monkeypatch.delenv("OPENROUTER_BASE_URL", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
@@ -865,7 +881,7 @@ def test_explicit_openrouter_skips_openai_base_url(monkeypatch):
     assert resolved["provider"] == "openrouter"
     assert "openrouter.ai" in resolved["base_url"]
     assert "my-custom-llm" not in resolved["base_url"]
-    assert resolved["api_key"] == "or-test-key"
+    assert resolved["api_key"] == "sk-or-v1-test-key"
 
 
 def test_explicit_openrouter_honors_config_base_url_mirror(monkeypatch):
@@ -900,7 +916,7 @@ def test_explicit_openrouter_config_mirror_bypasses_pool(monkeypatch):
     OpenRouter credential pool must be skipped rather than silently routing the
     request to openrouter.ai with a pooled key (#10622)."""
     class _Entry:
-        access_token = "pool-key"
+        access_token = "sk-or-v1-pool-key"
         source = "manual"
         base_url = "https://openrouter.ai/api/v1"
 
@@ -935,7 +951,7 @@ def test_explicit_openrouter_config_mirror_bypasses_pool(monkeypatch):
     # The canonical URL that `panergos setup` persists is NOT a mirror: the pool must still serve it.
     monkeypatch.setattr(rp, "_get_model_config", lambda: {"provider": "openrouter", "base_url": "https://openrouter.ai/api/v1"})
     canonical = rp.resolve_runtime_provider(requested="openrouter")
-    assert canonical["api_key"] == "pool-key" and canonical.get("credential_pool") is not None
+    assert canonical["api_key"] == "sk-or-v1-pool-key" and canonical.get("credential_pool") is not None
 
     # An unrelated CUSTOM_BASE_URL outranks the mirror and must not receive the OpenRouter key.
     monkeypatch.setattr(rp, "_get_model_config", lambda: {"provider": "openrouter", "base_url": "https://openrouter-mirror.example.com/api/v1"})
@@ -1406,7 +1422,7 @@ def test_openai_key_only_sent_to_openai_host(monkeypatch):
     monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
     monkeypatch.delenv("OPENROUTER_BASE_URL", raising=False)
     monkeypatch.setenv("OPENAI_API_KEY", "sk-openai-secret")
-    monkeypatch.setenv("OPENROUTER_API_KEY", "or-secret")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-v1-secret")
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
 
     resolved = rp.resolve_runtime_provider(requested="custom")
@@ -1448,11 +1464,11 @@ def test_openrouter_key_reaches_openrouter_host(monkeypatch):
         },
     )
     monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
-    monkeypatch.setenv("OPENROUTER_API_KEY", "or-secret")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-v1-secret")
 
     resolved = rp.resolve_runtime_provider(requested="openrouter")
 
-    assert resolved["api_key"] == "or-secret"
+    assert resolved["api_key"] == "sk-or-v1-secret"
 
 
 # ----------------------------------------------------------------------

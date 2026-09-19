@@ -2016,6 +2016,36 @@ class TestWebServerEndpoints:
         assert env_writes == []
         assert config_writes == []
 
+    def test_custom_endpoint_rejects_malformed_api_key_before_probe_or_write(self, monkeypatch):
+        class _UnexpectedClient:
+            def __init__(self, *args, **kwargs):
+                raise AssertionError("malformed custom key reached the endpoint probe")
+
+        env_writes = []
+        monkeypatch.setattr("httpx.AsyncClient", _UnexpectedClient)
+        monkeypatch.setattr(
+            "panergos_cli.config.save_env_value",
+            lambda *args: env_writes.append(args),
+        )
+        payload = {
+            "id": "malformed",
+            "name": "Malformed",
+            "base_url": "https://models.example.test/v1",
+            "model": "m",
+            "api_key": "bad key",
+        }
+
+        validation = self.client.post(
+            "/api/providers/custom-endpoints/validate", json=payload
+        ).json()
+        assert validation["ok"] is False and validation["reachable"] is True
+        assert "printable ASCII" in validation["message"]
+
+        saved = self.client.post("/api/providers/custom-endpoints", json=payload)
+        assert saved.status_code == 400
+        assert "printable ASCII" in saved.json()["detail"]
+        assert env_writes == []
+
 
     def test_custom_endpoint_save_rejects_remote_http_when_retaining_existing_key(self):
         from panergos_cli.config import custom_endpoint_key_env, get_env_value, load_config
@@ -4954,6 +4984,36 @@ class TestValidateProviderCredential:
         )
         data = self._post("OPENROUTER_API_KEY", "sk-real").json()
         assert data["ok"] is False and data["reachable"] is False
+
+    @pytest.mark.parametrize("bad_key", ["sk-or-v1-bad—key", "sk-or-v1-bad\x1bkey"])
+    def test_malformed_key_is_rejected_before_probe(self, monkeypatch, bad_key):
+        class _UnexpectedClient:
+            def __init__(self, *args, **kwargs):
+                raise AssertionError("malformed key reached the provider probe")
+
+        monkeypatch.setattr("httpx.AsyncClient", _UnexpectedClient)
+        data = self._post("OPENROUTER_API_KEY", bad_key).json()
+        assert data["ok"] is False and data["reachable"] is True
+        assert "printable ASCII" in data["message"]
+
+    def test_custom_base_url_key_is_rejected_before_probe(self, monkeypatch):
+        class _UnexpectedClient:
+            def __init__(self, *args, **kwargs):
+                raise AssertionError("malformed custom key reached the provider probe")
+
+        monkeypatch.setattr("httpx.AsyncClient", _UnexpectedClient)
+        response = self.client.post(
+            "/api/providers/validate",
+            json={
+                "key": "OPENAI_BASE_URL",
+                "value": "http://127.0.0.1:8000/v1",
+                "api_key": "bad key",
+            },
+        )
+        data = response.json()
+        assert data["ok"] is False and data["reachable"] is True
+        assert data["models"] == []
+        assert "printable ASCII" in data["message"]
 
 
 

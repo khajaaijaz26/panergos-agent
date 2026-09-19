@@ -245,6 +245,9 @@ export function methodNeedsDesktop(m) {
  * @returns {string}
  */
 export function renderMarkdownPlan(envs, tags) {
+  if (tags.length === 0) {
+    return '### Install & Update E2E plan\n\nNo previous release exists before HEAD; update testing begins with the next release.\n';
+  }
   const lines = [
     '### Install & Update E2E plan',
     '',
@@ -375,7 +378,11 @@ export function renderMarkdownResults(jobs, tagAnnotations = [], artifactById = 
       byTag.set(tag, cell);
     }
   }
-  if (rows.size === 0) return '### Install & Update E2E results\n\n(no legs found in this run)\n';
+  if (rows.size === 0) {
+    return tagAnnotations.length === 0
+      ? '### Install & Update E2E results\n\nNo previous release exists before HEAD; there is no update path to test for this first release.\n'
+      : '### Install & Update E2E results\n\n(no legs found in this run)\n';
+  }
   const cells = [...rows.values()].flatMap((r) => [...r.values()]);
   const passed = cells.filter((c) => c.startsWith('&#x2705;')).length;
   const failed = cells.filter((c) => c.startsWith('&#x274C;')).length;

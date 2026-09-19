@@ -166,8 +166,8 @@ jobs:
     # The update/installer route choices map to the linux update methods;
     # either way the whole linux matrix runs (legs are cheap and the
     # distinction wasn't worth a filter layer in the generator).
-    if: github.event_name != 'workflow_dispatch' || contains(fromJSON('["all", "both", "update", "installer"]'), inputs.route)
-    needs: generate-matrix
+    if: needs.pick-releases.outputs.tags != '[]' && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["all", "both", "update", "installer"]'), inputs.route))
+    needs: [pick-releases, generate-matrix]
     strategy:
       # One leg breaking is worth knowing about even if another already
       # failed, so let every leg report.
@@ -183,8 +183,8 @@ jobs:
 
   windows:
     name: ${{ matrix.name }}
-    if: github.event_name != 'workflow_dispatch' || contains(fromJSON('["all", "windows-desktop"]'), inputs.route)
-    needs: generate-matrix
+    if: needs.pick-releases.outputs.tags != '[]' && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["all", "windows-desktop"]'), inputs.route))
+    needs: [pick-releases, generate-matrix]
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.generate-matrix.outputs.windows) }}
@@ -198,8 +198,8 @@ jobs:
 
   macos:
     name: ${{ matrix.name }}
-    if: github.event_name != 'workflow_dispatch' || contains(fromJSON('["all", "macos-desktop"]'), inputs.route)
-    needs: generate-matrix
+    if: needs.pick-releases.outputs.tags != '[]' && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["all", "macos-desktop"]'), inputs.route))
+    needs: [pick-releases, generate-matrix]
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.generate-matrix.outputs.macos) }}
