@@ -18,8 +18,8 @@ _PANERGOS_HOME_OVERRIDE: ContextVar[str | object] = ContextVar("_PANERGOS_HOME_O
 
 # TUI busy-indicator styles (CLI /indicator, TUI gateway config, /help registry).
 # Keep in sync with INDICATOR_STYLES / DEFAULT_INDICATOR_STYLE in ui-tui/src/app/interfaces.ts.
-INDICATOR_STYLES: tuple[str, ...] = ("ascii", "emoji", "kaomoji", "unicode")
-DEFAULT_INDICATOR_STYLE: str = "kaomoji"
+INDICATOR_STYLES: tuple[str, ...] = ("ascii", "emoji", "relay", "unicode")
+DEFAULT_INDICATOR_STYLE: str = "relay"
 
 
 def set_panergos_home_override(path: str | Path | None) -> Token:

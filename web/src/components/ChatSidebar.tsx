@@ -27,7 +27,6 @@
 
 import { Button } from '@panergos/ui/ui/components/button'
 import { Badge } from '@panergos/ui/ui/components/badge'
-import { Card } from '@panergos/ui/ui/components/card'
 
 import { ModelPickerDialog } from '@/components/ModelPickerDialog'
 import { ModelReloadConfirm } from '@/components/ModelReloadConfirm'
@@ -365,13 +364,10 @@ export function ChatSidebar({
   const banner = error ?? info.credential_warning ?? null
 
   return (
-    <aside
-      className={cn(
-        'flex h-full w-full min-w-0 shrink-0 flex-col gap-3 overflow-y-auto overflow-x-hidden pr-1',
-        className
-      )}
+    <section
+      className={cn('flex h-full w-full min-w-0 shrink-0 flex-col overflow-y-auto overflow-x-hidden', className)}
     >
-      <Card className="flex items-center justify-between gap-2 px-3 py-2">
+      <div className="flex items-center justify-between gap-2 border-b border-current/15 px-4 py-3">
         <div className="min-w-0 flex-1">
           <div className="text-display text-xs tracking-wider text-text-tertiary">model</div>
 
@@ -397,10 +393,10 @@ export function ChatSidebar({
         <Badge tone={STATE_TONE[state]} className="shrink-0">
           {STATE_LABEL[state]}
         </Badge>
-      </Card>
+      </div>
 
       {supportsReasoning && (
-        <Card className="py-0">
+        <div className="border-b border-current/15 py-0">
           <ReasoningPicker
             currentModel={modelName}
             profile={profile}
@@ -411,19 +407,19 @@ export function ChatSidebar({
               )
             }
           />
-        </Card>
+        </div>
       )}
 
       {modelNotice && (
-        <Card className="flex items-start gap-2 border-warning/40 bg-warning/5 px-3 py-2 text-xs">
+        <div className="flex items-start gap-2 border-b border-warning/40 bg-warning/5 px-4 py-3 text-xs">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
 
           <div className="wrap-break-word min-w-0 flex-1 text-text-secondary">{modelNotice}</div>
-        </Card>
+        </div>
       )}
 
       {banner && (
-        <Card className="flex items-start gap-2 border-destructive/40 bg-destructive/5 px-3 py-2 text-xs">
+        <div className="flex items-start gap-2 border-b border-destructive/40 bg-destructive/5 px-4 py-3 text-xs">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
 
           <div className="min-w-0 flex-1">
@@ -435,7 +431,7 @@ export function ChatSidebar({
               </Button>
             )}
           </div>
-        </Card>
+        </div>
       )}
 
       {modelOpen && (
@@ -481,6 +477,6 @@ export function ChatSidebar({
           setModelNotice(`Model set to ${m}. Run /new or refresh the page to apply it to this chat.`)
         }}
       />
-    </aside>
+    </section>
   )
 }

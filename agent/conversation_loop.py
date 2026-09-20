@@ -1616,7 +1616,7 @@ _PLUGIN_COMPAT_LAZY = {
     'COMPRESSION_RETRY_TOKENS_STATUS_TEMPLATE': ('agent.conversation_compression', 'COMPRESSION_RETRY_TOKENS_STATUS_TEMPLATE'),
     'COMPRESSION_RETRY_TOO_LARGE_STATUS_TEMPLATE': ('agent.conversation_compression', 'COMPRESSION_RETRY_TOO_LARGE_STATUS_TEMPLATE'),
     'FailoverReason': ('agent.error_classifier', 'FailoverReason'),
-    'KawaiiSpinner': ('agent.display', 'KawaiiSpinner'),
+    'KawaiiSpinner': ('agent.display', 'RelaySpinner'),
     'PARTIAL_STREAM_STUB_ID': ('panergos_constants', 'PARTIAL_STREAM_STUB_ID'),
     'PRE_API_COMPRESSION_STATUS_TEMPLATE': ('agent.conversation_compression', 'PRE_API_COMPRESSION_STATUS_TEMPLATE'),
     'adaptive_rate_limit_backoff': ('agent.retry_utils', 'adaptive_rate_limit_backoff'),

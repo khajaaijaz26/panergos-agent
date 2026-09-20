@@ -69,7 +69,7 @@ panergos-agent/
 │   ├── model_metadata.py     # Model context lengths, token estimation
 │   ├── models_dev.py         # models.dev registry integration
 │   ├── anthropic_adapter.py  # Anthropic Messages API format conversion
-│   ├── display.py            # KawaiiSpinner, tool preview formatting
+│   ├── display.py            # RelaySpinner, tool preview formatting
 │   ├── skill_commands.py     # Skill slash commands
 │   ├── memory_manager.py    # Memory manager orchestration
 │   ├── memory_provider.py   # Memory provider ABC

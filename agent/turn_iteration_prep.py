@@ -16,7 +16,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from agent.display import KawaiiSpinner
+from agent.display import RelaySpinner
 from agent.turn_context_compaction import _reanchor
 
 logger = logging.getLogger("agent.conversation_loop")
@@ -249,17 +249,16 @@ def announce_api_call(
         agent._vprint(f"{agent.log_prefix}   🔧 Available tools: {len(agent.tools) if agent.tools else 0}")
     else:
         # Animated thinking spinner in quiet mode
-        face = random.choice(KawaiiSpinner.get_thinking_faces())
-        verb = random.choice(KawaiiSpinner.get_thinking_verbs())
+        mark = random.choice(RelaySpinner.get_progress_marks())
+        phase = random.choice(RelaySpinner.get_progress_phases())
         if agent.thinking_callback:
             # CLI TUI mode: use prompt_toolkit widget instead of raw spinner
             # (works in both streaming and non-streaming modes)
-            agent.thinking_callback(f"{face} {verb}...")
+            agent.thinking_callback(f"{mark} {phase}...")
         elif not agent._has_stream_consumers() and agent._should_start_quiet_spinner():
-            # Raw KawaiiSpinner only when no streaming consumers and the
+            # Raw Relay animation only when no streaming consumers and the
             # spinner output has a safe sink.
-            spinner_type = random.choice(['brain', 'sparkle', 'pulse', 'moon', 'star'])
-            thinking_spinner = KawaiiSpinner(f"{face} {verb}...", spinner_type=spinner_type, print_fn=agent._print_fn)
+            thinking_spinner = RelaySpinner(f"{phase}...", spinner_type='relay', print_fn=agent._print_fn)
             thinking_spinner.start()
 
     # Log request details if verbose

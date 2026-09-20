@@ -41,7 +41,7 @@ export function clearAllProviderWaits(): void {
 }
 
 /** Only the core's explained wait/reconnect frames belong in Desktop's status
- * row. Generic kawaii spinner rewrites remain presentation noise. */
+ * row. Presentation-only progress rewrites remain transcript noise. */
 export function providerWaitText(text: string): string {
   const value = text.trim()
 

@@ -10,7 +10,9 @@ import {
   coerceThinkingText,
   createToolMergeCache,
   messageCreatedAt,
+  normalizePersonalityValue,
   optimisticAttachmentRef,
+  personalityNamesFromConfig,
   toRuntimeMessage
 } from './chat-runtime'
 
@@ -114,16 +116,33 @@ describe('attachmentDisplayText', () => {
 
 describe('coerceThinkingText', () => {
   it('strips streaming status prefixes from thinking deltas', () => {
-    expect(coerceThinkingText("◉_◉ processing... checking the user's request")).toBe("checking the user's request")
-    expect(coerceThinkingText('(¬‿¬) analyzing... reading the file')).toBe('reading the file')
+    expect(coerceThinkingText("╲━━▶ routing context... checking the user's request")).toBe(
+      "checking the user's request"
+    )
+    expect(coerceThinkingText('━━▶ validating links... reading the file')).toBe('reading the file')
   })
 
   it('drops empty thinking rewrite placeholder text', () => {
     expect(
       coerceThinkingText(
-        "◉_◉ processing... I don't see any current rewritten thinking or next thinking to process. Could you provide the thinking content you'd like me to rewrite?"
+        "━━▶ merging results... I don't see any current rewritten thinking or next thinking to process. Could you provide the thinking content you'd like me to rewrite?"
       )
     ).toBe('')
+  })
+
+  it('preserves unrelated leading gerunds as model content', () => {
+    expect(coerceThinkingText('Deploying... now checking health')).toBe('Deploying... now checking health')
+  })
+})
+
+describe('personality migration', () => {
+  it('hides an old built-in selection but preserves an explicit user profile with that name', () => {
+    expect(personalityNamesFromConfig({ agent: { personalities: { KAWAII: 'custom', focused: 'new' } } })).toEqual([
+      'KAWAII',
+      'focused'
+    ])
+    expect(normalizePersonalityValue('kawaii', [])).toBe('')
+    expect(normalizePersonalityValue('kawaii', ['KAWAII'])).toBe('kawaii')
   })
 })
 

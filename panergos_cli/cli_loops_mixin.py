@@ -11,7 +11,7 @@ import time
 
 from rich.markup import escape as _escape
 
-_FRESH_START = "  ✨ (◕‿◕)✨ Fresh start! Screen cleared and conversation reset.\n"
+_FRESH_START = "  ━━▶ New run. Context cleared.\n"
 
 
 def _preview(payload: str) -> str:
@@ -190,11 +190,11 @@ class CLILoopsMixin:
             try:
                 _undo_n = max(1, int(_undo_parts[1]))
             except ValueError:
-                print(f"(._.) Invalid count {_undo_parts[1]!r} — use /undo or /undo N.")
+                print(f"! Invalid count {_undo_parts[1]!r} — use /undo or /undo N.")
                 return True  # bad arg — command handled, keep the REPL alive
         # Nothing to undo → say so; no destructive confirmation for a no-op (SC-06).
         if not self.conversation_history:
-            print("(._.) No messages to undo.")
+            print("· No messages to undo.")
             return True
         _undo_desc = (
             "This removes the last user/assistant exchange from history."

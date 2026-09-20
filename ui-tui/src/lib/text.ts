@@ -8,7 +8,7 @@ import {
   VERBOSE_TRAIL_MAX_CHARS,
   VERBOSE_TRAIL_MAX_LINES
 } from '../config/limits.js'
-import { VERBS } from '../content/verbs.js'
+import { RELAY_PHASES } from '../content/verbs.js'
 import type { ThinkingMode } from '../types.js'
 
 const WS_RE = /\s+/g
@@ -74,8 +74,19 @@ export const pasteTokenLabel = (text: string, lineCount: number) => {
     : `[[ ${preview} [${compactNumber(lineCount)} lines] ]]`
 }
 
-const THINKING_STATUS_RE = new RegExp(`^(?:${VERBS.join('|')})\\.{0,3}$`, 'i')
-const THINKING_STATUS_CHUNK_RE = new RegExp(`[^A-Za-z\n]+\\s*(?:${VERBS.join('|')})\\.{0,3}\\s*`, 'giu')
+const RELAY_PHASE_PATTERN = RELAY_PHASES.join('|')
+
+// Hidden parser compatibility for status lines persisted by older clients.
+// Keep this allow-list exact: a generic gerund pattern corrupts real prose.
+const LEGACY_PROGRESS_PATTERN =
+  'processing|thinking|reasoning|analyzing|pondering|contemplating|musing|cogitating|ruminating|deliberating|mulling|reflecting|computing|synthesizing|formulating|brainstorming'
+
+const THINKING_STATUS_RE = new RegExp(`^(?:${RELAY_PHASE_PATTERN}|${LEGACY_PROGRESS_PATTERN})\\.{0,3}$`, 'i')
+
+const THINKING_STATUS_CHUNK_RE = new RegExp(
+  `[^A-Za-z\n]+\\s*(?:${RELAY_PHASE_PATTERN}|${LEGACY_PROGRESS_PATTERN})\\.{0,3}\\s*`,
+  'giu'
+)
 
 export const cleanThinkingText = (reasoning: string) =>
   reasoning

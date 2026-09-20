@@ -10,8 +10,8 @@ import type { BatteryInfo, IndicatorStyle, Notice } from '../app/interfaces.js'
 import { $isStatusRuleOccluded } from '../app/overlayStore.js'
 import { useTurnSelector } from '../app/turnStore.js'
 import { DEV_CREDITS_MODE } from '../config/env.js'
-import { FACES } from '../content/faces.js'
-import { VERBS } from '../content/verbs.js'
+import { RELAY_FRAMES } from '../content/relay.js'
+import { RELAY_PHASES } from '../content/verbs.js'
 import { fmtDuration } from '../domain/messages.js'
 import { stickyPromptFromViewport } from '../domain/viewport.js'
 import { buildSubagentTree, treeTotals, widthByDepth } from '../lib/subagentTree.js'
@@ -21,13 +21,14 @@ import type { Msg } from '../types.js'
 
 import { scrollbarColors } from './overlayPrimitives.js'
 
-const FACE_TICK_MS = 2500
+const PHASE_TICK_MS = 2500
+const RELAY_TICK_MS = 140
 const HEART_COLORS = ['#ff5fa2', '#ff4d6d']
 
-// Keep verb segment width stable so status-bar content to the right doesn't
-// jitter when the ticker rotates between short/long verbs.
-export const VERB_PAD_LEN = VERBS.reduce((max, v) => Math.max(max, v.length), 0) + 1 // + ellipsis
-export const padVerb = (verb: string) => `${verb}…`.padEnd(VERB_PAD_LEN, ' ')
+// Keep the phase segment width stable so status-bar content to the right
+// doesn't jitter as work advances between short and long labels.
+export const PHASE_PAD_LEN = RELAY_PHASES.reduce((max, phase) => Math.max(max, phase.length), 0) + 1
+export const padPhase = (phase: string) => `${phase}…`.padEnd(PHASE_PAD_LEN, ' ')
 
 // Compact alternates for the `emoji` and `ascii` indicator styles.
 // Each entry is a fixed-width (display-width) glyph.
@@ -41,23 +42,23 @@ const SPINNER_TICK_MS = 100
 interface IndicatorRender {
   frame: string
   intervalMs: number
-  // When false, FaceTicker hides the rotating verb and just shows the
+  // When false, RelayTicker hides the changing phase and just shows the
   // glyph + duration.  Lets `unicode` stay minimal while the other
   // styles keep the verb-rotation flavour users associate with the
   // running… status.
-  showVerb: boolean
+  showPhase: boolean
 }
 
 const renderIndicator = (style: IndicatorStyle, tick: number): IndicatorRender => {
-  if (style === 'kaomoji') {
-    return { frame: FACES[tick % FACES.length] ?? '', intervalMs: FACE_TICK_MS, showVerb: true }
+  if (style === 'relay') {
+    return { frame: RELAY_FRAMES[tick % RELAY_FRAMES.length] ?? '━━▶', intervalMs: RELAY_TICK_MS, showPhase: true }
   }
 
   if (style === 'emoji') {
     return {
       frame: EMOJI_FRAMES[tick % EMOJI_FRAMES.length] ?? '▶ ',
       intervalMs: SPINNER_TICK_MS * 6,
-      showVerb: true
+      showPhase: true
     }
   }
 
@@ -65,7 +66,7 @@ const renderIndicator = (style: IndicatorStyle, tick: number): IndicatorRender =
     return {
       frame: ASCII_FRAMES[tick % ASCII_FRAMES.length] ?? '|',
       intervalMs: SPINNER_TICK_MS,
-      showVerb: true
+      showPhase: true
     }
   }
 
@@ -76,17 +77,17 @@ const renderIndicator = (style: IndicatorStyle, tick: number): IndicatorRender =
   const spinner = unicodeSpinners.braille
   const frame = spinner.frames[tick % spinner.frames.length] ?? '⠋'
 
-  return { frame, intervalMs: Math.max(SPINNER_TICK_MS, spinner.interval), showVerb: false }
+  return { frame, intervalMs: Math.max(SPINNER_TICK_MS, spinner.interval), showPhase: false }
 }
 
-// `FACES` / `EMOJI_FRAMES` are static, so measure their widest glyph once at
+// Relay and emoji frames are static, so measure their widest glyph once at
 // module load instead of rescanning on every status render.
-const KAOMOJI_FRAME_WIDTH = FACES.reduce((max, f) => Math.max(max, stringWidth(f)), 1)
+const RELAY_FRAME_WIDTH = RELAY_FRAMES.reduce((max, frame) => Math.max(max, stringWidth(frame)), 1)
 const EMOJI_FRAME_WIDTH = EMOJI_FRAMES.reduce((max, f) => Math.max(max, stringWidth(f)), 1)
 
 const indicatorFrameWidth = (style: IndicatorStyle): number => {
-  if (style === 'kaomoji') {
-    return KAOMOJI_FRAME_WIDTH
+  if (style === 'relay') {
+    return RELAY_FRAME_WIDTH
   }
 
   if (style === 'emoji') {
@@ -106,44 +107,44 @@ export const MAX_DURATION_WIDTH = Math.max(
   stringWidth(fmtDuration(99 * 3_600_000 + 59 * 60_000)) // "99h 59m"
 )
 
-// Display width to reserve for the busy indicator so its verb + elapsed-time
+// Display width to reserve for the busy indicator so its phase + elapsed-time
 // tail can't shove the model off-screen on narrow terminals. Style-aware:
-// `unicode` is a bare 1-col braille spinner with no verb, while kaomoji/emoji/
-// ascii add a fixed-width verb; any style adds a bounded elapsed-time tail.
-// Mirrors FaceTicker's `frame + verbSegment + durationSegment` layout.
+// `unicode` is a bare 1-col braille spinner with no phase, while relay/emoji/
+// ascii add a fixed-width phase; any style adds a bounded elapsed-time tail.
+// Mirrors RelayTicker's `frame + phaseSegment + durationSegment` layout.
 export const busyIndicatorWidth = (style: IndicatorStyle, hasDuration: boolean): number => {
-  const { showVerb } = renderIndicator(style, 0)
-  const verb = showVerb ? 1 + VERB_PAD_LEN : 0
+  const { showPhase } = renderIndicator(style, 0)
+  const phase = showPhase ? 1 + PHASE_PAD_LEN : 0
   // ` · ` plus the bounded clock (e.g. `59m 59s`).
   const duration = hasDuration ? stringWidth(' · ') + MAX_DURATION_WIDTH : 0
 
-  return indicatorFrameWidth(style) + verb + duration
+  return indicatorFrameWidth(style) + phase + duration
 }
 
-function FaceTicker({
+function RelayTicker({
   color,
   startedAt,
   style,
-  verbOverride
+  phaseOverride
 }: {
   color: string
   startedAt?: null | number
   style: IndicatorStyle
-  verbOverride?: string
+  phaseOverride?: string
 }) {
   const [tick, setTick] = useState(() => Math.floor(Math.random() * 1000))
-  const [verbTick, setVerbTick] = useState(() => Math.floor(Math.random() * VERBS.length))
+  const [phaseTick, setPhaseTick] = useState(() => Math.floor(Math.random() * RELAY_PHASES.length))
   const [now, setNow] = useState(() => Date.now())
   const isOccluded = useStore($isStatusRuleOccluded)
 
-  // Pre-compute cadence + verb-visibility for the active style so an
-  // `/indicator` switch re-arms the interval (and skips the verb timer
-  // for verb-less styles like `unicode`) without leaving the previous
+  // Pre-compute cadence + phase visibility for the active style so an
+  // `/indicator` switch re-arms the interval (and skips the phase timer
+  // for phase-less styles like `unicode`) without leaving the previous
   // timer dangling. A frozen override (idle compaction) always shows the
-  // verb so "compacting…" is visible even in unicode style (#97239).
-  const { intervalMs, showVerb } = renderIndicator(style, 0)
-  const freezeVerb = Boolean(verbOverride)
-  const displayVerb = freezeVerb || showVerb
+  // phase so "compacting…" is visible even in unicode style (#97239).
+  const { intervalMs, showPhase } = renderIndicator(style, 0)
+  const freezePhase = Boolean(phaseOverride)
+  const displayPhase = freezePhase || showPhase
 
   useEffect(() => {
     // An overlay is painted OVER the status rule (the modal widget slot, or a
@@ -161,26 +162,26 @@ function FaceTicker({
 
     const glyph = setInterval(() => setTick(n => n + 1), intervalMs)
     const clock = setInterval(() => setNow(Date.now()), 1000)
-    // Verb timer is gated on `displayVerb` — `unicode` style hides the verb
-    // entirely, so cycling `verbTick` would be an avoidable re-render. A
+    // Phase timer is gated on `displayPhase` — `unicode` style hides it
+    // entirely, so cycling `phaseTick` would be an avoidable re-render. A
     // frozen override does not rotate.
-    const verb = displayVerb && !freezeVerb ? setInterval(() => setVerbTick(n => n + 1), FACE_TICK_MS) : null
+    const phase = displayPhase && !freezePhase ? setInterval(() => setPhaseTick(n => n + 1), PHASE_TICK_MS) : null
 
     return () => {
       clearInterval(glyph)
       clearInterval(clock)
 
-      if (verb !== null) {
-        clearInterval(verb)
+      if (phase !== null) {
+        clearInterval(phase)
       }
     }
-  }, [displayVerb, freezeVerb, intervalMs, isOccluded])
+  }, [displayPhase, freezePhase, intervalMs, isOccluded])
 
   const { frame } = renderIndicator(style, tick)
-  const verb = verbOverride ?? VERBS[verbTick % VERBS.length] ?? ''
-  const verbSegment = displayVerb ? ` ${padVerb(verb)}` : ''
+  const phase = phaseOverride ?? RELAY_PHASES[phaseTick % RELAY_PHASES.length] ?? ''
+  const phaseSegment = displayPhase ? ` ${padPhase(phase)}` : ''
   // Leading space keeps a gap between the frame and the duration when the
-  // verb segment is hidden (e.g. `unicode` spinner style).  When the verb
+  // phase segment is hidden (e.g. `unicode` spinner style). When the phase
   // IS shown, its trailing padding already provides the gap, so the extra
   // space is harmless.
   const durationSegment = startedAt ? ` · ${fmtDuration(now - startedAt)}` : ''
@@ -188,7 +189,7 @@ function FaceTicker({
   return (
     <Text color={color}>
       {frame}
-      {verbSegment}
+      {phaseSegment}
       {durationSegment}
     </Text>
   )
@@ -400,7 +401,7 @@ function SessionDuration({ startedAt }: { startedAt: number }) {
 
   useEffect(() => {
     // Paused only while an overlay actually covers the status rule — see
-    // FaceTicker.  The `setNow` below already re-seeds from the wall clock
+    // RelayTicker. The `setNow` below already re-seeds from the wall clock
     // on every re-arm, so it doubles as the reveal catch-up.
     if (isOccluded) {
       return
@@ -423,7 +424,7 @@ function IdleSince({ endedAt }: { endedAt: number }) {
 
   useEffect(() => {
     // Paused only while an overlay actually covers the status rule — see
-    // FaceTicker.  The `setNow` below re-seeds from the wall clock on reveal
+    // RelayTicker. The `setNow` below re-seeds from the wall clock on reveal
     // so the idle read-out is not frozen when the overlay closes.
     if (isOccluded) {
       return
@@ -497,7 +498,7 @@ export function StatusRule({
   model,
   modelFast,
   modelReasoningEffort,
-  indicatorStyle = 'kaomoji',
+  indicatorStyle = 'relay',
   notice,
   usage,
   bgCount,
@@ -543,8 +544,8 @@ export function StatusRule({
   const batteryColorVal = showBattery ? batteryColor(battery!, t) : ''
   const batteryWidth = showBattery ? stringWidth(`${batteryText} │ `) : 0
 
-  // A credits notice replaces the status/verb slot, but only when idle —
-  // while busy the FaceTicker always wins (R1 render priority). The notice
+  // A credits notice replaces the status/phase slot, but only when idle —
+  // while busy the RelayTicker always wins (R1 render priority). The notice
   // text carries its own glyph; we only tint it (R1) and let it shrink (R3-M7).
   const showNotice = !busy && !!notice?.text
   // The notice slot is shrinkable (flexShrink={1}, truncate-end), so reserve
@@ -557,8 +558,8 @@ export function StatusRule({
 
   // Width of the must-keep left segments (indicator + model + context). They
   // are pinned (never shrink) and reserved so the cwd/branch on the right
-  // yields first. The busy face width depends on the active /indicator style
-  // (kaomoji is wide + verb; unicode is a bare 1-col spinner). When a notice
+  // yields first. The busy mark width depends on the active /indicator style
+  // (relay is wide + phase; unicode is a bare 1-col spinner). When a notice
   // occupies the slot it reserves only `noticeReserve` (it shrinks/truncates).
   const slotWidth = busy
     ? busyIndicatorWidth(indicatorStyle, turnStartedAt != null)
@@ -611,7 +612,7 @@ export function StatusRule({
   const showDuration = segs.duration && ok('duration') && !!sessionStartedAt && fits(SEP + MAX_DURATION_WIDTH)
 
   // Idle clock — time since the last final agent response. Hidden while busy
-  // (the FaceTicker's elapsed tail covers the live turn) and before the first
+  // (the RelayTicker's elapsed tail covers the live turn) and before the first
   // turn completes. Shares the duration breakpoint and width reservation.
   const showIdle =
     segs.duration && !busy && lastTurnEndedAt != null && fits(SEP + stringWidth('✓ ') + MAX_DURATION_WIDTH)
@@ -672,7 +673,7 @@ export function StatusRule({
   return (
     <Box height={1}>
       <Box flexDirection="row" flexShrink={1} overflow="hidden" width={leftWidth}>
-        {/* Leading pinned chrome: border + busy face / idle status. When a
+        {/* Leading pinned chrome: border + busy signal / idle status. When a
             notice occupies the slot the status text is dropped — the notice
             renders as a separate shrinkable box below so a long notice
             ellipsizes instead of crushing model │ ctx (R3-M7). */}
@@ -685,11 +686,11 @@ export function StatusRule({
             </Text>
           ) : null}
           {busy ? (
-            <FaceTicker
+            <RelayTicker
               color={statusColor}
+              phaseOverride={compacting ? 'compacting' : undefined}
               startedAt={turnStartedAt}
               style={indicatorStyle}
-              verbOverride={compacting ? 'compacting' : undefined}
             />
           ) : showNotice ? null : (
             <Text color={statusColor} wrap="truncate-end">
@@ -944,7 +945,7 @@ interface StatusRuleProps {
   lastTurnEndedAt?: null | number
   liveSessionCount: number
   busy: boolean
-  // Context compaction in progress — FaceTicker freezes on "compacting".
+  // Context compaction in progress — RelayTicker freezes on "compacting".
   compacting?: boolean
   cols: number
   cwdLabel: string

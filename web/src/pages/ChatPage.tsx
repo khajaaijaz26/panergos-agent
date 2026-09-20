@@ -1650,7 +1650,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
           />
         )}
 
-        <aside
+        <section
           id="chat-work-dock"
           role="dialog"
           aria-modal={workDockOpen ? true : undefined}
@@ -1660,9 +1660,6 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
           className={cn(
             "panergos-launch-bay font-mondwest fixed inset-x-2 bottom-2 z-[60] mx-auto flex max-h-[calc(100dvh-1rem)] min-h-0 w-[calc(100vw-1rem)] max-w-[88rem] flex-col antialiased",
             "border border-current/20 text-midground",
-            "bg-background-base/95",
-            "[background:var(--component-sidebar-background,var(--background-base))]",
-            "[border-image:var(--component-sidebar-border-image)]",
           )}
           ref={workDockRef}
           tabIndex={-1}
@@ -1713,7 +1710,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
               />
             </div>
           </div>
-        </aside>
+        </section>
       </>,
       portalRoot,
     );

@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
-import { padVerb, VERB_PAD_LEN } from '../components/appChrome.js'
-import { VERBS } from '../content/verbs.js'
+import { padPhase, PHASE_PAD_LEN } from '../components/appChrome.js'
+import { RELAY_PHASES } from '../content/verbs.js'
 
-describe('FaceTicker verb padding', () => {
-  it('pads every verb to the same width', () => {
-    for (const verb of VERBS) {
-      expect(padVerb(verb)).toHaveLength(VERB_PAD_LEN)
+describe('RelayTicker phase padding', () => {
+  it('pads every phase to the same width', () => {
+    for (const phase of RELAY_PHASES) {
+      expect(padPhase(phase)).toHaveLength(PHASE_PAD_LEN)
     }
   })
 
   it('keeps trailing ellipsis attached', () => {
-    for (const verb of VERBS) {
-      expect(padVerb(verb).startsWith(`${verb}…`)).toBe(true)
+    for (const phase of RELAY_PHASES) {
+      expect(padPhase(phase).startsWith(`${phase}…`)).toBe(true)
     }
   })
 })

@@ -522,7 +522,7 @@ export const ru: Translations = {
       secrets: "Секреты",
       secrets_hint: "скрыты до первого сигнала",
       highest_tier: "Высший уровень",
-      highest_tier_hint: "Copper → Silver → Gold → Diamond → Olympian",
+      highest_tier_hint: "Copper → Silver → Gold → Diamond → Continuum",
       latest: "Последнее",
       latest_hint_empty: "запускайте Panergos чаще",
       none_yet: "Пока нет",

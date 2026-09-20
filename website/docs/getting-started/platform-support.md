@@ -6,7 +6,7 @@ description: "Which operating systems and source distribution methods Panergos A
 
 # Platform Support
 
-Panergos retains the Panergos platform runtime, but its 0.1 release is source-only and does not publish desktop installers or container images.
+Panergos Agent 0.1 is distributed from source. Prebuilt desktop installers and container images are not published yet.
 
 ---
 

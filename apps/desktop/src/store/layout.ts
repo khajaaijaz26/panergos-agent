@@ -3,9 +3,14 @@ import { atom, computed, type ReadableAtom, type WritableAtom } from 'nanostores
 import { SIDEBAR_COLLAPSE_MEDIA_QUERY } from '@/app/layout-constants'
 import { PANE_TOGGLE_REVEAL_EVENT } from '@/components/pane-shell'
 import {
+  $layoutTree,
+  isPaneVisible,
+  layoutHasRootSide,
   restoreHiddenTreeSideTabs,
   restoreMinimizedTreeSide,
-  setTreeSideCollapsed
+  revealTreePane,
+  setTreeSideCollapsed,
+  treeSideOfPane
 } from '@/components/pane-shell/tree/store'
 import { matchesQuery } from '@/hooks/use-media-query'
 import { connectionScopedAtom } from '@/lib/connection-scoped'
@@ -61,6 +66,7 @@ const PANES_FLIPPED_STORAGE_KEY = 'panergos.desktop.panesFlipped'
 const RIGHT_RAIL_ACTIVE_TAB_STORAGE_KEY = 'panergos.desktop.rightRailActiveTab'
 
 export const CHAT_SIDEBAR_PANE_ID = 'chat-sidebar'
+export const SESSIONS_PANE_ID = 'sessions'
 export const FILE_BROWSER_PANE_ID = 'file-browser'
 /** The file tree's id in the LAYOUT TREE — distinct from the pane-state id
  *  above, which keys its open/width record. Toggles need both. */
@@ -419,6 +425,10 @@ export const $sidebarViewCustomized: ReadableAtom<boolean> = computed(
 // When true, the sessions sidebar moves to the right and the file browser +
 // preview rail move to the left — a mirror of the default layout.
 export const $panesFlipped = persistentAtom(PANES_FLIPPED_STORAGE_KEY, false, Codecs.bool)
+export const $panesFlippable: ReadableAtom<boolean> = computed(
+  $layoutTree,
+  () => treeSideOfPane(SESSIONS_PANE_ID) !== null
+)
 export const $isSidebarResizing = atom(false)
 export const $sessionsLimit = atom(SIDEBAR_SESSIONS_PAGE_SIZE)
 
@@ -538,6 +548,10 @@ export function setSidebarOpen(open: boolean) {
   if (open) {
     restoreMinimizedTreeSide('left')
     restoreHiddenTreeSideTabs('left')
+
+    if (!layoutHasRootSide('left')) {
+      revealTreePane(SESSIONS_PANE_ID)
+    }
   }
 
   revealNarrowPane(CHAT_SIDEBAR_PANE_ID, open ? 'open' : 'close')
@@ -545,9 +559,14 @@ export function setSidebarOpen(open: boolean) {
 
 export function toggleSidebarOpen() {
   if (!revealNarrowPane(CHAT_SIDEBAR_PANE_ID, 'toggle')) {
-    const open = restoreMinimizedTreeSide('left') || !$sidebarOpen.get()
+    const hasSide = layoutHasRootSide('left')
+    const open = restoreMinimizedTreeSide('left') || !(hasSide ? $sidebarOpen.get() : isPaneVisible(SESSIONS_PANE_ID))
     setPaneOpen(CHAT_SIDEBAR_PANE_ID, open)
     setTreeSideCollapsed('left', !open)
+
+    if (open && !hasSide) {
+      revealTreePane(SESSIONS_PANE_ID)
+    }
   }
 }
 
@@ -556,9 +575,14 @@ export function toggleFileBrowserOpen() {
     return
   }
 
-  const open = restoreMinimizedTreeSide('right') || !$fileBrowserOpen.get()
+  const hasSide = layoutHasRootSide('right')
+  const open = restoreMinimizedTreeSide('right') || !(hasSide ? $fileBrowserOpen.get() : isPaneVisible(FILES_PANE_ID))
   setPaneOpen(FILE_BROWSER_PANE_ID, open)
   setTreeSideCollapsed('right', !open)
+
+  if (open && !hasSide) {
+    revealTreePane(FILES_PANE_ID)
+  }
 }
 
 export function setFileBrowserOpen(open: boolean) {
@@ -568,6 +592,10 @@ export function setFileBrowserOpen(open: boolean) {
   if (open) {
     restoreMinimizedTreeSide('right')
     restoreHiddenTreeSideTabs('right')
+
+    if (!layoutHasRootSide('right')) {
+      revealTreePane(FILES_PANE_ID)
+    }
   }
 
   revealNarrowPane(FILE_BROWSER_PANE_ID, open ? 'open' : 'close')
@@ -596,6 +624,10 @@ export function requestSessionSearchFocus() {
 }
 
 export function togglePanesFlipped() {
+  if (!$panesFlippable.get()) {
+    return
+  }
+
   $panesFlipped.set(!$panesFlipped.get())
 }
 

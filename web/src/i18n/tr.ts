@@ -522,7 +522,7 @@ export const tr: Translations = {
       secrets: "Sırlar",
       secrets_hint: "ilk sinyale kadar gizli",
       highest_tier: "En yüksek kademe",
-      highest_tier_hint: "Copper → Silver → Gold → Diamond → Olympian",
+      highest_tier_hint: "Copper → Silver → Gold → Diamond → Continuum",
       latest: "En son",
       latest_hint_empty: "Panergos'i daha çok çalıştır",
       none_yet: "Henüz yok",

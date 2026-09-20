@@ -69,7 +69,7 @@ panergos-agent/
 │   ├── model_metadata.py     # 模型上下文长度、token 估算
 │   ├── models_dev.py         # models.dev 注册表集成
 │   ├── anthropic_adapter.py  # Anthropic Messages API 格式转换
-│   ├── display.py            # KawaiiSpinner、工具预览格式化
+│   ├── display.py            # RelaySpinner、工具预览格式化
 │   ├── skill_commands.py     # Skill 斜杠命令
 │   ├── memory_manager.py    # 记忆管理器编排
 │   ├── memory_provider.py   # 记忆提供者 ABC

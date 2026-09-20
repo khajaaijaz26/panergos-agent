@@ -292,7 +292,7 @@ def _parse_cron_flags(tokens):
             try:
                 opts["repeat"] = int(tokens[i + 1])
             except ValueError:
-                return print("(._.) --repeat must be an integer")
+                return print("! --repeat must be an integer")
             i += 2
         elif token in _CRON_VALUE_FLAGS and has_value:
             opts[_CRON_VALUE_FLAGS[token]] = tokens[i + 1]
@@ -990,7 +990,7 @@ class CLICommandsMixin:
                        f"paste a local image path like {_termux_example_image_path()}"))
         from panergos_cli.clipboard import has_clipboard_image
         if not has_clipboard_image():
-            _cp(_dim_line('(._.) No image found in clipboard'))
+            _cp(_dim_line('· No image found in clipboard'))
         elif self._try_attach_clipboard_image():
             _cp(f"  📎 Image #{len(self._attached_images)} attached from clipboard")
         else:
@@ -1044,7 +1044,7 @@ class CLICommandsMixin:
         if image_path is None:
             return _cp(_dim_line(f'(>_<) File not found: {path_token}'))
         if image_path.suffix.lower() not in _IMAGE_EXTENSIONS:
-            return _cp(_dim_line(f'(._.) Not a supported image file: {image_path.name}'))
+            return _cp(_dim_line(f'! Not a supported image file: {image_path.name}'))
         self._attached_images.append(image_path)
         _cp(f"  📎 Attached image: {image_path.name}")
         if _remainder:
@@ -1067,7 +1067,7 @@ class CLICommandsMixin:
             return self._run_tools_config(tools_action="list", platform="cli")
         names = parts[1:]
         if not names:
-            return _pr(f"(._.) Usage: /tools {subcommand} <name> [name ...]",
+            return _pr(f"! Usage: /tools {subcommand} <name> [name ...]",
                        f"  Built-in toolset:  /tools {subcommand} web",
                        f"  MCP tool:          /tools {subcommand} github:create_issue")
         # Typing the command is consent. Do NOT use input() — it hangs in prompt_toolkit's loop.
@@ -1362,7 +1362,7 @@ class CLICommandsMixin:
         elif not self._session_db:
             _cp(_db_unavailable_line())
         elif not self._show_recent_sessions(reason="sessions"):
-            _cp("  (._.) No previous sessions yet.")
+            _cp("  · No previous sessions yet.")
 
     def _handle_branch_command(self, cmd_original: str) -> None:
         """Handle /branch [name] — fork the current session into a new independent copy of the
@@ -1517,7 +1517,7 @@ class CLICommandsMixin:
                     (read_raw_config().get("display") or {}).get("personality", ""))
             except Exception:
                 current = ""
-            _pr("", "+" + "-" * 50 + "+", "|" + " " * 12 + "(^o^)/ Personalities" + " " * 15 + "|",
+            _pr("", "+" + "-" * 50 + "+", "|" + "PANERGOS / PERSONALITIES".center(50) + "|",
                 "+" + "-" * 50 + "+", "",
                 f" {' *' if not current else '  '}{'none':<12} - (no personality overlay)")
             for name, prompt in self.personalities.items():
@@ -1527,11 +1527,11 @@ class CLICommandsMixin:
         try:
             name, personality_prompt = resolve_personality(personality_name, getattr(self, "config", None))
         except ValueError:
-            print(f"(._.) Unknown personality: {personality_name.lower()}")
+            print(f"! Unknown personality: {personality_name.lower()}")
             return print(f"  Available: none, {', '.join(self.personalities.keys())}")
         saved = persist_personality(name)
         scope = "(saved to config)" if saved else "(session only)"
-        face = "(^_^)b" if saved else "(^_^)"
+        marker = "✓" if saved else "◇"
         if not name:
             # Neutral reset — fall back to the user-owned manual prompt.
             try:
@@ -1541,12 +1541,12 @@ class CLICommandsMixin:
             except Exception:
                 self.system_prompt = ""
             self.agent = None  # Force re-init
-            _pr(f"{face} Personality cleared {scope}",
+            _pr(f"{marker} Personality cleared {scope}",
                 "  No personality overlay — using base agent behavior.")
         else:
             self.system_prompt = personality_prompt
             self.agent = None  # Force re-init
-            _pr(f"{face} Personality set to '{name}' {scope}",
+            _pr(f"{marker} Personality set to '{name}' {scope}",
                 f"  \"{_ellipsize(personality_prompt, 60)}\"")
 
     def _handle_pet_command(self, cmd: str):
@@ -1560,27 +1560,27 @@ class CLICommandsMixin:
         low = arg.lower()
         if not arg or low == "toggle":
             enabled, name, err = toggle_pet_display()
-            print(f"(x_x) {err}" if err else f"(^_^)b {name} is out — it'll pop in shortly." if enabled
-                  else f"(-_-)zzZ {name} put away." if name else "(-_-)zzZ Pet put away.")
+            print(f"! {err}" if err else f"✓ {name} is active." if enabled
+                  else f"· {name} put away." if name else "· Pet put away.")
         elif low in ("list", "gallery", "browse", "all"):
             print_pet_gallery()
         elif low == "scale" or low.startswith("scale "):
             value = arg[len("scale"):].strip()
             if not value:
-                return print("(o_o) Usage: /pet scale <factor>  (e.g. /pet scale 0.5)")
+                return print("! Usage: /pet scale <factor>  (e.g. /pet scale 0.5)")
             scale, err = set_pet_scale(value)
-            print(f"(x_x) {err}" if err else f"(^_^) Pet scale → {scale:g}.")
+            print(f"! {err}" if err else f"✓ Pet scale → {scale:g}.")
         elif low == "off":
             _set_enabled(False)
-            print("(-_-)zzZ Pet put away.")
+            print("· Pet put away.")
         else:
-            print(f"(o_o) Fetching '{arg}' from petdex…")
+            print(f"[PETDEX] Fetching '{arg}'…")
             try:
                 pet = store.install_pet(arg)
             except (store.PetStoreError, ManifestError) as exc:
-                return print(f"(x_x) Couldn't adopt '{arg}': {exc}")
+                return print(f"! Couldn't adopt '{arg}': {exc}")
             _set_active(arg)
-            print(f"(^_^)b {pet.display_name} is out — it'll pop in shortly.")
+            print(f"✓ {pet.display_name} is active.")
 
     def _handle_hatch_command(self, cmd: str):
         """Generate ("hatch") a new petdex pet from a description: base look, one animation row
@@ -1601,21 +1601,21 @@ class CLICommandsMixin:
             # run_in_terminal on the main thread and cancels cleanly (None) when prompting isn't safe.
             prompt_helper = getattr(self, "_prompt_text_input", None)
             try:
-                concept = ((prompt_helper or input)("(o_o) Describe your pet: ") or "").strip()
+                concept = ((prompt_helper or input)("[PETDEX] Describe your pet: ") or "").strip()
             except (EOFError, KeyboardInterrupt):
                 return print()
         if not concept:
-            return print("(o_o) Usage: /hatch <description>  (e.g. /hatch a tiny cyber fox)")
+            return print("! Usage: /hatch <description>  (e.g. /hatch a tiny cyber fox)")
         # A short, friendly display name from the first few words of the concept.
         display_name = " ".join(w.capitalize() for w in concept.split()[:3])[:28].strip() or "Pet"
         slug = store.slugify(display_name) or store.slugify(concept) or "pet"
-        print(f"(o_o) Designing '{concept}'… (a minute of image-model calls)")
+        print(f"[PETDEX] Designing '{concept}'… (a minute of image-model calls)")
         try:
             drafts = orchestrate.generate_base_drafts(concept, n=1)
         except GenerationError as exc:
-            return print(f"(x_x) Couldn't generate a base look: {exc}")
+            return print(f"! Couldn't generate a base look: {exc}")
         if not drafts:
-            return print("(x_x) No base draft came back — try again.")
+            return print("! No base draft came back — try again.")
 
         def _progress(event: str, detail: str) -> None:
             if event == "row":  # detail is "<state>:<done>:<total>"; show the state name.
@@ -1628,9 +1628,9 @@ class CLICommandsMixin:
                 base_image=drafts[0], slug=slug, display_name=display_name, concept=concept,
                 on_progress=_progress)
         except GenerationError as exc:
-            return print(f"(x_x) Hatch failed: {exc}")
+            return print(f"! Hatch failed: {exc}")
         _set_active(result.slug)
-        print(f"(^_^)b {result.display_name} hatched and adopted — it'll pop in shortly!")
+        print(f"✓ {result.display_name} hatched and adopted.")
 
     # ---- /cron ----------------------------------------------------------------------------
     def _handle_cron_command(self, cmd: str):
@@ -1644,12 +1644,12 @@ class CLICommandsMixin:
             return
         handler = _CRON_SUBCOMMANDS.get(subcommand)
         if handler is None:
-            return _pr(f"(._.) Unknown cron command: {subcommand}",
+            return _pr(f"! Unknown cron command: {subcommand}",
                        "  Available: list, add, edit, pause, resume, run, remove")
         getattr(self, handler)(subcommand, opts)
 
     def _cron_overview(self) -> None:
-        _pr("", "+" + "-" * 68 + "+", "|" + " " * 22 + "(^_^) Scheduled Tasks" + " " * 23 + "|",
+        _pr("", "+" + "-" * 68 + "+", "|" + "PANERGOS / SCHEDULED TASKS".center(68) + "|",
             "+" + "-" * 68 + "+", "", "  Commands:", "    /cron list",
             '    /cron add "every 2h" "Check server status" [--skill blogwatcher]',
             '    /cron edit <job_id> --schedule "every 4h" --prompt "New task"',
@@ -1677,7 +1677,7 @@ class CLICommandsMixin:
         result = _cron_api(action="list", include_disabled=opts["all"])
         jobs = result.get("jobs", []) if result.get("success") else []
         if not jobs:
-            return print("(._.) No scheduled jobs.")
+            return print("· No scheduled jobs.")
         print()
         _pr("Scheduled Jobs:", "-" * 80)
         for job in jobs:
@@ -1702,18 +1702,18 @@ class CLICommandsMixin:
     def _cron_add(self, subcommand: str, opts: dict) -> None:
         positionals = opts["positionals"]
         if not positionals:
-            return print("(._.) Usage: /cron add <schedule> <prompt>")
+            return print("! Usage: /cron add <schedule> <prompt>")
         schedule = opts["schedule"] or positionals[0]
         prompt = opts["prompt"] or " ".join(positionals[1:])
         skills = _normalize_skills(opts["skills"])
         if not prompt and not skills:
-            return print("(._.) Please provide a prompt or at least one skill")
+            return print("! Please provide a prompt or at least one skill")
         result = _cron_api(
             action="create", schedule=schedule, prompt=prompt or None, name=opts["name"],
             deliver=opts["deliver"], repeat=opts["repeat"], skills=skills or None)
         if not result.get("success"):
-            return print(f"(x_x) Failed to create job: {result.get('error')}")
-        _pr(f"(^_^)b Created job: {result['job_id']}", f"  Schedule: {result['schedule']}")
+            return print(f"! Failed to create job: {result.get('error')}")
+        _pr(f"✓ Created job: {result['job_id']}", f"  Schedule: {result['schedule']}")
         if result.get("skills"):
             print(f"  Skills: {', '.join(result['skills'])}")
         print(f"  Next run: {result['next_run_at']}")
@@ -1722,12 +1722,12 @@ class CLICommandsMixin:
         from cron import get_job
         positionals = opts["positionals"]
         if not positionals:
-            return print("(._.) Usage: /cron edit <job_id> "
+            return print("! Usage: /cron edit <job_id> "
                          "[--schedule ...] [--prompt ...] [--skill ...]")
         job_id = positionals[0]
         existing = get_job(job_id)
         if not existing:
-            return print(f"(._.) Job not found: {job_id}")
+            return print(f"! Job not found: {job_id}")
         # Skill edit precedence: --clear-skills > --skill (replace) > --add/--remove (merge) > untouched.
         final_skills = None
         replacement_skills = _normalize_skills(opts["skills"])
@@ -1746,27 +1746,27 @@ class CLICommandsMixin:
             action="update", job_id=job_id, schedule=opts["schedule"], prompt=opts["prompt"],
             name=opts["name"], deliver=opts["deliver"], repeat=opts["repeat"], skills=final_skills)
         if not result.get("success"):
-            return print(f"(x_x) Failed to update job: {result.get('error')}")
+            return print(f"! Failed to update job: {result.get('error')}")
         job = result["job"]
-        _pr(f"(^_^)b Updated job: {job['job_id']}", f"  Schedule: {job['schedule']}",
+        _pr(f"✓ Updated job: {job['job_id']}", f"  Schedule: {job['schedule']}",
             f"  Skills: {', '.join(job['skills'])}" if job.get("skills") else "  Skills: none")
 
     def _cron_job_action(self, subcommand: str, opts: dict) -> None:
         """pause / resume / run / remove (aliases rm, delete) on one job id."""
         positionals = opts["positionals"]
         if not positionals:
-            return print(f"(._.) Usage: /cron {subcommand} <job_id>")
+            return print(f"! Usage: /cron {subcommand} <job_id>")
         job_id = positionals[0]
         action = "remove" if subcommand in {"remove", "rm", "delete"} else subcommand
         result = _cron_api(action=action, job_id=job_id,
                            reason="paused from /cron" if action == "pause" else None)
         if not result.get("success"):
-            return print(f"(x_x) Failed to {action} job: {result.get('error')}")
+            return print(f"! Failed to {action} job: {result.get('error')}")
         if action == "remove":
             removed = result.get("removed_job", {})
-            return print(f"(^_^)b Removed job: {removed.get('name', job_id)} ({job_id})")
+            return print(f"✓ Removed job: {removed.get('name', job_id)} ({job_id})")
         verb = {"pause": "Paused", "resume": "Resumed", "run": "Triggered"}[action]
-        print(f"(^_^)b {verb} job: {result['job']['name']} ({job_id})")
+        print(f"✓ {verb} job: {result['job']['name']} ({job_id})")
         if action == "resume":
             print(f"  Next run: {result['job'].get('next_run_at')}")
         elif action == "run":
@@ -1812,7 +1812,7 @@ class CLICommandsMixin:
         except SystemExit:
             pass  # argparse exits on --help/errors; don't kill the interactive session
         except Exception as exc:
-            print(f"(._.) curator: {exc}")
+            print(f"! curator: {exc}")
 
     def _handle_kanban_command(self, cmd: str):
         """Handle /kanban — strip the leading ``/kanban`` and hand the rest to ``kanban.run_slash``."""
@@ -1823,7 +1823,7 @@ class CLICommandsMixin:
         try:
             output = run_slash(rest)
         except Exception as exc:  # pragma: no cover - defensive
-            output = f"(._.) kanban error: {exc}"
+            output = f"! kanban error: {exc}"
         if output:
             print(output)
 
@@ -2359,7 +2359,7 @@ class CLICommandsMixin:
         except Exception as exc:
             return _cp(_dim_line(f'(>_<) Could not open editor: {exc}'))
         if not composed:
-            return _cp(_dim_line('(._.) Empty prompt — nothing sent.'))
+            return _cp(_dim_line('· Empty prompt — nothing sent.'))
         # One-shot seed: the interactive loop runs this as the next agent turn right after
         # process_command() returns (see cli.py main loop).
         self._pending_agent_seed = composed
@@ -2529,7 +2529,7 @@ class CLICommandsMixin:
         # Effort level change
         parsed = _parse_reasoning_config(arg)
         if parsed is None:
-            return _cp(_dim_line(f'(._.) Unknown argument: {arg}'),
+            return _cp(_dim_line(f'! Unknown argument: {arg}'),
                        _dim_line('Valid levels: none, minimal, low, medium, high, xhigh, max, ultra'),
                        _dim_line('Display:      show, hide'),
                        _dim_line('Scope:        session-scoped by default, --global to persist'))
@@ -2551,21 +2551,24 @@ class CLICommandsMixin:
             return _cp(_accent_line(f"Busy input mode: {self.busy_input_mode}"),
                        _dim_line(f'Enter while busy: {behavior}'), usage)
         if arg not in _BUSY_MODE_LONG:
-            return _cp(_dim_line(f'(._.) Unknown argument: {arg}'), usage)
+            return _cp(_dim_line(f'! Unknown argument: {arg}'), usage)
         self.busy_input_mode = arg
         _persist_display_choice("display.busy_input_mode", arg, "Busy input mode", _BUSY_MODE_LONG[arg])
 
     def _handle_indicator_command(self, cmd: str):
-        """Handle /indicator [status|kaomoji|emoji|unicode|ascii] — pick the TUI busy-indicator style.
+        """Handle /indicator [status|relay|emoji|unicode|ascii] — pick the TUI busy-indicator style.
         Persists to ``display.tui_status_indicator`` (the key the TUI reads) for its next render."""
         from panergos_constants import DEFAULT_INDICATOR_STYLE, INDICATOR_STYLES
-        current = (self.config.get("display") or {}).get("tui_status_indicator", DEFAULT_INDICATOR_STYLE)
+        current = str((self.config.get("display") or {}).get(
+            "tui_status_indicator", DEFAULT_INDICATOR_STYLE)).strip().lower()
+        if current not in INDICATOR_STYLES:
+            current = DEFAULT_INDICATOR_STYLE
         arg = _command_arg(cmd, lower=True)
         usage = _dim_line(f"Usage: /indicator [{'|'.join(INDICATOR_STYLES)}]")
         if not arg or arg == "status":
             return _cp(_accent_line(f"Busy-indicator style: {current}"), usage)
         if arg not in INDICATOR_STYLES:
-            return _cp(_dim_line(f'(._.) Unknown indicator style: {arg}'), usage)
+            return _cp(_dim_line(f'! Unknown indicator style: {arg}'), usage)
         self.config.setdefault("display", {})["tui_status_indicator"] = arg
         _persist_display_choice("display.tui_status_indicator", arg, "Busy-indicator style",
                                 "The TUI picks up the new style on its next render.")
@@ -2575,7 +2578,7 @@ class CLICommandsMixin:
         Session-scoped by default; ``--global`` persists agent.service_tier to config.yaml
         (parity with /model and /reasoning)."""
         if not self._fast_command_available():
-            return _cp("  (._.) /fast is only available for models that support fast mode "
+            return _cp("  ! /fast is only available for models that support fast mode "
                        "(OpenAI Priority Processing or Anthropic Fast Mode).")
         # Determine the branding for the current model
         model = getattr(getattr(self, "agent", None), "model", None) or getattr(self, "model", None)
@@ -2589,7 +2592,7 @@ class CLICommandsMixin:
             return _cp(_accent_line(f"{feature_name}: {status}"), usage)
         arg, explicit_global = _split_scope_flags(raw)
         if arg not in _FAST_TIERS:
-            return _cp(_dim_line(f'(._.) Unknown argument: {arg}'), usage)
+            return _cp(_dim_line(f'! Unknown argument: {arg}'), usage)
         self.service_tier, saved_value = _FAST_TIERS[arg]
         self.agent = None  # Force agent re-init with new service-tier config
         saved = explicit_global and _save("agent.service_tier", saved_value)

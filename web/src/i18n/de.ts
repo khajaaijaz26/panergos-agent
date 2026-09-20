@@ -521,7 +521,7 @@ export const de: Translations = {
       secrets: "Geheimnisse",
       secrets_hint: "verborgen bis zum ersten Signal",
       highest_tier: "Höchste Stufe",
-      highest_tier_hint: "Copper → Silver → Gold → Diamond → Olympian",
+      highest_tier_hint: "Copper → Silver → Gold → Diamond → Continuum",
       latest: "Neueste",
       latest_hint_empty: "nutze Panergos mehr",
       none_yet: "Noch keine",

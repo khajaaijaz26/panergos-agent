@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'Panergos Agent',
-  tagline: 'The open agent for any work',
+  tagline: 'Work without losing the thread.',
   favicon: 'img/panergos-mark.svg',
 
   url: 'https://khajaaijaz26.github.io',

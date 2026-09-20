@@ -99,7 +99,7 @@ CLI 界面中使用的文字字符串。
 | `goodbye` | 退出时显示的消息 | `Goodbye! ▶` |
 | `response_label` | 响应框标题上的标签 | ` ▶ Panergos ` |
 | `prompt_symbol` | 用户输入 prompt 前的符号（裸 token，渲染器会在后面添加空格） | `❯` |
-| `help_header` | `/help` 命令输出的标题文字 | `(^_^)? Available Commands` |
+| `help_header` | `/help` 命令输出的标题文字 | `PANERGOS / COMMANDS` |
 
 ### 其他顶级键
 
@@ -172,7 +172,7 @@ branding:
   goodbye: "See you later! ⚡"
   response_label: " ⚡ My Agent "
   prompt_symbol: "⚡"
-  help_header: "(⚡) Available Commands"
+  help_header: "⚡ COMMANDS"
 
 tool_prefix: "┊"
 

@@ -9,7 +9,7 @@ from agent.display import (
     build_tool_preview,
     capture_local_edit_snapshot,
     extract_edit_diff,
-    get_cute_tool_message,
+    get_tool_completion_message,
     prepare_tool_preview,
     redact_tool_args_for_display,
     set_tool_preview_max_len,
@@ -26,13 +26,13 @@ def reset_tool_preview_max_len():
     set_tool_preview_max_len(0)
 
 
-def test_cute_tool_message_falls_back_when_renderer_raises(monkeypatch):
+def test_tool_completion_message_falls_back_when_renderer_raises(monkeypatch):
     def _boom(*_args, **_kwargs):
         raise RuntimeError("cosmetic failure")
 
-    monkeypatch.setattr(display_module, "_get_cute_tool_message", _boom)
+    monkeypatch.setattr(display_module, "_build_tool_completion_message", _boom)
 
-    assert get_cute_tool_message("web_extract", {"urls": []}, 0.25) == (
+    assert get_tool_completion_message("web_extract", {"urls": []}, 0.25) == (
         "┊ ⚡ web_extra completed  0.2s"
     )
 
@@ -167,7 +167,7 @@ class TestCuteToolMessagePreviewLength:
         set_tool_preview_max_len(80)
         pattern = "function.formatToolCall.context.preview.compactPreview.maxLength.truncate"
 
-        line = get_cute_tool_message("search_files", {"pattern": pattern}, 0.1)
+        line = get_tool_completion_message("search_files", {"pattern": pattern}, 0.1)
 
         assert pattern in line
         assert "..." not in line
@@ -176,9 +176,9 @@ class TestCuteToolMessagePreviewLength:
 
 
 
-    def test_browser_type_cute_message_redacts_api_key(self):
+    def test_browser_type_completion_message_redacts_api_key(self):
         secret = "sk-proj-ABCD1234567890EFGH"
-        line = get_cute_tool_message(
+        line = get_tool_completion_message(
             "browser_type",
             {"ref": "@password", "text": secret},
             0.1,
@@ -188,9 +188,9 @@ class TestCuteToolMessagePreviewLength:
         assert secret not in line
         assert "sk-pro" in line
 
-    def test_browser_type_cute_message_keeps_normal_text(self):
+    def test_browser_type_completion_message_keeps_normal_text(self):
         text = "hello world"
-        line = get_cute_tool_message(
+        line = get_tool_completion_message(
             "browser_type",
             {"ref": "@search", "text": text},
             0.1,

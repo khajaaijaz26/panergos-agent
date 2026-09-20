@@ -14,17 +14,16 @@ import json
 from pathlib import Path
 import logging
 import os
-import random
 import threading
 import time
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
 from agent.display import (
-    KawaiiSpinner,
+    RelaySpinner,
     build_tool_preview as _build_tool_preview,
     build_tool_label as _build_tool_label,
-    get_cute_tool_message as _get_cute_tool_message_impl,
+    get_tool_completion_message as _get_tool_completion_message_impl,
     get_tool_emoji as _get_tool_emoji,
     redact_tool_args_for_display as _redact_tool_args_for_display,
     _detect_tool_failure,
@@ -1388,8 +1387,10 @@ def _append_batch_results(agent, messages: list, effective_task_id: str, batch: 
         _persisted, display_function_result, risk_metadata = committed
 
         if agent._should_emit_quiet_tool_messages():
-            cute_msg = _get_cute_tool_message_impl(ref.name, ref.args, tool_duration, result=display_function_result)
-            agent._safe_print(f"  {cute_msg}")
+            completion_line = _get_tool_completion_message_impl(
+                ref.name, ref.args, tool_duration, result=display_function_result
+            )
+            agent._safe_print(f"  {completion_line}")
         elif _tool_progress_enabled(agent):
             _print_tool_completed(agent, i + 1, tool_duration, _multimodal_text_summary(display_function_result))
 
@@ -1446,24 +1447,25 @@ def execute_tool_calls_concurrent(agent, assistant_message, messages: list, effe
 
 
 def _start_quiet_tool_spinner(agent, function_name: str, function_args: dict, *, gate: bool = True, label: Optional[str] = None):
-    """Start the quiet-mode kawaii spinner for one tool call, or return None; ``gate=False``
+    """Start the quiet-mode Relay animation for one tool call, or return None; ``gate=False``
     skips ``_should_start_quiet_spinner`` (context-engine tools always spin)."""
     if not agent._should_emit_quiet_tool_messages() or (gate and not agent._should_start_quiet_spinner()):
         return None
-    face = random.choice(KawaiiSpinner.get_waiting_faces())
     if label is None:
         display_args = _redact_tool_args_for_display(function_name, function_args) or function_args
         label = f"{_get_tool_emoji(function_name)} {_build_tool_label(function_name, display_args) or function_name}"
-    spinner = KawaiiSpinner(f"{face} {label}", spinner_type='dots', print_fn=agent._print_fn)
+    spinner = RelaySpinner(label, spinner_type='relay', print_fn=agent._print_fn)
     spinner.start()
     return spinner
 
 
 def _finish_quiet_tool_spinner(agent, spinner, function_name: str, function_args: dict, tool_duration: float, result) -> None:
-    """Stop the spinner with the cute completion line, or print it when no spinner ran."""
+    """Stop the spinner with the completion line, or print it when no spinner ran."""
     if spinner or agent._should_emit_quiet_tool_messages():
-        cute = _get_cute_tool_message_impl(function_name, function_args, tool_duration, result=result)
-        spinner.stop(cute) if spinner else agent._vprint(f"  {cute}")
+        completion_line = _get_tool_completion_message_impl(
+            function_name, function_args, tool_duration, result=result
+        )
+        spinner.stop(completion_line) if spinner else agent._vprint(f"  {completion_line}")
 
 
 def _delegate_spinner_label(function_args: dict) -> str:

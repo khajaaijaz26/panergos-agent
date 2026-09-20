@@ -3151,7 +3151,7 @@ class PanergosCLI(CLIProcessNotificationsMixin, CLIAgentSetupMixin, CLICommandsM
         else:
             api_key_display = "Not set!"
 
-        title = "(^_^) Configuration"
+        title = "PANERGOS / CONFIGURATION"
         width = 50
         pad = width - len(title)
         ssh_target = (
@@ -3638,6 +3638,31 @@ class PanergosCLI(CLIProcessNotificationsMixin, CLIAgentSetupMixin, CLICommandsM
             _term_lines = shutil.get_terminal_size().lines
             if _term_lines > 2:
                 print("\n" * (_term_lines - 1), end="", flush=True)
+
+        # An interactive launch gets a sub-second Panergos Relay trace before
+        # the dashboard. Automated, piped, and CI runs bypass it.
+        try:
+            from panergos_cli.relay_intro import play_relay_intro, should_play_relay_intro
+
+            _automated_start = bool(
+                getattr(self, "_seeded_first_message", None)
+                or getattr(self, "_single_query_mode", False)
+                or os.environ.get("PANERGOS_SINGLE_QUERY_SESSION")
+            )
+            if should_play_relay_intro(automated=_automated_start, resumed=bool(self._resumed)):
+                _intro_colors = ("#FF6B5E", "#F7C453", "#2EE6A6")
+                with suppress(Exception):
+                    from panergos_cli.skin_engine import get_active_skin
+
+                    _intro_skin = get_active_skin()
+                    _intro_colors = (
+                        _intro_skin.get_color("banner_title", _intro_colors[0]),
+                        _intro_skin.get_color("banner_gold", _intro_colors[1]),
+                        _intro_skin.get_color("banner_accent", _intro_colors[2]),
+                    )
+                play_relay_intro(columns=shutil.get_terminal_size().columns, colors=_intro_colors)
+        except Exception:
+            logger.debug("Relay startup trace failed", exc_info=True)
 
         self.show_banner()
         self._show_security_advisories()

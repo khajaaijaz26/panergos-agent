@@ -33,7 +33,7 @@ Achievements have three visible states:
 Most achievements level through:
 
 ```text
-Copper → Silver → Gold → Diamond → Olympian
+Copper → Silver → Gold → Diamond → Continuum
 ```
 
 Each card has a collapsible **What counts** section showing the exact tracked metric or requirement once the user wants details.

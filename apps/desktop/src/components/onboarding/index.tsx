@@ -2,6 +2,7 @@ import { useStore } from '@nanostores/react'
 import type { ModelOptionProvider } from '@panergos/shared'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { BrandMark } from '@/components/brand-mark'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import { Input } from '@/components/ui/input'
@@ -319,7 +320,7 @@ export function DesktopOnboardingOverlay({
   return (
     <div
       className={cn(
-        'fixed inset-0 z-(--z-onboarding) flex items-center justify-center bg-(--ui-chat-surface-background) p-6 transition-opacity duration-[520ms] ease-out',
+        'fixed inset-0 z-(--z-onboarding) bg-(--ui-chat-surface-background) transition-opacity duration-[520ms] ease-out',
         // On the bare confirm screen, hold the surface (text-out + hold) so the
         // per-element exit plays before it dissolves.
         bare && leaving ? '[transition-delay:660ms]' : '',
@@ -332,18 +333,15 @@ export function DesktopOnboardingOverlay({
     >
       <div
         className={cn(
-          'relative w-full max-w-[45rem] transition-all duration-500 ease-out',
-          bare
-            ? ''
-            : 'overflow-hidden rounded-xl border border-(--stroke-eclipse) bg-(--ui-chat-bubble-background) shadow-eclipse',
+          'relative grid h-full w-full overflow-hidden bg-(--ui-chat-bubble-background) transition-all duration-500 ease-out lg:grid-cols-[minmax(17rem,0.62fr)_minmax(0,1.38fr)]',
           // Bare confirm screen orchestrates its own per-element exit; the
-          // carded states use the simple lift/blur dissolve.
+          // provider-selection states use the simple lift/blur dissolve.
           leaving && !bare
             ? '-translate-y-1 scale-[0.985] opacity-0 blur-[2px]'
             : 'translate-y-0 scale-100 opacity-100 blur-0'
         )}
       >
-        {showPicker || !ready ? <Header /> : null}
+        <Header />
         {onboarding.manual ? (
           <Button
             aria-label={t.common.close}
@@ -355,7 +353,7 @@ export function DesktopOnboardingOverlay({
             <Codicon name="close" size="1rem" />
           </Button>
         ) : null}
-        <div className="grid gap-3 p-5">
+        <div className="grid min-h-0 content-center gap-3 overflow-y-auto p-5 sm:p-8 lg:p-10">
           {reason ? <ReasonNotice reason={reason} /> : null}
           {ready ? (
             showPicker ? (
@@ -413,7 +411,8 @@ function Header() {
   const { t } = useI18n()
 
   return (
-    <div className="bg-(--ui-chat-bubble-background) px-5 pt-5 pb-1">
+    <div className="flex min-h-44 flex-col justify-end gap-4 border-b border-(--ui-stroke-tertiary) bg-[linear-gradient(145deg,color-mix(in_srgb,var(--theme-primary)_14%,transparent),transparent_62%)] p-6 lg:min-h-0 lg:border-r lg:border-b-0 lg:p-10">
+      <BrandMark className="size-14" />
       <h2 className="text-[0.9375rem] font-semibold tracking-tight">{t.onboarding.headerTitle}</h2>
       <p className="mt-1 max-w-xl text-[0.8125rem] leading-5 text-(--ui-text-tertiary)">{t.onboarding.headerDesc}</p>
     </div>

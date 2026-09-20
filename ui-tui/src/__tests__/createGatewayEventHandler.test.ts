@@ -453,9 +453,9 @@ describe('createGatewayEventHandler', () => {
     expect(appended[appended.length - 1]).toMatchObject({ role: 'assistant', text: 'final answer' })
   })
 
-  it('filters spinner/status-only reasoning noise from completed thinking', () => {
+  it('keeps Relay status noise isolated from the completed answer', () => {
     const appended: Msg[] = []
-    const streamed = '(¬_¬) synthesizing...\nactual plan\n( ͡° ͜ʖ ͡°) pondering...\nnext step'
+    const streamed = '╲━━▶ routing context...\nactual plan\n━━▶ validating links...\nnext step'
 
     const onEvent = createGatewayEventHandler(buildCtx(appended))
 

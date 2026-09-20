@@ -217,13 +217,11 @@ done
 
 print_banner() {
     echo ""
-    echo -e "${MAGENTA}${BOLD}"
-    echo "┌─────────────────────────────────────────────────────────┐"
-    echo "│             ▶ Panergos Agent Installer                  │"
-    echo "├─────────────────────────────────────────────────────────┤"
-    echo "│  The open agent for any work.                           │"
-    echo "└─────────────────────────────────────────────────────────┘"
-    echo -e "${NC}"
+    echo -e "${MAGENTA}${BOLD}PANERGOS SETUP${NC}"
+    echo -e "${RED}${BOLD}━━━╲${NC}"
+    echo -e "${YELLOW}${BOLD}━━━━▶${NC}  ${BOLD}Work without losing the thread.${NC}"
+    echo -e "${GREEN}${BOLD}━━━╱${NC}"
+    echo ""
 }
 
 log_info() {

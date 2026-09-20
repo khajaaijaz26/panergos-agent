@@ -5,14 +5,23 @@ import type { QuickModelOption } from '@/app/chat/composer/types'
 import type { ClientSessionState } from '@/app/types'
 import { formatRefValue } from '@/components/assistant-ui/directive-text'
 import { type ChatMessage, type ChatMessagePart, chatMessageText, textPart } from '@/lib/chat-messages'
+import { RETIRED_PERSONALITIES } from '@/lib/personalities'
 import { normalize } from '@/lib/text'
 import type { ComposerAttachment } from '@/store/composer'
 import type { SessionInfo } from '@/types/panergos'
 
 export { BUILTIN_PERSONALITIES } from '@/lib/personalities'
 
-const THINKING_STATUS_PREFIX_RE =
-  /^\s*(?:(?:[^\s.]{1,16})\s+)?(?:processing|thinking|reasoning|analyzing|pondering|contemplating|musing|cogitating|ruminating|deliberating|mulling|reflecting|computing|synthesizing|formulating|brainstorming)\.\.\.\s*/i
+const RELAY_PHASE_PATTERN =
+  'receiving signal|mapping the field|routing context|aligning constraints|sequencing actions|validating links|merging results|readying handoff'
+// Hidden compatibility for presentation-only prefixes stored by older clients.
+// This must stay explicit so ordinary leading gerunds remain model content.
+const LEGACY_PROGRESS_PATTERN =
+  'processing|thinking|reasoning|analyzing|pondering|contemplating|musing|cogitating|ruminating|deliberating|mulling|reflecting|computing|synthesizing|formulating|brainstorming'
+const THINKING_STATUS_PREFIX_RE = new RegExp(
+  `^\\s*(?:[^A-Za-z\\n]{1,24}\\s*)?(?:${RELAY_PHASE_PATTERN}|${LEGACY_PROGRESS_PATTERN})\\.\\.\\.\\s*`,
+  'i'
+)
 
 const EMPTY_THINKING_PLACEHOLDER_RE =
   /\b(?:current rewritten thinking|next thinking to process|provide the thinking content|don't see any .*thinking)\b/i
@@ -113,7 +122,7 @@ export function coerceGatewayText(value: unknown): string {
 /**
  * Normalize a reasoning/thinking text payload from the gateway.
  *
- * Only the leading status prefix (e.g. "Panergos is thinking...") and the
+ * Only the leading presentation-only progress prefix and the
  * obvious placeholder echoes are stripped. We deliberately do NOT trim
  * the delta — reasoning streams as small chunks (often individual tokens
  * with leading or trailing spaces), and trimming each chunk before
@@ -289,10 +298,15 @@ export function personalityNamesFromConfig(config: unknown): string[] {
     : []
 }
 
-export function normalizePersonalityValue(value: string): string {
+export function normalizePersonalityValue(value: string, availableNames?: Iterable<string>): string {
   const trimmed = normalize(value)
+  const explicitlyDefined = availableNames
+    ? new Set([...availableNames].map(name => normalize(name))).has(trimmed)
+    : true
 
-  return !trimmed || trimmed === 'default' || trimmed === 'none' ? '' : trimmed
+  return !trimmed || trimmed === 'default' || trimmed === 'none' || (RETIRED_PERSONALITIES.has(trimmed) && !explicitlyDefined)
+    ? ''
+    : trimmed
 }
 
 export function quickModelOptions(

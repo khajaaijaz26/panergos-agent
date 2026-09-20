@@ -530,7 +530,7 @@ export const ga: Translations = {
       secrets: "Rúin",
       secrets_hint: "i bhfolach go dtí an chéad chomhartha",
       highest_tier: "An leibhéal is airde",
-      highest_tier_hint: "Copper → Silver → Gold → Diamond → Olympian",
+      highest_tier_hint: "Copper → Silver → Gold → Diamond → Continuum",
       latest: "An ceann is déanaí",
       latest_hint_empty: "rith Panergos níos mó",
       none_yet: "Aon cheann fós",

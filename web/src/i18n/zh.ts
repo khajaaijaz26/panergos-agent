@@ -516,7 +516,7 @@ export const zh: Translations = {
       secrets: "秘密",
       secrets_hint: "在首次信号出现前保持隐藏",
       highest_tier: "最高等级",
-      highest_tier_hint: "Copper → Silver → Gold → Diamond → Olympian",
+      highest_tier_hint: "Copper → Silver → Gold → Diamond → Continuum",
       latest: "最新",
       latest_hint_empty: "多多运行 Panergos",
       none_yet: "暂无",

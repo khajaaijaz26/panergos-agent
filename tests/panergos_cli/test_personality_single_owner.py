@@ -5,7 +5,7 @@ Regression coverage for the post-#81946 resurrection bug: personality state
 used to be persisted differently per surface (TUI/desktop wrote the NAME to
 display.personality, CLI/gateway wrote rendered TEXT to agent.system_prompt),
 so making display.personality authoritative resurrected personalities users
-had already turned off ("kawaii defaults on after updating").
+had already turned off ("a retired default returns after updating").
 """
 
 import os
@@ -27,7 +27,7 @@ from panergos_cli.personality import (
     resolve_personality,
 )
 
-KAWAII = BUILTIN_PERSONALITIES["kawaii"]
+CREATIVE = BUILTIN_PERSONALITIES["creative"]
 
 
 # ── module semantics ──────────────────────────────────────────────────────────
@@ -44,9 +44,9 @@ def test_builtins_available_without_any_config():
 
 
 def test_user_entries_overlay_builtins_by_name():
-    cfg = {"agent": {"personalities": {"kawaii": "toned down", "custom": "hi"}}}
+    cfg = {"agent": {"personalities": {"creative": "toned down", "custom": "hi"}}}
     merged = available_personalities(cfg)
-    assert merged["kawaii"] == "toned down"
+    assert merged["creative"] == "toned down"
     assert merged["custom"] == "hi"
 
 
@@ -68,9 +68,15 @@ def test_neutral_names_normalize_to_empty():
 
 def test_resolve_personality_neutral_and_case_insensitive():
     assert resolve_personality("none", {}) == ("", "")
-    name, prompt = resolve_personality("  KAWAII ", {})
-    assert name == "kawaii"
-    assert prompt == KAWAII
+    name, prompt = resolve_personality("  CREATIVE ", {})
+    assert name == "creative"
+    assert prompt == CREATIVE
+
+
+def test_retired_builtin_name_is_hidden_but_explicit_user_definition_survives():
+    assert "kawaii" not in available_personalities({})
+    cfg = {"agent": {"personalities": {"kawaii": "My own custom profile."}}}
+    assert resolve_personality("kawaii", cfg) == ("kawaii", "My own custom profile.")
 
 
 def test_resolve_personality_unknown_raises_with_listing():
@@ -82,10 +88,10 @@ def test_resolve_personality_unknown_raises_with_listing():
 
 def test_resolve_overlay_personality_wins_over_manual_prompt():
     cfg = {
-        "display": {"personality": "kawaii"},
+        "display": {"personality": "creative"},
         "agent": {"system_prompt": "manual forever"},
     }
-    assert resolve_ephemeral_system_prompt(cfg) == KAWAII
+    assert resolve_ephemeral_system_prompt(cfg) == CREATIVE
 
 
 def test_resolve_overlay_falls_back_to_manual_prompt():
@@ -134,9 +140,9 @@ def test_persist_personality_roundtrip(tmp_path):
     home = tmp_path / ".panergos"
     home.mkdir()
     with patch.dict(os.environ, {"PANERGOS_HOME": str(home)}):
-        assert persist_personality("KAWAII ") is True
+        assert persist_personality("CREATIVE ") is True
         raw = yaml.safe_load((home / "config.yaml").read_text(encoding="utf-8"))
-        assert raw["display"]["personality"] == "kawaii"
+        assert raw["display"]["personality"] == "creative"
 
         assert persist_personality("none") is True
         raw = yaml.safe_load((home / "config.yaml").read_text(encoding="utf-8"))
@@ -150,10 +156,10 @@ def test_persist_personality_never_touches_system_prompt(tmp_path):
         yaml.safe_dump({"agent": {"system_prompt": "manual forever"}})
     , encoding="utf-8")
     with patch.dict(os.environ, {"PANERGOS_HOME": str(home)}):
-        assert persist_personality("kawaii") is True
+        assert persist_personality("creative") is True
         raw = yaml.safe_load((home / "config.yaml").read_text(encoding="utf-8"))
         assert raw["agent"]["system_prompt"] == "manual forever"
-        assert raw["display"]["personality"] == "kawaii"
+        assert raw["display"]["personality"] == "creative"
 
 
 # ── v34 migration: one-time reset of stale split-brain state ─────────────────
@@ -190,7 +196,7 @@ def test_migration_scrubs_personality_text_from_system_prompt(tmp_path):
     home.mkdir()
     raw, _ = _run_migration(
         home,
-        {"_config_version": 33, "agent": {"system_prompt": KAWAII}},
+        {"_config_version": 33, "agent": {"system_prompt": CREATIVE}},
     )
     assert raw["agent"]["system_prompt"] == ""
     assert resolve_ephemeral_system_prompt(raw) == ""
@@ -228,7 +234,7 @@ def test_post_v34_choice_is_never_reset(tmp_path):
     home.mkdir()
     raw, _ = _run_migration(
         home,
-        {"_config_version": 34, "display": {"personality": "kawaii"}},
+        {"_config_version": 34, "display": {"personality": "creative"}},
     )
-    assert raw["display"]["personality"] == "kawaii"
-    assert resolve_ephemeral_system_prompt(raw) == KAWAII
+    assert raw["display"]["personality"] == "creative"
+    assert resolve_ephemeral_system_prompt(raw) == CREATIVE

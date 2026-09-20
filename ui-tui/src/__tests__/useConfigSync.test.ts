@@ -297,7 +297,7 @@ describe('normalizeBusyInputMode', () => {
 
 describe('normalizeIndicatorStyle', () => {
   it('passes through the canonical enum', () => {
-    expect(normalizeIndicatorStyle('kaomoji')).toBe('kaomoji')
+    expect(normalizeIndicatorStyle('relay')).toBe('relay')
     expect(normalizeIndicatorStyle('emoji')).toBe('emoji')
     expect(normalizeIndicatorStyle('unicode')).toBe('unicode')
     expect(normalizeIndicatorStyle('ascii')).toBe('ascii')
@@ -308,12 +308,16 @@ describe('normalizeIndicatorStyle', () => {
     expect(normalizeIndicatorStyle('UNICODE')).toBe('unicode')
   })
 
-  it('defaults to kaomoji for missing/unknown values', () => {
-    expect(normalizeIndicatorStyle(undefined)).toBe('kaomoji')
-    expect(normalizeIndicatorStyle(null)).toBe('kaomoji')
-    expect(normalizeIndicatorStyle('')).toBe('kaomoji')
-    expect(normalizeIndicatorStyle('sparkle')).toBe('kaomoji')
-    expect(normalizeIndicatorStyle(42)).toBe('kaomoji')
+  it('defaults to Relay for missing/unknown values', () => {
+    expect(normalizeIndicatorStyle(undefined)).toBe('relay')
+    expect(normalizeIndicatorStyle(null)).toBe('relay')
+    expect(normalizeIndicatorStyle('')).toBe('relay')
+    expect(normalizeIndicatorStyle('sparkle')).toBe('relay')
+    expect(normalizeIndicatorStyle(42)).toBe('relay')
+  })
+
+  it('silently migrates the retired presentation style to Relay', () => {
+    expect(normalizeIndicatorStyle('kaomoji')).toBe('relay')
   })
 })
 
@@ -358,14 +362,14 @@ describe('applyDisplay → tui_status_indicator', () => {
     expect($uiState.get().indicatorStyle).toBe('unicode')
   })
 
-  it('falls back to kaomoji default when missing or invalid', () => {
+  it('falls back to Relay when missing or invalid', () => {
     const setBell = vi.fn()
 
     applyDisplay({ config: { display: {} } }, setBell)
-    expect($uiState.get().indicatorStyle).toBe('kaomoji')
+    expect($uiState.get().indicatorStyle).toBe('relay')
 
     applyDisplay({ config: { display: { tui_status_indicator: 'rainbow' } } }, setBell)
-    expect($uiState.get().indicatorStyle).toBe('kaomoji')
+    expect($uiState.get().indicatorStyle).toBe('relay')
   })
 })
 

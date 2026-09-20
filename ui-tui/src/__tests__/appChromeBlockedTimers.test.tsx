@@ -18,6 +18,8 @@ import { DEFAULT_THEME } from '../theme.js'
 type StatusRuleProps = React.ComponentProps<typeof StatusRule>
 type IntervalSpy = ReturnType<typeof vi.spyOn<typeof globalThis, 'setInterval'>>
 
+vi.mock('signal-exit', () => ({ onExit: () => () => undefined }))
+
 // Fixed wall clock so the rendered elapsed read-outs are exact strings rather
 // than whatever the machine's clock happens to produce mid-test.
 const T0 = 1_800_000_000_000
@@ -28,7 +30,7 @@ const mounted: Array<() => void> = []
  * Mount a real StatusRule through Ink so the leaf components' effects — and
  * therefore their `setInterval` calls — actually run.  The existing
  * appChromeStatusRule tests invoke `StatusRule(...)` as a plain function,
- * which only builds the element tree and never mounts FaceTicker /
+ * which only builds the element tree and never mounts RelayTicker /
  * SessionDuration / IdleSince, so it cannot observe timer behaviour.
  *
  * Teardown is registered up front so a failing assertion still unmounts the
@@ -93,12 +95,12 @@ const idleProps: StatusRuleProps = {
   voiceLabel: ''
 }
 
-// Busy swaps the idle read-out for the FaceTicker, which owns the glyph +
-// verb + elapsed-clock trio.
+// Busy swaps the idle read-out for the RelayTicker, which owns the mark +
+// phase + elapsed-clock trio.
 const busyProps: StatusRuleProps = {
   ...idleProps,
   busy: true,
-  indicatorStyle: 'kaomoji',
+  indicatorStyle: 'relay',
   lastTurnEndedAt: null,
   turnStartedAt: T0 - 30_000
 }
@@ -240,39 +242,41 @@ describe('status-chrome timers under an occluding overlay', () => {
     expect(oneSecondTimers(intervalSpy)).toBe(0)
   })
 
-  it('arms the FaceTicker glyph/verb/clock trio mid-turn when nothing covers the rule', () => {
+  it('arms the RelayTicker mark/phase/clock trio mid-turn when nothing covers the rule', () => {
     mount(busyProps)
 
-    // kaomoji cadence for the glyph + verb rotation, plus the elapsed clock.
+    expect(armedDelays(intervalSpy)).toContain(140)
     expect(armedDelays(intervalSpy)).toContain(2500)
     expect(oneSecondTimers(intervalSpy)).toBeGreaterThan(0)
   })
 
-  it('freezes the FaceTicker verb on compacting and skips verb rotation (#97239)', () => {
+  it('freezes the RelayTicker phase on compacting and skips phase rotation (#97239)', () => {
     const { output } = mount({ ...busyProps, compacting: true })
 
     expect(output()).toContain('compacting')
-    // Glyph still ticks at the kaomoji cadence; the rotating-verb timer does not.
-    expect(armedDelays(intervalSpy).filter(delay => delay === 2500)).toHaveLength(1)
+    expect(armedDelays(intervalSpy)).toContain(140)
+    expect(armedDelays(intervalSpy)).not.toContain(2500)
     expect(oneSecondTimers(intervalSpy)).toBeGreaterThan(0)
   })
 
-  it('arms no FaceTicker timer mid-turn while the modal widget slot is open', () => {
+  it('arms no RelayTicker timer mid-turn while the modal widget slot is open', () => {
     patchOverlayState({ widget: { appId: 'demo', state: null } })
 
     mount(busyProps)
 
+    expect(armedDelays(intervalSpy)).not.toContain(140)
     expect(armedDelays(intervalSpy)).not.toContain(2500)
     expect(oneSecondTimers(intervalSpy)).toBe(0)
   })
 
-  it('keeps the FaceTicker running mid-turn under a flow-layout sudo prompt', () => {
+  it('keeps the RelayTicker running mid-turn under a flow-layout sudo prompt', () => {
     // `sudo` is in `$isBlocked` but renders in PromptZone's normal flow, so it
     // pushes the rule down rather than covering it — the trio must keep going.
     patchOverlayState({ sudo: { requestId: 'sudo-1' } })
 
     mount(busyProps)
 
+    expect(armedDelays(intervalSpy)).toContain(140)
     expect(armedDelays(intervalSpy)).toContain(2500)
     expect(oneSecondTimers(intervalSpy)).toBeGreaterThan(0)
   })

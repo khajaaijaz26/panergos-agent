@@ -181,13 +181,10 @@ Panergos ships with built-in personalities you can switch to with `/personality`
 | **technical** | Detailed, accurate technical expert |
 | **creative** | Innovative, outside-the-box thinking |
 | **teacher** | Patient educator with clear examples |
-| **kawaii** | Cute expressions, sparkles, and enthusiasm ★ |
-| **catgirl** | Neko-chan with cat-like expressions, nya~ |
 | **pirate** | Captain Panergos, tech-savvy buccaneer |
 | **shakespeare** | Bardic prose with dramatic flair |
 | **surfer** | Totally chill bro vibes |
 | **noir** | Hard-boiled detective narration |
-| **uwu** | Maximum cute with uwu-speak |
 | **philosopher** | Deep contemplation on every query |
 | **hype** | MAXIMUM ENERGY AND ENTHUSIASM!!! |
 

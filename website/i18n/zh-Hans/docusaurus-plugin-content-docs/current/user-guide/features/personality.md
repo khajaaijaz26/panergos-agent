@@ -181,13 +181,10 @@ Panergos 内置了多种个性，可通过 `/personality` 切换。
 | **technical** | 详尽、准确的技术专家 |
 | **creative** | 创新、突破常规的思维 |
 | **teacher** | 耐心的教育者，配有清晰示例 |
-| **kawaii** | 可爱表达、闪光效果与热情 ★ |
-| **catgirl** | 带有猫咪表达方式的 Neko-chan，nya~ |
 | **pirate** | 船长 Panergos，精通技术的海盗 |
 | **shakespeare** | 充满戏剧张力的吟游诗人风格 |
 | **surfer** | 超级冷静的冲浪者氛围 |
 | **noir** | 硬派侦探叙事风格 |
-| **uwu** | 极致可爱的 uwu 语气 |
 | **philosopher** | 对每个问题深度沉思 |
 | **hype** | 最大能量与热情！！！ |
 

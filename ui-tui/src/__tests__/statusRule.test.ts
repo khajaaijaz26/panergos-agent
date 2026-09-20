@@ -116,15 +116,15 @@ describe('statusBarSegments', () => {
 })
 
 describe('busyIndicatorWidth', () => {
-  it('reserves a bare spinner for the verb-less unicode style', () => {
-    // unicode is a 1-col braille spinner with no verb; far slimmer than the
-    // kaomoji face which carries a wide glyph + rotating verb.
-    expect(busyIndicatorWidth('unicode', false)).toBeLessThan(busyIndicatorWidth('kaomoji', false))
+  it('reserves a bare spinner for the phase-less unicode style', () => {
+    // unicode is a 1-col braille spinner with no phase; far slimmer than the
+    // Relay signal, which carries a wide mark + changing phase.
+    expect(busyIndicatorWidth('unicode', false)).toBeLessThan(busyIndicatorWidth('relay', false))
     expect(busyIndicatorWidth('unicode', false)).toBe(1)
   })
 
   it('reserves room for the elapsed-time tail only when a turn is timed', () => {
-    for (const style of ['kaomoji', 'emoji', 'ascii', 'unicode'] as const) {
+    for (const style of ['relay', 'emoji', 'ascii', 'unicode'] as const) {
       expect(busyIndicatorWidth(style, true)).toBeGreaterThan(busyIndicatorWidth(style, false))
     }
   })

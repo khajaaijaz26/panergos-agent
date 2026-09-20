@@ -785,7 +785,7 @@ def build_tool_start(tool_call_id: str, tool_name: str, arguments: Args, *, edit
     ignoring the schema) must never abort the render — this runs on the live
     tool-progress callback and during history replay — so any failure in the
     title/content/location builders falls back to a minimal valid start event
-    (mirrors ``get_cute_tool_message`` in ``agent/display.py``)."""
+    (mirrors ``get_tool_completion_message`` in ``agent/display.py``)."""
     try:
         return _build_tool_start(tool_call_id, tool_name, arguments, edit_diff=edit_diff)
     except Exception as exc:  # noqa: BLE001 — a tool-call render must never abort the turn

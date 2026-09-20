@@ -6,37 +6,22 @@ import { isOnboardingEnabled } from '@/lib/onboarding-enabled'
 // Layout presets — CHAT (main) always dominates.
 // ---------------------------------------------------------------------------
 
-// The REAL default: sessions left, chat main, and the right sidebars in column
-// order main | … | review | file-browser (files outermost). Each is its OWN
-// zone. Review collapses to nothing while its pane is hidden (⌘G off).
+// Continuity is the Panergos default: one workstream for chat, sessions,
+// files, and review, plus a bottom Launch Bay for the terminal. Supporting
+// surfaces replace the workstream only when asked for; chat is never fenced
+// between permanent left and right sidebars.
 //
 // Preview tiles are DYNAMIC panes (like session tiles), so no preset names one:
 // they're registered by watchPreviewTiles as tabs open, and dockPaneBeside lands
-// each one directly beside the file tree wherever that currently lives — so a
-// file double-click still slides a preview open as its own pane next to the
-// tree, never as a tab stacked into the files sidebar.
+// each one beside the file tree wherever that surface currently lives.
 export const DEFAULT_TREE = split(
-  'row',
+  'column',
   [
-    group(['sessions'], { id: 'grp-sessions' }),
-    group(['workspace'], { id: 'grp-main' }),
-    split(
-      'column',
-      [
-        split(
-          'row',
-          [group(['review'], { id: 'grp-review' }), group(['files'], { id: 'grp-files' })],
-          [1, 1.2],
-          'spl-rail'
-        ),
-        group(['terminal'], { id: 'grp-terminal' })
-      ],
-      [1.6, 1],
-      'spl-right'
-    )
+    group(['workspace', 'sessions', 'files', 'review'], { active: 'workspace', id: 'grp-main' }),
+    group(['terminal'], { id: 'grp-terminal' })
   ],
-  [1, 3.4, 1.25],
-  'spl-root'
+  [4.8, 1],
+  'spl-relay'
 )
 
 const FOCUS_TREE = split('row', [group(['sessions']), group(['workspace', 'files', 'review', 'terminal'])], [1, 4.6])
@@ -65,10 +50,12 @@ const QUAD_TREE = split(
 
 export function registerLayoutPresets() {
   return registry.registerMany([
-    { id: 'default', area: 'layouts', title: 'Default', order: 0, data: DEFAULT_TREE },
-    ...(isOnboardingEnabled() ? [{ id: 'basic', area: 'layouts', title: 'Basic', order: 5, data: BASIC_TREE }] : []),
-    { id: 'focus', area: 'layouts', title: 'Focus', order: 10, data: FOCUS_TREE },
-    { id: 'terminal-deck', area: 'layouts', title: 'Terminal deck', order: 20, data: TERMINAL_TREE },
-    { id: 'quad', area: 'layouts', title: 'Quad', order: 30, data: QUAD_TREE }
+    { id: 'default', area: 'layouts', title: 'Continuity', order: 0, data: DEFAULT_TREE },
+    ...(isOnboardingEnabled()
+      ? [{ id: 'basic', area: 'layouts', title: 'Workstream', order: 5, data: BASIC_TREE }]
+      : []),
+    { id: 'focus', area: 'layouts', title: 'Focus stage', order: 10, data: FOCUS_TREE },
+    { id: 'terminal-deck', area: 'layouts', title: 'Launch bay', order: 20, data: TERMINAL_TREE },
+    { id: 'quad', area: 'layouts', title: 'Signal grid', order: 30, data: QUAD_TREE }
   ])
 }

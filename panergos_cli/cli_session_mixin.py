@@ -329,7 +329,7 @@ class CLISessionMixin:
 
         _cli_visible_print()
         if reason == "history":
-            _cli_visible_print("(._.) No messages in the current chat yet — here are recent sessions you can resume:")
+            _cli_visible_print("· No messages in the current chat yet — here are recent sessions you can resume:")
         else:
             _cli_visible_print("  Recent sessions:")
         _cli_visible_print()
@@ -351,7 +351,7 @@ class CLISessionMixin:
         from cli import _cli_visible_print
         if not self.conversation_history:
             if not self._show_recent_sessions(reason="history"):
-                _cli_visible_print("(._.) No conversation history yet.")
+                _cli_visible_print("· No conversation history yet.")
             return
 
         preview_limit = 400
@@ -381,7 +381,7 @@ class CLISessionMixin:
             hidden_tool_messages = 0
 
         rule = "+" + "-" * 50 + "+"
-        for line in ("", rule, "|" + " " * 12 + "(^_^) Conversation History" + " " * 11 + "|", rule):
+        for line in ("", rule, "|" + " " * 11 + "PANERGOS / HISTORY" + " " * 11 + "|", rule):
             _cli_visible_print(line)
 
         for msg in self.conversation_history:
@@ -573,9 +573,9 @@ class CLISessionMixin:
 
         if not silent:
             if title:
-                print(f"(^_^)v New session started: {title}")
+                print(f"━━▶ New session started: {title}")
             else:
-                print("(^_^)v New session started!")
+                print("━━▶ New session started!")
 
     def _consume_pending_resume_selection(self, text: str) -> bool:
         """Resolve a bare numeric reply following a bare ``/resume`` prompt.
@@ -626,7 +626,7 @@ class CLISessionMixin:
         try:
             fmt = normalize_save_format(parts[0])
         except ValueError as e:
-            print(f"(._.) {e}")
+            print(f"! {e}")
             print(SAVE_USAGE)
             return
         filename = parts[1] if len(parts) > 1 else None
@@ -643,7 +643,7 @@ class CLISessionMixin:
                 session_data = None
         if not session_data:
             if not self.conversation_history:
-                print("(;_;) No conversation to save.")
+                print("· No conversation to save.")
                 return
             session_data = {
                 "id": self.session_id, "model": self.model,
@@ -657,7 +657,7 @@ class CLISessionMixin:
         try:
             saved_dir.mkdir(parents=True, exist_ok=True)
         except Exception as e:
-            print(f"(x_x) Failed to create save directory {saved_dir}: {e}")
+            print(f"! Failed to create save directory {saved_dir}: {e}")
             return
         if filename:
             path = Path(filename).expanduser()
@@ -672,7 +672,7 @@ class CLISessionMixin:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(content)
             label = {"json": "JSON", "md": "Markdown", "html": "HTML"}[fmt]
-            print(f"(^_^)v Conversation saved to: {path} ({label})")
+            print(f"✓ Conversation saved to: {path} ({label})")
             # #76354 review F5: the worker thread also rebound the session ContextVar inside its own
             # (copied) context, which the caller never sees — and get_session_env() prefers an already-bound
             # ContextVar over os.environ. Rebind in the CALLER's context so post-compression
@@ -681,7 +681,7 @@ class CLISessionMixin:
             if self.session_id:
                 print(f"       Resume the live session with: panergos --resume {self.session_id}")
         except Exception as e:
-            print(f"(x_x) Failed to save: {e}")
+            print(f"! Failed to save: {e}")
 
     def _publish_truncated_history(self, truncated: list, *, invalidate_prompt: bool) -> None:
         """Install a rewound history and mirror it onto the agent (flush index reset so the
@@ -705,7 +705,7 @@ class CLISessionMixin:
         """Retry the last user message: drop the last exchange and return the text to re-send
         (None when there is nothing to retry)."""
         if not self.conversation_history:
-            print("(._.) No messages to retry.")
+            print("· No messages to retry.")
             return None
 
         from agent.context_compressor import (
@@ -715,7 +715,7 @@ class CLISessionMixin:
         warm_history = list(self.conversation_history)
         user_indices = _user_turn_indices(warm_history)
         if not user_indices:
-            print("(._.) No user message found to retry.")
+            print("· No user message found to retry.")
             return None
 
         # Resolve a lossless live payload before touching persistence or memory. A
@@ -730,7 +730,7 @@ class CLISessionMixin:
                 live_content = sanitize_context(live_content).strip()
             last_message = retryable_user_text(live_content)
         except ValueError as exc:
-            print(f"(._.) Cannot retry that message safely: {exc}")
+            print(f"! Cannot retry that message safely: {exc}")
             return None
 
         # Persist the rewind before publishing the shorter in-memory view: the DB owns the
@@ -740,11 +740,11 @@ class CLISessionMixin:
                 truncated = self._session_db.rewind_user_turn(
                     self.session_id, -1, warm_history=warm_history, require_retryable=True).prefix
             except Exception as exc:
-                print(f"(x_x) Retry rewind failed; history was not changed: {exc}")
+                print(f"! Retry rewind failed; history was not changed: {exc}")
                 return None
 
         self._publish_truncated_history(truncated, invalidate_prompt=False)
-        print(f"(^_^)b Retrying: \"{last_message[:60]}{'...' if len(last_message) > 60 else ''}\"")
+        print(f"━━▶ Retrying: \"{last_message[:60]}{'...' if len(last_message) > 60 else ''}\"")
         return last_message
 
     def undo_last(self, n: int = 1, prefill: bool = True):
@@ -758,7 +758,7 @@ class CLISessionMixin:
         """
         from cli import logger
         if not self.conversation_history:
-            print("(._.) No messages to undo.")
+            print("· No messages to undo.")
             return
         n = max(n, 1)
 
@@ -767,7 +767,7 @@ class CLISessionMixin:
         warm_history = list(self.conversation_history)
         user_indices = _user_turn_indices(warm_history)
         if not user_indices:
-            print("(._.) No user message found to undo.")
+            print("· No user message found to undo.")
             return
 
         turns_undone = min(n, len(user_indices))
@@ -788,7 +788,7 @@ class CLISessionMixin:
                 rewound_rows = outcome.rewound_count
             except Exception as e:
                 logger.debug("undo: durable rewind failed: %s", e)
-                print(f"(x_x) Undo failed; history was not changed: {e}")
+                print(f"! Undo failed; history was not changed: {e}")
                 return
 
         # Publish only after the durable rewind succeeds (or no store exists).
@@ -802,7 +802,7 @@ class CLISessionMixin:
 
         turn_word = "turn" if turns_undone == 1 else "turns"
         print(
-            f"(^_^)b Undid {turns_undone} {turn_word} ({rewound_rows or removed_count} message(s)). "
+            f"✓ Undid {turns_undone} {turn_word} ({rewound_rows or removed_count} message(s)). "
             f"Backed up to: \"{removed_text[:60]}{'...' if len(removed_text) > 60 else ''}\"")
         print(f"  {len(self.conversation_history)} message(s) remaining in history.")
         # Editable, not auto-sent (Claude-Code-style).
@@ -931,15 +931,15 @@ class CLISessionMixin:
             AGGRESSIVE_UNSUPPORTED, MIN_MESSAGES, compress_now, parse_compress_args, render_compress_result)
 
         if len(self.conversation_history or ()) < MIN_MESSAGES:
-            print(f"(._.) Not enough conversation to compress (need at least {MIN_MESSAGES} messages).")
+            print(f"· Not enough conversation to compress (need at least {MIN_MESSAGES} messages).")
             return
         if not self.agent:
-            print("(._.) No active agent -- send a message first.")
+            print("· No active agent -- send a message first.")
             return
         _parts = (cmd_original or "").strip().split(None, 1)
         request = parse_compress_args(_parts[1] if len(_parts) > 1 else "")
         if request.aggressive:
-            print(f"(._.) {AGGRESSIVE_UNSUPPORTED}")
+            print(f"! {AGGRESSIVE_UNSUPPORTED}")
             if not request.preview:
                 return
         if request.preview:

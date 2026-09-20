@@ -57,3 +57,21 @@
     translate: 0 -6px;
   }
 }
+
+@media (max-width: 900px) {
+  .intro-relay-stage {
+    grid-template-columns: minmax(0, 1fr);
+    padding-inline: 7vw;
+  }
+
+  .intro-side-stream {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-relay-stage,
+  .intro-relay-stage * {
+    animation: none !important;
+  }
+}

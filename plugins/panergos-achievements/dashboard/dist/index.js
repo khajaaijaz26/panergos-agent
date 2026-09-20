@@ -97,7 +97,7 @@
     "Silver": "#c0c7d2",
     "Gold": "#f2c94c",
     "Diamond": "#67e8f9",
-    "Olympian": "#c084fc",
+    "Continuum": "#c084fc",
   };
 
   function tierHex(tier) {
@@ -263,7 +263,7 @@
     ctx.textBaseline = "top";
     ctx.fillStyle = color;
     ctx.font = "800 24px ui-monospace, 'SF Mono', Menlo, monospace";
-    const stamp = "◆ UNLOCKED";
+    const stamp = "RELAY / UNLOCKED";
     const stampW = ctx.measureText(stamp).width;
     ctx.fillText(stamp, W - 70 - stampW, 70);
 
@@ -335,7 +335,7 @@
     // paste in the same flow.
     function tweetText() {
       const tierPart = achievement.tier ? (achievement.tier + " tier ") : "";
-      const tmpl = tx(t, "share.tweet_text", "Just unlocked {tier_part}\"{name}\" in Panergos Agent ◆", {
+      const tmpl = tx(t, "share.tweet_text", "Just unlocked {tier_part}\"{name}\" in Panergos Agent", {
         tier_part: tierPart,
         name: achievement.name,
       });
@@ -398,7 +398,7 @@
 
   function TierLegend() {
     return React.createElement("div", { className: "ha-tier-legend" },
-      ["Copper", "Silver", "Gold", "Diamond", "Olympian"].map(function (tier, index, arr) {
+      ["Copper", "Silver", "Gold", "Diamond", "Continuum"].map(function (tier, index, arr) {
         return React.createElement(React.Fragment, { key: tier },
           React.createElement("span", { className: "ha-tier-step ha-tier-" + tier.toLowerCase() },
             React.createElement("i", null),
@@ -611,7 +611,7 @@
     const discovered = achievements.filter(function (a) { return a.state === "discovered"; });
     const secret = achievements.filter(function (a) { return a.state === "secret"; });
     const latest = unlocked.slice().sort(function (a, b) { return (b.unlocked_at || 0) - (a.unlocked_at || 0); }).slice(0, 5);
-    const highest = ["Olympian", "Diamond", "Gold", "Silver", "Copper"].find(function (tier) { return unlocked.some(function (a) { return a.tier === tier; }); }) || tx(t, "stats.none_yet", "None yet");
+    const highest = ["Continuum", "Diamond", "Gold", "Silver", "Copper"].find(function (tier) { return unlocked.some(function (a) { return a.tier === tier; }); }) || tx(t, "stats.none_yet", "None yet");
 
     // Build the in-progress scan banner once so the JSX below stays readable.
     // Shows nothing when the scan is idle. When a scan is running it renders
@@ -677,7 +677,7 @@
         React.createElement(StatCard, { label: tx(t, "stats.unlocked", "Unlocked"), value: (data ? data.unlocked_count : 0) + " / " + (data ? data.total_count : 0), hint: tx(t, "stats.unlocked_hint", "earned badges") }),
         React.createElement(StatCard, { label: tx(t, "stats.discovered", "Discovered"), value: discovered.length, hint: tx(t, "stats.discovered_hint", "known, not earned yet") }),
         React.createElement(StatCard, { label: tx(t, "stats.secrets", "Secrets"), value: secret.length, hint: tx(t, "stats.secrets_hint", "hidden until first signal") }),
-        React.createElement(StatCard, { label: tx(t, "stats.highest_tier", "Highest tier"), value: highest, hint: tx(t, "stats.highest_tier_hint", "Copper → Silver → Gold → Diamond → Olympian") }),
+        React.createElement(StatCard, { label: tx(t, "stats.highest_tier", "Highest tier"), value: highest, hint: tx(t, "stats.highest_tier_hint", "Copper → Silver → Gold → Diamond → Continuum") }),
         React.createElement(StatCard, { label: tx(t, "stats.latest", "Latest"), value: latest[0] ? latest[0].name : tx(t, "stats.none_yet", "None yet"), hint: latest[0] ? latest[0].category : tx(t, "stats.latest_hint_empty", "run Panergos more") })
       ),
       React.createElement("section", { className: "ha-guide" },

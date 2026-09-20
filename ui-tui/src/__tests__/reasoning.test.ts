@@ -66,11 +66,17 @@ describe('splitReasoning', () => {
 })
 
 describe('cleanThinkingText', () => {
-  it('removes face/status ticker fragments while preserving real reasoning', () => {
+  it('removes Relay status fragments while preserving real reasoning', () => {
     expect(
       cleanThinkingText(
-        '(¬_¬) synthesizing...**Resolving comments on GitHub**\n( ͡° ͜ʖ ͡°) musing...\nActual step\n٩(๑❛ᴗ❛๑)۶ contemplating...next step'
+        '╲━━▶ routing context...**Resolving comments on GitHub**\n━━▶ mapping the field...\nActual step\n╱━━▶ validating links...next step'
       )
     ).toBe('**Resolving comments on GitHub**\nActual step\nnext step')
+  })
+
+  it('preserves ordinary prose that begins with a gerund', () => {
+    expect(cleanThinkingText('We are testing the system.\n- Testing this edge case.')).toBe(
+      'We are testing the system.\n- Testing this edge case.'
+    )
   })
 })

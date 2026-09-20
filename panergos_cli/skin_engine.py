@@ -46,7 +46,7 @@ def _branding(who: str, symbol: str, goodbye: str, prompt: str = "", help_header
         "agent_name": f"{who} Agent",
         "welcome": f"Welcome to {who} Agent! Type your message or /help for commands.",
         "goodbye": goodbye, "response_label": f" {symbol} {who} ", "prompt_symbol": prompt or symbol,
-        "help_header": help_header or f"({symbol}) Available Commands"}
+        "help_header": help_header or f"{symbol} COMMANDS"}
 
 
 def _wings(*glyphs) -> List[List[str]]:
@@ -57,7 +57,7 @@ def _wings(*glyphs) -> List[List[str]]:
 
 # Branding shared by the neutral built-ins (mono/daylight override help_header).
 _PANERGOS_BRANDING: Dict[str, str] = _branding(
-    "Panergos", "▶", "Goodbye! ▶", prompt="❯", help_header="(▶) Available Commands")
+    "Panergos", "▶", "Goodbye! ▶", prompt="❯", help_header="PANERGOS / COMMANDS")
 
 _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
     "default": {
@@ -198,7 +198,7 @@ _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
             "completion_menu_current_bg": "#254D73", "selection_bg": "#2A587F",
             "shell_dollar": "#5DB8F5", "voice_status_bg": "#0F2440"},
         "spinner": {
-            "waiting_faces": ["(≈)", "(∼)", "(∿)", "(◌)", "(◠)"],
+            "waiting_faces": ["(≈)", "(∼)", "(∿)", "(◌)", "(╲)"],
             "thinking_faces": ["(∼)", "(∿)", "(≈)", "(⌁)", "(◌)"],
             "thinking_verbs": [
                 "mapping flow", "measuring depth", "reading signals",
@@ -425,7 +425,7 @@ def get_active_prompt_symbol(fallback: str = "❯") -> str:
     return f"{cleaned or fallback.strip()} "
 
 
-def get_active_help_header(fallback: str = "(^_^)? Available Commands") -> str:
+def get_active_help_header(fallback: str = "PANERGOS / COMMANDS") -> str:
     return _active_branding("help_header", fallback)
 
 

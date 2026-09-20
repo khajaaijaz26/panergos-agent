@@ -47,6 +47,8 @@ import { tabStripVisibleForZone } from './renderer/strip-visibility'
 // v2: v1 trees were saved against placeholder panes with index-order zone
 // assignment (chat could land in a corner cell). Retire them wholesale.
 const STORAGE_KEY = 'panergos.desktop.layoutTree.v2'
+const DEFAULT_LAYOUT_VERSION_KEY = 'panergos.desktop.defaultLayoutVersion'
+const DEFAULT_LAYOUT_VERSION = 'continuity-v1'
 
 writeKey('panergos.desktop.layoutTree.v1', null)
 
@@ -1260,16 +1262,30 @@ function adoptMissingPanes(target: LayoutNode, source: LayoutNode): LayoutNode {
 }
 
 /**
- * Declare the app's default tree. Adopted immediately when the user has no
- * persisted customization; a persisted tree from an older default adopts any
- * panes it's missing.
+ * Declare the app's default tree. Adopted when there is no saved layout; a
+ * versioned shipped-default migration replaces only the active default preset,
+ * leaving custom and named-preset layouts intact.
  */
 export function declareDefaultTree(tree: LayoutNode) {
   defaultTree = tree
   const current = $layoutTree.get()
 
-  if (!current) {
+  const migrateDefault =
+    !isSecondaryWindow() &&
+    !isBrowserWindow() &&
+    readKey(DEFAULT_LAYOUT_VERSION_KEY) !== DEFAULT_LAYOUT_VERSION &&
+    $activePresetId.get() === 'default'
+
+  if (!isSecondaryWindow() && !isBrowserWindow()) {
+    writeKey(DEFAULT_LAYOUT_VERSION_KEY, DEFAULT_LAYOUT_VERSION)
+  }
+
+  if (!current || migrateDefault) {
     $layoutTree.set(tree)
+
+    if (migrateDefault) {
+      persist(tree)
+    }
 
     return
   }

@@ -7,13 +7,14 @@ export const BUILTIN_PERSONALITIES = [
   'technical',
   'creative',
   'teacher',
-  'kawaii',
-  'catgirl',
   'pirate',
   'shakespeare',
   'surfer',
   'noir',
-  'uwu',
   'philosopher',
   'hype'
 ]
+
+// Accepted only while reading older saved configs. These values normalize to
+// the neutral profile and are never included in menus or completion data.
+export const RETIRED_PERSONALITIES = new Set(['kawaii', 'catgirl', 'uwu'])

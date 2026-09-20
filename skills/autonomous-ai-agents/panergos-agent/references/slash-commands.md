@@ -44,7 +44,7 @@ it. New commands land often; `/help` in-session is always authoritative.
 /voice [on|off|tts]      Voice mode
 /yolo                    Toggle approval bypass
 /busy [queue|steer|interrupt] How messages behave while working (CLI + gateway)
-/indicator [style]       TUI busy indicator: kaomoji|emoji|unicode|ascii (CLI)
+/indicator [style]       TUI busy indicator: relay|emoji|unicode|ascii (CLI)
 /footer [on|off]         Gateway runtime-metadata footer on replies
 /skin [name]             Change theme (CLI)
 /statusbar (/sb)         Toggle status bar (CLI)

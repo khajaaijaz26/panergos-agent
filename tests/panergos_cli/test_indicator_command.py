@@ -85,7 +85,7 @@ class TestHandleIndicatorCommand(unittest.TestCase):
 
     def test_status_argument_shows_status(self):
         cli_mod = _import_cli()
-        stub = self._stub()  # no display config -> default kaomoji
+        stub = self._stub()  # no display config -> default Relay
         with (
             patch.object(cli_mod, "_cprint") as mock_cprint,
             patch.object(cli_mod, "save_config_value") as mock_save,
@@ -94,11 +94,11 @@ class TestHandleIndicatorCommand(unittest.TestCase):
 
         mock_save.assert_not_called()
         printed = " ".join(str(c) for c in mock_cprint.call_args_list)
-        self.assertIn("kaomoji", printed)
+        self.assertIn("relay", printed)
 
     def test_valid_style_saves_to_config_key(self):
         cli_mod = _import_cli()
-        stub = self._stub("kaomoji")
+        stub = self._stub("relay")
         with (
             patch.object(cli_mod, "_cprint"),
             patch.object(cli_mod, "save_config_value", return_value=True) as mock_save,
@@ -111,7 +111,7 @@ class TestHandleIndicatorCommand(unittest.TestCase):
 
     def test_invalid_style_prints_usage_and_does_not_save(self):
         cli_mod = _import_cli()
-        stub = self._stub("kaomoji")
+        stub = self._stub("relay")
         with (
             patch.object(cli_mod, "_cprint") as mock_cprint,
             patch.object(cli_mod, "save_config_value") as mock_save,
@@ -120,7 +120,7 @@ class TestHandleIndicatorCommand(unittest.TestCase):
 
         mock_save.assert_not_called()
         # The stored value must be untouched.
-        self.assertEqual(stub.config["display"]["tui_status_indicator"], "kaomoji")
+        self.assertEqual(stub.config["display"]["tui_status_indicator"], "relay")
         printed = " ".join(str(c) for c in mock_cprint.call_args_list)
         self.assertIn("Usage: /indicator", printed)
 

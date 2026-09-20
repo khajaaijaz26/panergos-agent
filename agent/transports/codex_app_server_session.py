@@ -163,7 +163,7 @@ class CodexAppServerSession:
             os.environ.get("PANERGOS_TERMINAL_SECURITY_MODE", "auto"), "workspace-write"
         )
         self._approval_callback = approval_callback
-        self._on_event = on_event  # Display hook (kawaii spinner ticks etc.)
+        self._on_event = on_event  # Display hook (Relay progress ticks etc.)
         self._routing = request_routing or _ServerRequestRouting()
         self._client_factory = client_factory or CodexAppServerClient
 

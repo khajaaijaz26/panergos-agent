@@ -71,7 +71,7 @@
 .ha-tier-silver { --ha-tier: #c0c7d2; }
 .ha-tier-gold { --ha-tier: #f2c94c; box-shadow: 0 0 22px rgba(242,201,76,.08); }
 .ha-tier-diamond { --ha-tier: #67e8f9; box-shadow: 0 0 24px rgba(103,232,249,.1); }
-.ha-tier-olympian { --ha-tier: #c084fc; box-shadow: 0 0 34px rgba(192,132,252,.18), 0 0 12px rgba(242,201,76,.1); }
+.ha-tier-continuum { --ha-tier: #c084fc; box-shadow: 0 0 34px rgba(192,132,252,.18), 0 0 12px rgba(242,201,76,.1); }
 @media (max-width: 980px) { .ha-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ha-guide { grid-template-columns: 1fr; } }
 @media (max-width: 800px) { .ha-stats { grid-template-columns: 1fr; } .ha-hero { flex-direction: column; align-items: stretch; } .ha-card-head { grid-template-columns: 3.1rem 1fr; } .ha-badges { grid-column: 1 / -1; align-items: flex-start; flex-direction: row; } }
 

@@ -6,8 +6,8 @@ import { $petActivity, $petState, type PetState } from '@/store/pet'
 
 /**
  * Speech bubble + status glyph for the popped-out pet overlay — the
- * "notification" half of the mascot. It externalizes what the agent is doing
- * (Codex-style) so a glance at the desktop pet replaces switching back to the
+ * notification half of the optional Petdex overlay. It relays current work
+ * state so a glance at the desktop pet replaces switching back to the
  * window. The in-window pet doesn't show it (the app itself is the surface);
  * only the overlay renders it.
  *
@@ -25,45 +25,23 @@ interface Spec {
   tone?: Tone
 }
 
-// Phrasings per mood, picked at random (no immediate repeat) for a bit of life.
+// Relay-native state labels, picked at random without an immediate repeat.
 // Keep them short — the bubble is tiny and never wraps.
 const SPECS: Partial<Record<PetState, Spec>> = {
   run: {
-    lines: [
-      'working…',
-      'on it…',
-      'crunching…',
-      'tinkering…',
-      'cooking…',
-      'in the weeds…',
-      'wiring it up…',
-      'making moves…',
-      'heads down…',
-      'hammering away…'
-    ]
+    lines: ['receiving signal', 'routing context', 'sequencing actions', 'running tools', 'tracking changes', 'merging results']
   },
   review: {
-    lines: [
-      'thinking…',
-      'reading…',
-      'reviewing…',
-      'pondering…',
-      'connecting dots…',
-      'sizing it up…',
-      'tracing it…',
-      'mulling…',
-      'scheming…',
-      'hmm…'
-    ]
+    lines: ['mapping the field', 'reading evidence', 'aligning constraints', 'checking assumptions', 'validating links', 'readying handoff']
   },
   failed: {
     glyph: AlertCircle,
-    lines: ['hit a snag', 'welp', 'that broke', 'oof', 'snagged'],
+    lines: ['route blocked', 'signal lost', 'action failed'],
     tone: 'error'
   },
   waiting: {
     glyph: Clock,
-    lines: ['your turn', 'all yours', 'over to you', 'ball’s in your court', 'awaiting orders'],
+    lines: ['handoff ready', 'input requested', 'awaiting signal'],
     tone: 'wait'
   }
 }
@@ -101,7 +79,7 @@ export function PetBubble() {
   const rotating = specKey === 'run' || specKey === 'review'
 
   // Pick a fresh line on every mood change, then keep rotating (random, no
-  // repeat) only while the agent is actively working/thinking.
+  // repeat) only while work is active.
   useEffect(() => {
     const spec = specKey ? SPECS[specKey] : null
 

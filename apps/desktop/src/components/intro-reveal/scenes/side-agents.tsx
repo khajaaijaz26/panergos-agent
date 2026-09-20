@@ -1,6 +1,6 @@
 import { INTRO_BEATS } from '../timeline'
 
-import { EASE, ECLIPSE_SHADOW, JADE, JADE_FAINT } from './style'
+import { EASE, JADE, JADE_FAINT } from './style'
 import { decoded } from './text'
 
 const EVERYWHERE_T = INTRO_BEATS.find(b => b.id === 'everywhere')!.t
@@ -14,11 +14,8 @@ interface SideAgentsProps {
 export function SideAgents({ active, side, tick }: SideAgentsProps) {
   const sideCard = (title: string, line1: string, line2: string, offset: string, delayMs = 0, tilt = 0) => (
     <div
-      className="w-full rounded-xl p-5"
+      className="w-full border-l border-white/12 py-3 pl-4 pr-2"
       style={{
-        background: 'rgba(12, 13, 16, 0.82)',
-        border: '1px solid rgba(255,255,255,0.09)',
-        boxShadow: ECLIPSE_SHADOW,
         opacity: active ? 1 : 0,
         transform: active
           ? `translateZ(-90px) rotateY(${tilt}deg) translateY(0) scale(1)`
@@ -48,35 +45,49 @@ export function SideAgents({ active, side, tick }: SideAgentsProps) {
   )
 
   return side === 'left' ? (
-    <div className="flex w-[19vw] min-w-[240px] flex-col gap-4 self-start pt-[6vh]">
+    <div className="intro-side-stream flex min-w-0 flex-col gap-[8vh] self-start pt-[8vh]">
       <div style={{ animation: 'intro-float-a 5.2s ease-in-out infinite alternate' }}>
         {sideCard(
-          'research agent',
-          'Apartment hunt: 3 new listings shortlisted',
-          '↳ compiling tour schedule…',
+          'research stream',
+          'Market, audience, and source map aligned',
+          '↳ evidence trail ready',
           '26px',
           0,
           7
         )}
       </div>
       <div style={{ animation: 'intro-float-b 6.1s ease-in-out infinite alternate' }}>
-        {sideCard('groceries', 'Weekly order built from your list', '↳ delivery booked for Sunday', '38px', 220, 7)}
+        {sideCard(
+          'build stream',
+          'Site, assets, and release checks sequenced',
+          '↳ verification lane ready',
+          '38px',
+          220,
+          7
+        )}
       </div>
     </div>
   ) : (
-    <div className="flex w-[19vw] min-w-[240px] flex-col gap-4 self-end pb-[5vh]">
+    <div className="intro-side-stream flex min-w-0 flex-col gap-[8vh] self-end pb-[8vh]">
       <div style={{ animation: 'intro-float-c 5.7s ease-in-out infinite alternate' }}>
         {sideCard(
-          'inbox agent',
-          '2 replies drafted, waiting for your ok',
-          '↳ calendar updated for Friday',
+          'campaign stream',
+          'Creative, channels, and approvals synchronized',
+          '↳ publish handoff ready',
           '34px',
           120,
           -7
         )}
       </div>
       <div style={{ animation: 'intro-float-a 6.6s ease-in-out infinite alternate' }}>
-        {sideCard('morning brief', 'Tomorrow: 3 meetings, rain at 8', '↳ ready before you wake', '30px', 340, -7)}
+        {sideCard(
+          'operations stream',
+          'Owners, checkpoints, and next actions mapped',
+          '↳ continuity preserved',
+          '30px',
+          340,
+          -7
+        )}
       </div>
     </div>
   )

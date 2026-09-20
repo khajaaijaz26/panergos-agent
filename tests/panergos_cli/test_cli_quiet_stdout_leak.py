@@ -80,7 +80,7 @@ def test_suppress_status_output_gates_quiet_tool_messages():
     """The executor's [tool]/[done] fallback must stay silent under -Q.
 
     ``_should_emit_quiet_tool_messages`` is the gate for the quiet-mode
-    KawaiiSpinner fallback in agent/tool_executor.py; with the rendering
+    RelaySpinner fallback in agent/tool_executor.py; with the rendering
     callbacks neutralized it would otherwise print ``[tool]``/``[done]``
     lines straight into -Q's captured stdout (#93220).
     """

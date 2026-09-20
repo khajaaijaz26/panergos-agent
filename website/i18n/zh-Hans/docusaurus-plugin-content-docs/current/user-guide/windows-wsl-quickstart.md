@@ -7,7 +7,7 @@ sidebar_position: 2
 
 # Windows (WSL2) 指南
 
-Panergos Agent 同时支持原生 Windows 和 WSL2。本页介绍 WSL2 路径；这里的 `PANERGOS_HOME` 布局继承自 Panergos，但安装和更新来自 Panergos 仓库。
+Panergos Agent 同时支持原生 Windows 和 WSL2。本页介绍 WSL2 路径；两种环境都使用相同的 `PANERGOS_HOME` 目录布局，并从 Panergos 仓库安装和更新。
 
 **何时选择 WSL2 而非原生：**
 - 你想使用 dashboard 内嵌终端（`/chat` 标签页）—— 该面板需要 POSIX PTY（伪终端），仅 WSL2 支持。

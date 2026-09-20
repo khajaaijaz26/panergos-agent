@@ -13,6 +13,10 @@ describe('sanitizeTextForSpeech', () => {
     expect(sanitizeTextForSpeech('Use `git status` after the change.')).toBe('Use git status after the change.')
   })
 
+  it('preserves unrelated leading gerunds', () => {
+    expect(sanitizeTextForSpeech('Deploying... now checking health')).toBe('Deploying... now checking health')
+  })
+
   it('skips markdown table data while preserving surrounding human text', () => {
     const text = `Here is the quick takeaway: the totals remain unchanged.
 

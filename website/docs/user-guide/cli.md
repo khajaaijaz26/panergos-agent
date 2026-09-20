@@ -145,7 +145,7 @@ The welcome banner shows your model, terminal backend, working directory, availa
 A persistent status bar sits above the input area, updating in real time:
 
 ```
- ▶ claude-sonnet-4-20250514 │ 12.4K/200K │ [██████░░░░] 6% │ $0.06 │ 15m
+ → claude-sonnet-4-20250514 │ 12.4K/200K │ [██████░░░░] 6% │ $0.06 │ 15m
 ```
 
 | Element | Description |
@@ -305,11 +305,11 @@ Set a predefined personality to change the agent's tone:
 
 ```
 /personality pirate
-/personality kawaii
+/personality creative
 /personality concise
 ```
 
-Built-in personalities include: `helpful`, `concise`, `technical`, `creative`, `teacher`, `kawaii`, `catgirl`, `pirate`, `shakespeare`, `surfer`, `noir`, `uwu`, `philosopher`, `hype`.
+Built-in personalities include: `helpful`, `concise`, `technical`, `creative`, `teacher`, `pirate`, `shakespeare`, `surfer`, `noir`, `philosopher`, `hype`.
 
 To go back to the default (no overlay), use `/personality none` — `default` and `neutral` work too.
 
@@ -318,7 +318,7 @@ You can also define custom personalities in `~/.panergos/config.yaml`:
 ```yaml
 personalities:
   helpful: "You are a helpful, friendly AI assistant."
-  kawaii: "You are a kawaii assistant! Use cute expressions..."
+  focused: "You are a focused collaborator. State constraints and evidence clearly."
   pirate: "Arrr! Ye be talkin' to Captain Panergos..."
   # Add your own!
 ```
@@ -419,11 +419,11 @@ Type `fg` in your shell to resume the session exactly where you left off. This i
 
 The CLI shows animated feedback as the agent works:
 
-**Thinking animation** (during API calls):
+**Relay progress** (during API calls):
 ```
-  ◜ (｡•́︿•̀｡) pondering... (1.2s)
-  ◠ (⊙_⊙) contemplating... (2.4s)
-  ✧٩(ˊᗜˋ*)و✧ got it! (3.1s)
+  ╲  ▶ receiving signal... (1.2s)
+  ╲━━▶ routing context... (2.4s)
+  ╱━━▶ validating links... (3.1s)
 ```
 
 **Tool execution feed:**
@@ -561,7 +561,7 @@ Background sessions do not appear in your main conversation history. They are st
 
 By default, the CLI runs in quiet mode which:
 - Suppresses verbose logging from tools
-- Enables kawaii-style animated feedback
+- Shows Panergos Relay progress feedback
 - Keeps output clean and user-friendly
 
 For debug output:

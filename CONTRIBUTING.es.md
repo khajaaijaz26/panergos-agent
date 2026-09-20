@@ -146,7 +146,7 @@ panergos-agent/
 │   ├── prompt_builder.py         # Ensamblaje del prompt del sistema (identidad, habilidades, archivos de contexto, memoria)
 │   ├── context_compressor.py     # Auto-resumición al acercarse a los límites de contexto
 │   ├── auxiliary_client.py       # Resuelve clientes OpenAI auxiliares (resumición, visión)
-│   ├── display.py                # KawaiiSpinner, formateo del progreso de herramientas
+│   ├── display.py                # RelaySpinner, formateo del progreso de herramientas
 │   ├── model_metadata.py         # Longitudes de contexto del modelo, estimación de tokens
 │   └── trajectory.py             # Ayudantes para guardar trayectorias
 │

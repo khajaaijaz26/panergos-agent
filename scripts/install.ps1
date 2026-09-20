@@ -460,11 +460,11 @@ function Get-WindowsArch {
 
 function Write-Banner {
     Write-Host ""
-    Write-Host "+---------------------------------------------------------+" -ForegroundColor Magenta
-    Write-Host "|              * Panergos Agent Installer                 |" -ForegroundColor Magenta
-    Write-Host "+---------------------------------------------------------+" -ForegroundColor Magenta
-    Write-Host "|  The open agent for any work.                           |" -ForegroundColor Magenta
-    Write-Host "+---------------------------------------------------------+" -ForegroundColor Magenta
+    Write-Host "PANERGOS SETUP" -ForegroundColor Magenta
+    Write-Host "━━━╲" -ForegroundColor Red
+    Write-Host "━━━━▶" -ForegroundColor Yellow -NoNewline
+    Write-Host "  Work without losing the thread."
+    Write-Host "━━━╱" -ForegroundColor Green
     Write-Host ""
 }
 

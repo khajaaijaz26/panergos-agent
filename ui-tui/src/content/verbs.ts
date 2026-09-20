@@ -19,20 +19,13 @@ export const TOOL_VERBS: Record<string, string> = {
   write_file: 'writing'
 }
 
-export const VERBS = [
-  'pondering',
-  'contemplating',
-  'musing',
-  'cogitating',
-  'ruminating',
-  'deliberating',
-  'mulling',
-  'reflecting',
-  'processing',
-  'reasoning',
-  'analyzing',
-  'computing',
-  'synthesizing',
-  'formulating',
-  'brainstorming'
+export const RELAY_PHASES = [
+  'receiving signal',
+  'mapping the field',
+  'routing context',
+  'aligning constraints',
+  'sequencing actions',
+  'validating links',
+  'merging results',
+  'readying handoff'
 ]

@@ -134,11 +134,11 @@ export PANERGOS_TUI_THEME=light
 
 ## 忙碌指示器样式
 
-状态栏忙碌指示器可插拔——默认在 agent 工作期间每 2.5 秒轮换一次 Panergos 的 kawaii 表情调色板。通过配置或 `/indicator` 斜杠命令选择不同样式：
+状态栏忙碌指示器可插拔。默认样式会跟踪 Panergos Relay 工作通道，并显示具体执行阶段。通过配置或 `/indicator` 斜杠命令选择不同样式：
 
 ```yaml
 display:
-  tui_status_indicator: kaomoji   # kaomoji | emoji | unicode | ascii
+  tui_status_indicator: relay     # relay | emoji | unicode | ascii
 ```
 
 或在会话中：`/indicator emoji`（等）。各样式附带匹配的字形宽度，轮换时状态栏其余部分不会抖动。

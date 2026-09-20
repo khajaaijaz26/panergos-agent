@@ -176,7 +176,7 @@ def _web_ui_build_needed(web_dir: Path) -> bool:
     if not any(p.exists() for p in (dist_dir / ".vite" / "manifest.json", dist_dir / "index.html")):
         return True
     return not _stamp_is_current(
-        _web_ui_stamp_path(), lambda: _compute_web_ui_content_hash(project_root, web_dir))
+        _web_ui_stamp_path(web_dir), lambda: _compute_web_ui_content_hash(project_root, web_dir))
 
 
 def _compute_web_ui_content_hash(project_root: Path, web_dir: Path) -> str:
@@ -184,16 +184,15 @@ def _compute_web_ui_content_hash(project_root: Path, web_dir: Path) -> str:
     return _hash_source_tree(project_root, web_dir)
 
 
-def _web_ui_stamp_path() -> Path:
-    """Path of the web UI build stamp under $PANERGOS_HOME."""
-    from panergos_constants import get_panergos_home
-    return get_panergos_home() / "web-ui-build-stamp.json"
+def _web_ui_stamp_path(web_dir: Path) -> Path:
+    """Path of the build stamp beside the checkout-local web UI bundle."""
+    return _web_dist_dir(web_dir) / ".panergos-build-stamp.json"
 
 
 def _write_web_ui_build_stamp(project_root: Path, web_dir: Path) -> None:
     """Write the web UI build stamp after a successful build."""
     _write_build_stamp(
-        _web_ui_stamp_path(), "web UI", lambda: _compute_web_ui_content_hash(project_root, web_dir))
+        _web_ui_stamp_path(web_dir), "web UI", lambda: _compute_web_ui_content_hash(project_root, web_dir))
 
 
 def _console_print(text: str) -> None:

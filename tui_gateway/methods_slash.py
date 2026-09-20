@@ -18,7 +18,7 @@ _registry = HandlerRegistry()
 # Answered from the live session ONLY when the agent lives on a compute host.
 _ISOLATED_SESSION_READ_COMMANDS = frozenset({"context", "tools", "help"})
 
-_NO_AGENT_USAGE = "(._.) No active agent -- send a message first."
+_NO_AGENT_USAGE = "· No active agent -- send a message first."
 _NO_AGENT = "No active agent -- send a message first."
 
 

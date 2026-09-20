@@ -620,7 +620,7 @@ export default function App() {
             <section
               aria-modal="true"
               aria-label={t.app.navigation}
-              className="panergos-command-panel fixed left-1/2 top-1/2 z-[60] max-h-[calc(100dvh-1.5rem)] w-[calc(100vw-1.5rem)] max-w-[78rem] -translate-x-1/2 -translate-y-1/2 overflow-y-auto border border-current/20"
+              className="panergos-command-panel fixed inset-x-3 bottom-3 top-[5rem] z-[60] overflow-y-auto border border-current/20 sm:top-[5.75rem]"
               id="command-deck-panel"
               ref={commandPanelRef}
               role="dialog"
@@ -635,8 +635,8 @@ export default function App() {
               >
                 <X className="h-4 w-4" />
               </Button>
-              <div className="grid min-h-[min(42rem,calc(100dvh-1.5rem))] lg:grid-cols-[17rem_minmax(0,1fr)]">
-                <aside className="panergos-command-console flex min-w-0 flex-col border-b border-current/15 p-4 lg:border-b-0 lg:border-r lg:p-5">
+              <div className="grid min-h-full grid-rows-[auto_minmax(0,1fr)]">
+                <header className="panergos-command-header grid min-w-0 gap-4 border-b border-current/15 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(30rem,auto)] lg:items-center lg:p-5">
                   <div className="flex items-start justify-between gap-3 lg:block">
                     <div>
                       <p className="text-[0.62rem] font-semibold uppercase tracking-[0.3em] text-midground">
@@ -654,20 +654,20 @@ export default function App() {
                     </span>
                   </div>
 
-                  <div className="mt-auto hidden space-y-3 pt-5 lg:block">
-                    <div className="min-w-0 overflow-hidden border border-current/15 bg-background-base/25">
+                  <div className="hidden min-w-0 items-stretch justify-end gap-3 lg:flex">
+                    <div className="min-w-[19rem] overflow-hidden border border-current/15 bg-background-base/25">
                       <ProfileSwitcher />
                       <CommandSystemActions onNavigate={closeCommandDeck} status={sidebarStatus} />
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-1 border border-current/15 bg-background-base/25 p-2">
+                    <div className="flex items-center gap-1 border border-current/15 bg-background-base/25 p-2">
                       <ThemeSwitcher dropUp modalOwnerId="command-deck-panel" />
                       <LanguageSwitcher dropUp modalOwnerId="command-deck-panel" />
                     </div>
 
                     <AuthWidget className="border border-current/15 bg-background-base/25" />
                   </div>
-                </aside>
+                </header>
 
                 <div className="flex min-w-0 flex-col p-4 sm:p-5 lg:p-6">
                   <label className="group flex w-full items-center gap-3 border-b border-current/25 bg-background-base/20 py-3 pl-1 pr-12 focus-within:border-midground/70">
@@ -773,7 +773,7 @@ export default function App() {
         <MemoryPressureBanner status={sidebarStatus} />
 
         <div className="relative z-1 flex min-h-0 min-w-0 flex-1 overflow-hidden px-2 pb-2 pt-1 sm:px-3 sm:pb-3">
-          <div className="panergos-workspace-shell flex min-h-0 min-w-0 flex-1 overflow-hidden border border-current/15 shadow-[0_28px_90px_-46px_rgba(0,0,0,0.95)]">
+          <div className="panergos-workspace-shell flex min-h-0 min-w-0 flex-1 overflow-hidden">
             <PageHeaderProvider pluginTabs={pluginTabMeta}>
               <div
                 className={cn(

@@ -19,11 +19,9 @@ import {
   bindToolPaneCollapse,
   bindTreeSideVisibility,
   declareDefaultTree,
-  dismissTreePane,
   isPaneVisible,
   markCollapsePane,
   mirrorLayoutTree,
-  paneRootSide,
   registerLayoutResetHandler,
   registerPaneCloser,
   registerPaneOpener,
@@ -34,6 +32,7 @@ import {
   targetZoneTabStripVisible,
   togglePaneVisible,
   toggleTargetZoneTabStrip,
+  treeSideOfPane,
   watchContributedPanes
 } from '@/components/pane-shell/tree/store'
 import { $workspaceOwnerLabels, workspaceOwnerTitle } from '@/components/pane-shell/workspace-scope'
@@ -515,17 +514,9 @@ registerLayoutResetHandler(stackSessionTilesIntoMain)
 // applying a mirrored preset — remaps the buttons automatically. The flip
 // action (⌘\ / titlebar) mirrors the tree only when they disagree.
 const sessionsOnRight = () => {
-  const tree = $layoutTree.get()
+  const side = treeSideOfPane('sessions')
 
-  if (!tree) {
-    return null
-  }
-
-  const order = allPaneIds(tree)
-  const sessions = order.indexOf('sessions')
-  const main = order.indexOf('workspace')
-
-  return sessions >= 0 && main >= 0 ? sessions > main : null
+  return side ? side === 'right' : null
 }
 
 $layoutTree.subscribe(() => {
@@ -549,6 +540,15 @@ $panesFlipped.listen(flipped => {
 // that side hides together, whatever panes have been rearranged there.
 bindTreeSideVisibility('left', $sidebarOpen, setSidebarOpen)
 bindTreeSideVisibility('right', $fileBrowserOpen, setFileBrowserOpen)
+
+// Continuity keeps Sessions in the main workstream instead of a permanent
+// sidebar. The same store still owns visibility in alternate side layouts.
+bindPaneVisibility(
+  'sessions',
+  $sidebarOpen,
+  () => setSidebarOpen(false),
+  () => setSidebarOpen(true)
+)
 
 // Workspace-scoped surfaces: the file tree and git diff only mean something
 // inside a project. A detached chat (no cwd) hides them — their zones
@@ -746,18 +746,6 @@ registry.register(
     get: () => $yoloActive.get(),
     set: enabled => void setYoloEnabled(enabled).catch(() => undefined)
   })
-)
-
-// Sessions/files Close = collapse their SIDE (⌘B/⌘J truthful, titlebar button
-// flips back) — but only while the pane actually lives in that root side
-// column. Dragged next to main, a side collapse can't hide it (the collapse
-// skips main-bearing children), so Close falls back to dismissal there —
-// otherwise ⌘W/Close silently no-op.
-registerPaneCloser('sessions', () =>
-  paneRootSide('sessions') === 'left' ? setSidebarOpen(false) : dismissTreePane('sessions')
-)
-registerPaneCloser('files', () =>
-  paneRootSide('files') === 'right' ? setFileBrowserOpen(false) : dismissTreePane('files')
 )
 
 // ---------------------------------------------------------------------------

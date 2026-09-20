@@ -1,7 +1,7 @@
 """Tests for _web_ui_build_needed — staleness check for the web UI dist.
 
 The freshness check uses a SHA-256 content hash of the web source tree
-(mirroring the desktop build), recorded in a stamp file under $PANERGOS_HOME,
+(mirroring the desktop build), recorded beside that checkout's output bundle,
 NOT mtime comparison — so ``git pull`` / ``panergos update`` that rewrite
 source mtimes without changing content no longer fool it.
 
@@ -25,7 +25,7 @@ from panergos_cli.update_cmd import _web_build_toolchain_ready, _web_toolchain_r
 
 @pytest.fixture(autouse=True)
 def _isolated_panergos_home(tmp_path, monkeypatch):
-    """Keep web-build-stamp writes inside the test's tmp dir, never the real home."""
+    """Keep unrelated Panergos state inside the test's tmp dir."""
     monkeypatch.setenv("PANERGOS_HOME", str(tmp_path / "_panergos_home"))
 
 
@@ -100,10 +100,29 @@ class TestWebUIBuildNeeded:
         (web_dir / "src").mkdir(parents=True, exist_ok=True)
         (web_dir / "src" / "App.tsx").write_text("export const A = 1\n")
         self._stamp_current(web_dir)
-        stamp = _web_ui_stamp_path()
+        stamp = _web_ui_stamp_path(web_dir)
         assert stamp.is_file()
         data = _json.loads(stamp.read_text())
         assert data["contentHash"] == _compute_web_ui_content_hash(self._root(web_dir), web_dir)
+
+    def test_stamp_from_another_checkout_cannot_validate_this_bundle(self, tmp_path):
+        first_web, first_dist = _make_web_dir(tmp_path / "first")
+        second_web, second_dist = _make_web_dir(tmp_path / "second")
+        for web_dir, dist_dir in ((first_web, first_dist), (second_web, second_dist)):
+            (web_dir / "src").mkdir(parents=True)
+            (web_dir / "src" / "App.tsx").write_text("export const A = 1\n")
+            _touch(dist_dir / "index.html")
+
+        assert _compute_web_ui_content_hash(first_web.parent, first_web) == _compute_web_ui_content_hash(
+            second_web.parent, second_web
+        )
+        _write_web_ui_build_stamp(first_web.parent, first_web)
+
+        assert _web_ui_build_needed(first_web) is False
+        assert _web_ui_build_needed(second_web) is True
+        _write_web_ui_build_stamp(second_web.parent, second_web)
+        assert _web_ui_build_needed(first_web) is False
+        assert _web_ui_build_needed(second_web) is False
 
 
 
@@ -418,4 +437,3 @@ class TestBuildRecoversFromMissingToolchain:
         assert result is True
         assert mock_install.call_count == 1
         assert mock_build.call_count == 1
-

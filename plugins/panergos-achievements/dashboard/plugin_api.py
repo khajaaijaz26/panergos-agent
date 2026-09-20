@@ -33,7 +33,7 @@ INSTALL_RE = re.compile(r"\b(npm|pnpm|yarn|pip|uv)\b.*\b(install|add)\b", re.I)
 SUCCESS_RE = re.compile(r"\b(success|passed|built|compiled|done|exit_code[\"']?\s*[:=]\s*0|verified|ok)\b", re.I)
 FILE_RE = re.compile(r"(?:/home/|~/?|\./|/mnt/)[\w./-]+\.(?:py|js|ts|tsx|jsx|css|html|md|json|yaml|yml|svg|sql|sh)")
 
-TIER_NAMES = ["Copper", "Silver", "Gold", "Diamond", "Olympian"]
+TIER_NAMES = ["Copper", "Silver", "Gold", "Diamond", "Continuum"]
 
 def _ach(
     id: str, name: str, description: str, category: str, icon: str, *,

@@ -74,8 +74,10 @@ export function usePanergosConfig({ activeSessionIdRef }: PanergosConfigOptions)
           return
         }
 
+        const customPersonalities = [...personalityNamesFromConfig(defaults), ...personalityNamesFromConfig(config)]
         const personality = normalizePersonalityValue(
-          typeof config.display?.personality === 'string' ? config.display.personality : ''
+          typeof config.display?.personality === 'string' ? config.display.personality : '',
+          customPersonalities
         )
 
         if (!canPublish()) {
@@ -89,8 +91,7 @@ export function usePanergosConfig({ activeSessionIdRef }: PanergosConfigOptions)
           ...new Set([
             'none',
             ...BUILTIN_PERSONALITIES,
-            ...personalityNamesFromConfig(defaults),
-            ...personalityNamesFromConfig(config)
+            ...customPersonalities
           ])
         ])
 

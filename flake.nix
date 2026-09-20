@@ -1,5 +1,5 @@
 {
-  description = "Panergos Agent - the open agent for any work";
+  description = "Panergos Agent - Work without losing the thread.";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";

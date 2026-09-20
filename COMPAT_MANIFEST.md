@@ -232,7 +232,7 @@ to the public equivalent or the new module. Test monkeypatch seams are likewise 
 | `COMPRESSION_RETRY_TOKENS_STATUS_TEMPLATE` | moved-lazy | `agent.conversation_compression` |
 | `COMPRESSION_RETRY_TOO_LARGE_STATUS_TEMPLATE` | moved-lazy | `agent.conversation_compression` |
 | `FailoverReason` | moved-lazy | `agent.error_classifier` |
-| `KawaiiSpinner` | moved-lazy | `agent.display` |
+| `KawaiiSpinner` | moved-lazy | `agent.display.RelaySpinner` (hidden compatibility name) |
 | `PARTIAL_STREAM_STUB_ID` | moved-lazy | `panergos_constants` |
 | `PRE_API_COMPRESSION_STATUS_TEMPLATE` | moved-lazy | `agent.conversation_compression` |
 | `adaptive_rate_limit_backoff` | moved-lazy | `agent.retry_utils` |

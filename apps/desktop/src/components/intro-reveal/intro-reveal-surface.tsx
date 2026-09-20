@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 
 import { BrandClose } from './scenes/brand'
 import { SideAgents } from './scenes/side-agents'
-import { EASE, ECLIPSE_SHADOW, JADE, JADE_DIM } from './scenes/style'
+import { EASE, JADE, JADE_DIM } from './scenes/style'
 import { decoded, SPINNER } from './scenes/text'
 import { INTRO_BEATS, INTRO_PROMPT, INTRO_REPLY_WORDS, INTRO_TOOL_ROWS } from './timeline'
 import { useIntroClock } from './use-intro-clock'
@@ -14,7 +14,7 @@ import { viewportSlot } from './viewport-cube'
 
 const INTRO_BEAT_INDEX: Record<string, number> = Object.fromEntries(INTRO_BEATS.map((b, i) => [b.id, i]))
 const SKIP = 'Skip'
-const SURFACES = 'Desktop · Messages · Phone · Anywhere'
+const SURFACES = 'RELAY 01 · WORKSTREAM 02 · HANDOFF 03 · CONTINUITY LIVE'
 
 export function IntroRevealSurface() {
   const { frame, leaving, faded, skip, glowRef, stageRef, brandRef, viewportRef } = useIntroClock()
@@ -26,7 +26,7 @@ export function IntroRevealSurface() {
       aria-label={SKIP}
       aria-modal="true"
       className={cn(
-        'fixed inset-0 flex items-center justify-center overflow-hidden',
+        'fixed inset-0 flex items-stretch justify-stretch overflow-hidden',
         'transition-opacity ease-out',
         leaving ? 'pointer-events-none opacity-0 duration-[900ms]' : faded ? 'opacity-100 duration-700' : 'opacity-0'
       )}
@@ -58,7 +58,7 @@ export function IntroRevealSurface() {
 
       {/* One transform keeps the constellation drifting as a group. */}
       <div
-        className="relative flex items-center justify-center gap-[2vw]"
+        className="intro-relay-stage relative grid h-full w-full grid-cols-[minmax(10rem,0.7fr)_minmax(30rem,2.2fr)_minmax(10rem,0.7fr)] items-stretch gap-[2vw] px-[4vw] py-[7vh]"
         ref={stageRef}
         style={{ perspective: '1400px', transformStyle: 'preserve-3d', willChange: 'transform, opacity' }}
       >
@@ -110,11 +110,8 @@ function HeroChat({ frame, viewportRef }: HeroChatProps) {
 
   return (
     <div
-      className="relative w-[46vw] min-w-[560px] max-w-[1350px] rounded-xl p-7"
+      className="intro-hero-stream relative min-w-0 border-y border-white/10 px-[3vw] py-[4vh]"
       style={{
-        background: 'rgba(10, 11, 14, 0.88)',
-        border: '1px solid rgba(255,255,255,0.09)',
-        boxShadow: ECLIPSE_SHADOW,
         animation: 'intro-hover-a 8.4s ease-in-out infinite alternate',
         transform: everywhere ? 'rotateX(4deg) translateZ(-60px) scale(0.86)' : 'rotateX(1.6deg) scale(1)',
         transition: `transform 1100ms ${EASE}`,
@@ -145,11 +142,9 @@ function HeroChat({ frame, viewportRef }: HeroChatProps) {
 
           return (
             <div
-              className="flex items-center gap-3 rounded-lg px-4 py-3"
+              className="flex items-center gap-3 border-l border-white/12 px-4 py-3"
               key={row.label}
               style={{
-                background: 'rgba(255,255,255,0.045)',
-                border: '1px solid rgba(255,255,255,0.06)',
                 opacity: shown ? 1 : 0,
                 transform: shown ? 'translateY(0)' : 'translateY(6px)',
                 transition: `opacity 520ms ${EASE}, transform 520ms ${EASE}`,
@@ -193,10 +188,9 @@ function HeroChat({ frame, viewportRef }: HeroChatProps) {
 
       <div className="mt-5 min-h-[6.5rem]">
         <div
-          className="max-w-[88%] rounded-xl rounded-bl-md px-5 py-3.5 text-[1.02rem] leading-7 text-white/88"
+          className="max-w-[88%] border-l px-5 py-3.5 text-[1.02rem] leading-7 text-white/88"
           style={{
-            background: 'rgba(255,255,255,0.055)',
-            border: '1px solid rgba(255,255,255,0.07)',
+            borderColor: JADE_DIM,
             opacity: replying ? 1 : 0,
             transform: replying ? 'translateY(0)' : 'translateY(6px)',
             transition: `opacity 500ms ${EASE}, transform 500ms ${EASE}`,
@@ -215,16 +209,14 @@ function HeroChat({ frame, viewportRef }: HeroChatProps) {
 
       <div className="mt-5">
         <div
-          className="rounded-2xl px-3 py-2.5"
+          className="border-t border-white/15 px-3 py-2.5"
           style={{
-            background: 'color-mix(in srgb, #16171b 78%, transparent)',
-            backdropFilter: 'blur(12px) saturate(1.12)',
-            border: '1px solid rgba(255,255,255,0.12)'
+            backdropFilter: 'blur(12px) saturate(1.12)'
           }}
         >
           <div className="min-h-[2rem] px-1.5 pt-0.5 text-[1.02rem] leading-7 text-white/90">
             {sent || typedText.length === 0 ? (
-              <span className="text-white/28">Ask anything. Build anything.</span>
+              <span className="text-white/28">Route a goal into a verified workstream.</span>
             ) : (
               typedText
             )}
@@ -301,11 +293,8 @@ function ViewportNode({ frame, viewportRef }: HeroChatProps) {
   return (
     <>
       <div
-        className="absolute -left-64 -top-20 w-52 rounded-xl"
+        className="absolute -left-48 -top-12 w-44 border-l border-white/12 pl-3"
         style={{
-          background: 'rgba(10, 11, 14, 0.88)',
-          border: '1px solid rgba(255,255,255,0.09)',
-          boxShadow: ECLIPSE_SHADOW,
           animation: 'intro-hover-b 6.8s ease-in-out infinite alternate',
           opacity: sent && !everywhere ? 1 : 0,
           transform:

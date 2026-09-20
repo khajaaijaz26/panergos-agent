@@ -44,6 +44,6 @@ colors:
 branding:
   agent_name: Panergos Agent
   prompt_symbol: "❯"
-  help_header: "(^_^)? Commands"
+  help_header: "PANERGOS / COMMANDS"
 
 tool_prefix: "┊"

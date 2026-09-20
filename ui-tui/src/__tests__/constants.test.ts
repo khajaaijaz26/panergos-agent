@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { FACES } from '../content/faces.js'
 import { HOTKEYS } from '../content/hotkeys.js'
 import { PLACEHOLDERS } from '../content/placeholders.js'
-import { TOOL_VERBS, VERBS } from '../content/verbs.js'
+import { RELAY_FRAMES } from '../content/relay.js'
+import { RELAY_PHASES, TOOL_VERBS } from '../content/verbs.js'
 import { ROLE } from '../domain/roles.js'
 import { ZERO } from '../domain/usage.js'
 import { INTERPOLATION_RE } from '../protocol/interpolation.js'
@@ -13,7 +13,7 @@ describe('constants', () => {
   it('ZERO', () => expect(ZERO).toEqual({ calls: 0, input: 0, output: 0, total: 0 }))
 
   it('string arrays are populated', () => {
-    for (const arr of [FACES, PLACEHOLDERS, VERBS]) {
+    for (const arr of [RELAY_FRAMES, PLACEHOLDERS, RELAY_PHASES]) {
       expect(arr.length).toBeGreaterThan(0)
       arr.forEach(s => expect(typeof s).toBe('string'))
     }

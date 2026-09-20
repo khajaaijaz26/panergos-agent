@@ -22,7 +22,7 @@ TIPS = [
     "/yolo skips all dangerous command approval prompts for the rest of the session.",
     "/model lets you switch models mid-session — try /model sonnet or /model gpt-5.",
     "/model --global changes your default model permanently.",
-    "/personality pirate sets a fun personality — 14 built-in options from kawaii to shakespeare.",
+    "/personality pirate sets a themed voice; /personality none restores Panergos' default.",
     "/skin changes the CLI theme — try crimson, mono, slate, tide, granite, or ember.",
     "/statusbar toggles a persistent bar showing model, tokens, context fill %, cost, and duration.",
     "/tools disable browser temporarily removes browser tools for the current session.",
@@ -383,7 +383,7 @@ TIPS = [
     '/toolsets lists every available toolset so you know what -t/--toolsets accepts.',
     '/voice tts toggles TTS-only mode — agent replies out loud but you still type your prompts.',
     '/reload-skills re-scans ~/.panergos/skills/ so drop-in skills appear without restarting the session.',
-    '/indicator kaomoji|emoji|unicode|ascii picks the TUI busy-indicator style shown during agent runs.',
+    '/indicator relay|emoji|unicode|ascii picks the TUI busy-indicator style shown during agent runs.',
     '/debug uploads a support bundle (system info + logs) and returns shareable links — works in chat too.',
     # --- CLI Subcommands & Flags ---
     'panergos -z "<prompt>" is the purest one-shot: final answer on stdout, nothing else — ideal for piping in scripts.',

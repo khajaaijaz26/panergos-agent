@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 import { toggleHud } from '@/store/hud'
 import {
   $fileBrowserOpen,
+  $panesFlippable,
   $panesFlipped,
   $sidebarOpen,
   toggleFileBrowserOpen,
@@ -137,6 +138,7 @@ export function TitlebarControls({ leftTools = [], tools = [], onOpenSettings }:
   const location = useLocation()
   const modHeld = useModifierHeld()
   const fileBrowserOpen = useStore($fileBrowserOpen)
+  const panesFlippable = useStore($panesFlippable)
   const panesFlipped = useStore($panesFlipped)
   const sidebarOpen = useStore($sidebarOpen)
   const unreadCount = useStore($unreadSessionCount)
@@ -327,7 +329,7 @@ export function TitlebarControls({ leftTools = [], tools = [], onOpenSettings }:
         {visibleSystemTools.map(tool => (
           <TitlebarToolButton key={tool.id} navigate={navigate} tool={tool} />
         ))}
-        <TitlebarToolButton navigate={navigate} tool={flipTool} />
+        {panesFlippable ? <TitlebarToolButton navigate={navigate} tool={flipTool} /> : null}
         <TitlebarToolButton navigate={navigate} tool={rightSidebarTool} />
         <Slot area="titleBar.right" />
       </div>

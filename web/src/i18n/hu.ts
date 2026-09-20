@@ -522,7 +522,7 @@ export const hu: Translations = {
       secrets: "Titkok",
       secrets_hint: "rejtve az első jelzésig",
       highest_tier: "Legmagasabb szint",
-      highest_tier_hint: "Copper → Silver → Gold → Diamond → Olympian",
+      highest_tier_hint: "Copper → Silver → Gold → Diamond → Continuum",
       latest: "Legutóbbi",
       latest_hint_empty: "futtasd többet a Panergost",
       none_yet: "Még semmi",

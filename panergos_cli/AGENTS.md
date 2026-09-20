@@ -7,7 +7,7 @@ Applies on top of the root `AGENTS.md`. Long-form: `website/docs/developer-guide
 `cli.py` holds `PanergosCLI` (REPL loop, config, slash dispatch); behaviour lives in mixins
 `panergos_cli/cli_commands_mixin.py`, `cli_stream_mixin.py`, `cli_status_bar_mixin.py`,
 `cli_billing_mixin.py`, `cli_tui_mixin.py`, ... **Rich** renders banner/panels; **prompt_toolkit**
-handles input + autocomplete; `KawaiiSpinner` (`agent/display.py`) animates API calls and prints
+handles input + autocomplete; `RelaySpinner` (`agent/display.py`) animates API calls and prints
 the `┊` activity feed. `load_cli_config()` in `cli.py` merges CLI defaults + user YAML.
 `process_command()` resolves the canonical name via `resolve_command()` then dispatches through
 `PanergosCLI._SLASH_DISPATCH` (`canonical -> (method name, pass_arg)`), falling back to a

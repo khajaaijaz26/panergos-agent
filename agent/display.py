@@ -1,4 +1,4 @@
-"""CLI presentation -- spinner, kawaii faces, tool preview formatting.
+"""CLI presentation -- Relay progress, tool preview formatting.
 
 Pure display functions with no AIAgent dependency; used for CLI feedback.
 """
@@ -745,27 +745,20 @@ def render_edit_diff_with_delta(
     return _emit_inline_diff("\n".join(rendered_lines), print_fn)
 
 
-# ── KawaiiSpinner ─────────────────────────────────────────────────────────
+# ── RelaySpinner ──────────────────────────────────────────────────────────
 
-class KawaiiSpinner:
-    """Animated spinner with kawaii faces for CLI feedback during tool execution."""
+class RelaySpinner:
+    """Animated Panergos Relay feedback during agent and tool execution."""
 
     SPINNERS = {
-        'dots': list('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'), 'bounce': list('⠁⠂⠄⡀⢀⠠⠐⠈'), 'grow': list('▁▂▃▄▅▆▇█▇▆▅▄▃▂'),
-        'arrows': list('←↖↑↗→↘↓↙'), 'star': list('✶✷✸✹✺✹✸✷'), 'moon': list('🌑🌒🌓🌔🌕🌖🌗🌘'),
-        'pulse': list('◜◠◝◞◡◟'), 'brain': list('🧠💭💡✨💫🌟💡💭'), 'sparkle': list('⁺˚*✧✦✧*˚'),
+        'relay': ['╲  ▶', '╲━ ▶', '╲━━▶', '╱━━▶', '╱━ ▶', '╱  ▶'],
+        'dots': list('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'),
+        'ascii': list('|/-\\'),
     }
-    KAWAII_WAITING = [
-        "(｡◕‿◕｡)", "(◕‿◕✿)", "٩(◕‿◕｡)۶", "(✿◠‿◠)", "( ˘▽˘)っ", "♪(´ε` )", "(◕ᴗ◕✿)", "ヾ(＾∇＾)", "(≧◡≦)", "(★ω★)",
-    ]
-    KAWAII_THINKING = [
-        "(｡•́︿•̀｡)", "(◔_◔)", "(¬‿¬)", "( •_•)>⌐■-■", "(⌐■_■)", "(´･_･`)", "◉_◉", "(°ロ°)", "( ˘⌣˘)♡", "ヽ(>∀<☆)☆",
-        "٩(๑❛ᴗ❛๑)۶", "(⊙_⊙)", "(¬_¬)", "( ͡° ͜ʖ ͡°)", "ಠ_ಠ",
-    ]
-    THINKING_VERBS = [
-        "pondering", "contemplating", "musing", "cogitating", "ruminating", "deliberating", "mulling",
-        "reflecting", "processing", "reasoning", "analyzing", "computing", "synthesizing", "formulating",
-        "brainstorming",
+    RELAY_MARKS = ["━━▶"]
+    RELAY_PHASES = [
+        "receiving signal", "mapping the field", "routing context", "aligning constraints",
+        "sequencing actions", "validating links", "merging results", "readying handoff",
     ]
 
     @staticmethod
@@ -777,13 +770,13 @@ class KawaiiSpinner:
         except Exception:
             return fallback
 
-    get_waiting_faces = classmethod(lambda cls: cls._skin_spinner_list("waiting_faces", cls.KAWAII_WAITING))
-    get_thinking_faces = classmethod(lambda cls: cls._skin_spinner_list("thinking_faces", cls.KAWAII_THINKING))
-    get_thinking_verbs = classmethod(lambda cls: cls._skin_spinner_list("thinking_verbs", cls.THINKING_VERBS))
+    get_waiting_marks = classmethod(lambda cls: cls._skin_spinner_list("waiting_faces", cls.RELAY_MARKS))
+    get_progress_marks = classmethod(lambda cls: cls._skin_spinner_list("thinking_faces", cls.RELAY_MARKS))
+    get_progress_phases = classmethod(lambda cls: cls._skin_spinner_list("thinking_verbs", cls.RELAY_PHASES))
 
-    def __init__(self, message: str = "", spinner_type: str = 'dots', print_fn=None):
+    def __init__(self, message: str = "", spinner_type: str = 'relay', print_fn=None):
         self.message = message
-        self.spinner_frames = self.SPINNERS.get(spinner_type, self.SPINNERS['dots'])
+        self.spinner_frames = self.SPINNERS.get(spinner_type, self.SPINNERS['relay'])
         self.running = False
         self.thread = self.start_time = None
         self.frame_idx = self.last_line_len = 0
@@ -885,7 +878,12 @@ class KawaiiSpinner:
         return False
 
 
-# ── Cute tool message (completion line that replaces the spinner) ─────────
+# Hidden import compatibility for third-party plugins. Runtime code uses the
+# Relay name and vocabulary exclusively.
+KawaiiSpinner = RelaySpinner
+
+
+# ── Tool completion line ────────────────────────────────────────────────────
 
 _ERROR_SUFFIX_MAX_LEN = 48
 
@@ -1063,7 +1061,7 @@ _CUTE_LINES = {
 }
 
 
-def _get_cute_tool_message(tool_name: str, args: dict, duration: float, result: str | None = None) -> str:
+def _build_tool_completion_message(tool_name: str, args: dict, duration: float, result: str | None = None) -> str:
     """Tool completion line for CLI quiet mode: ``| {emoji} {verb:9} {detail}  {duration}``, plus a
     failure suffix from :func:`_detect_tool_failure`; the leading ``┊`` becomes the skin's tool prefix."""
     args = redact_tool_args_for_display(tool_name, args) or args
@@ -1074,10 +1072,10 @@ def _get_cute_tool_message(tool_name: str, args: dict, duration: float, result: 
     return f"{line}{failure_suffix}" if is_failure else line
 
 
-def get_cute_tool_message(tool_name: str, args: dict, duration: float, result: str | None = None) -> str:
+def get_tool_completion_message(tool_name: str, args: dict, duration: float, result: str | None = None) -> str:
     """Render a completion label without letting cosmetic failures escape."""
     try:
-        return _get_cute_tool_message(tool_name, args, duration, result=result)
+        return _build_tool_completion_message(tool_name, args, duration, result=result)
     except Exception as exc:  # noqa: BLE001 — display must never abort a turn
         logger.debug("Tool completion label failed for %s: %s", tool_name, exc)
         safe_name = tool_name[:9] if isinstance(tool_name, str) and tool_name else "tool"
@@ -1089,6 +1087,10 @@ def get_cute_tool_message(tool_name: str, args: dict, duration: float, result: s
 # Names external plugins imported from this module before the Sep 2026 decomposition.
 # Internal code MUST NOT use these (scripts/check_compat_pointers.py fails CI if it does).
 # The whole block is removed by reverting the commit that added it.
+
+# Hidden source-level alias for pre-Relay plugins. Runtime code and docs use the
+# canonical presentation-neutral name above.
+get_cute_tool_message = get_tool_completion_message
 
 def get_friendly_tool_labels() -> bool:
     """Return whether friendly tool labels are enabled."""

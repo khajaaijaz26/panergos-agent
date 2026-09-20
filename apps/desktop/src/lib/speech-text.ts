@@ -8,8 +8,16 @@ const PARAGRAPH_BREAK_RE = /[ \t]*\n{2,}[ \t]*/g
 const PUNCTUATED_PARAGRAPH_BREAK_RE = /([.!?])([*_~`>"'’”)}\]]*)[ \t]*\n{2,}[ \t]*/g
 const SOFT_BREAK_RE = /[ \t]*\n[ \t]*/g
 
-const THINKING_PREFIX_RE =
-  /^\s*(?:\([^)\n]{1,48}\)\s*)?(?:processing|thinking|reasoning|analyzing|pondering|contemplating|musing|cogitating|ruminating|deliberating|mulling|reflecting|computing|synthesizing|formulating|brainstorming)\.\.\.\s*/i
+const RELAY_PHASE_PATTERN =
+  'receiving signal|mapping the field|routing context|aligning constraints|sequencing actions|validating links|merging results|readying handoff'
+// Hidden compatibility for presentation-only prefixes stored by older clients.
+// This must stay explicit so ordinary leading gerunds remain spoken content.
+const LEGACY_PROGRESS_PATTERN =
+  'processing|thinking|reasoning|analyzing|pondering|contemplating|musing|cogitating|ruminating|deliberating|mulling|reflecting|computing|synthesizing|formulating|brainstorming'
+const THINKING_PREFIX_RE = new RegExp(
+  `^\\s*(?:[^A-Za-z\\n]{1,24}\\s*)?(?:${RELAY_PHASE_PATTERN}|${LEGACY_PROGRESS_PATTERN})\\.\\.\\.\\s*`,
+  'i'
+)
 
 const URL_RE = /\bhttps?:\/\/\S+/gi
 

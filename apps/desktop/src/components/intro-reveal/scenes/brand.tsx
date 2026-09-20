@@ -7,14 +7,14 @@ interface BrandCloseProps extends ComponentProps<'div'> {}
 export function BrandClose({ ref }: BrandCloseProps) {
   return (
     <div
-      className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-[3.2vmin] opacity-0"
+      className="pointer-events-none absolute inset-0 flex items-end gap-[3vmin] px-[8vw] pb-[12vh] opacity-0"
       ref={ref}
       style={{ willChange: 'transform, opacity' }}
     >
-      <img alt="" className="h-[32vmin] w-auto rounded-[5vmin] object-contain" src={panergosIconUrl} />
-      <div className="flex flex-col items-center gap-[1.6vmin]">
+      <img alt="" className="h-[18vmin] w-auto rounded-[3vmin] object-contain" src={panergosIconUrl} />
+      <div className="flex min-w-0 flex-col items-start gap-[1.6vmin] border-l border-white/20 pl-[3vmin]">
         <h1
-          className="text-[10.2vmin] leading-none uppercase text-white/95"
+          className="text-[8.6vmin] leading-none uppercase text-white/95"
           style={{
             fontFamily: 'var(--font-sans)',
             fontWeight: 700,
@@ -28,7 +28,7 @@ export function BrandClose({ ref }: BrandCloseProps) {
           className="text-[2vmin] uppercase tracking-[0.42em] text-white/50"
           style={{ fontFamily: 'var(--font-sans)' }}
         >
-          Your agent, everywhere
+          Relay context. Direct work. Keep continuity.
         </p>
       </div>
     </div>

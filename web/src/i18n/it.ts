@@ -521,7 +521,7 @@ export const it: Translations = {
       secrets: "Segreti",
       secrets_hint: "nascosti fino al primo segnale",
       highest_tier: "Livello più alto",
-      highest_tier_hint: "Copper → Silver → Gold → Diamond → Olympian",
+      highest_tier_hint: "Copper → Silver → Gold → Diamond → Continuum",
       latest: "Più recente",
       latest_hint_empty: "usa Panergos di più",
       none_yet: "Nessuno ancora",

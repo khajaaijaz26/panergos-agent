@@ -521,7 +521,7 @@ export const ja: Translations = {
       secrets: "シークレット",
       secrets_hint: "最初のシグナルまで非表示",
       highest_tier: "最高ティア",
-      highest_tier_hint: "Copper → Silver → Gold → Diamond → Olympian",
+      highest_tier_hint: "Copper → Silver → Gold → Diamond → Continuum",
       latest: "最新",
       latest_hint_empty: "Panergos をもっと使ってみてください",
       none_yet: "まだありません",

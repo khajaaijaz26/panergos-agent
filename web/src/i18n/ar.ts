@@ -454,7 +454,7 @@ export const ar = defineLocale({
       secrets: "أسرار",
       secrets_hint: "مخفية حتى أول إشارة",
       highest_tier: "أعلى مستوى",
-      highest_tier_hint: "نحاس → فضة → ذهب ← ماس → أوليمبي",
+      highest_tier_hint: "نحاس → فضة → ذهب ← ماس → استمرارية",
       latest: "الأحدث",
       latest_hint_empty: "شغِّل Panergos أكثر",
       none_yet: "لا توجد بعد",

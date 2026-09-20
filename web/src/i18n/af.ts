@@ -522,7 +522,7 @@ export const af: Translations = {
       secrets: "Geheime",
       secrets_hint: "verborge tot eerste sein",
       highest_tier: "Hoogste vlak",
-      highest_tier_hint: "Copper → Silver → Gold → Diamond → Olympian",
+      highest_tier_hint: "Copper → Silver → Gold → Diamond → Continuum",
       latest: "Jongste",
       latest_hint_empty: "gebruik Panergos meer",
       none_yet: "Nog geen",

@@ -72,6 +72,12 @@ export const normalizeIndicatorStyle = (raw: unknown): IndicatorStyle => {
 
   const v = raw.trim().toLowerCase() as IndicatorStyle
 
+  // Saved configs from the inherited face ticker move silently to Relay;
+  // the retired name never reaches menus, help, or runtime state.
+  if ((v as string) === 'kaomoji') {
+    return 'relay'
+  }
+
   return INDICATOR_STYLE_SET.has(v) ? v : DEFAULT_INDICATOR_STYLE
 }
 

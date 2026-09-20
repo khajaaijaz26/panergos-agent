@@ -25,7 +25,7 @@ class TestCLIPersonalityNone:
         }
         cli.config = {"agent": {"personalities": user}}
         cli.personalities = available_personalities(cli.config)
-        cli.system_prompt = "You are kawaii~"
+        cli.system_prompt = "temporary profile"
         cli.agent = MagicMock()
         cli.console = MagicMock()
         return cli
@@ -70,8 +70,8 @@ class TestCLIPersonalityNone:
         # Built-ins come from panergos_cli.personality, not from config.
         cli = self._make_cli(personalities={})
         with patch("panergos_cli.personality.persist_personality", return_value=True):
-            cli._handle_personality_command("/personality kawaii")
-        assert "kawaii" in cli.system_prompt.lower()
+            cli._handle_personality_command("/personality creative")
+        assert "creative" in cli.system_prompt.lower()
 
 
 # ── Gateway tests ──────────────────────────────────────────────────────────
@@ -178,7 +178,7 @@ class TestGatewayPersonalityNone:
             event = self._make_event("")
             result = await runner._handle_personality_command(event)
 
-        assert "kawaii" in result.lower()
+        assert "creative" in result.lower()
         assert "pirate" in result.lower()
 
 

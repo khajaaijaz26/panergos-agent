@@ -99,7 +99,7 @@ Text strings used throughout the CLI interface.
 | `goodbye` | Message shown on exit | `Goodbye! ▶` |
 | `response_label` | Label on the response box header | ` ▶ Panergos ` |
 | `prompt_symbol` | Symbol before the user input prompt (bare token, renderers add a trailing space) | `❯` |
-| `help_header` | Header text for the `/help` command output | `(^_^)? Available Commands` |
+| `help_header` | Header text for the `/help` command output | `PANERGOS / COMMANDS` |
 
 ### Other top-level keys
 
@@ -172,7 +172,7 @@ branding:
   goodbye: "See you later! ⚡"
   response_label: " ⚡ My Agent "
   prompt_symbol: "⚡"
-  help_header: "(⚡) Available Commands"
+  help_header: "⚡ COMMANDS"
 
 tool_prefix: "┊"
 

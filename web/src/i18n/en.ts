@@ -608,7 +608,7 @@ export const en: Translations = {
       secrets: "Secrets",
       secrets_hint: "hidden until first signal",
       highest_tier: "Highest tier",
-      highest_tier_hint: "Copper → Silver → Gold → Diamond → Olympian",
+      highest_tier_hint: "Copper → Silver → Gold → Diamond → Continuum",
       latest: "Latest",
       latest_hint_empty: "run Panergos more",
       none_yet: "None yet",

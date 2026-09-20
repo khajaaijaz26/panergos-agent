@@ -708,8 +708,10 @@ class CLIStreamMixin:
                     return
                 self._last_scrollback_tool = function_name
                 try:
-                    from agent.display import get_cute_tool_message
-                    line = get_cute_tool_message(function_name, stored_args, duration, result=kwargs.get("result"))
+                    from agent.display import get_tool_completion_message
+                    line = get_tool_completion_message(
+                        function_name, stored_args, duration, result=kwargs.get("result")
+                    )
                     _cprint(f"  {line}")
                 except Exception:
                     pass

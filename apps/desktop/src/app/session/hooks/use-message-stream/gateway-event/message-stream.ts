@@ -127,7 +127,7 @@ export function handleMessageStreamEvent(ctx: GatewayEventContext): boolean {
   }
 
   if (event.type === 'thinking.delta') {
-    // Most thinking.delta frames are kawaii spinner rewrites and stay out
+    // Most thinking.delta frames are presentation-only progress updates and stay out
     // of the transcript. Explained provider waits are different: the core
     // emits them after prolonged silence, so name that wait in the existing
     // bottom-of-thread status row instead of leaving only an unlabeled timer.

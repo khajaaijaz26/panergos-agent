@@ -48,7 +48,7 @@ _RELOAD_MCP_DETAIL = (
 
 
 def _ascii_box(title: str, width: int) -> None:
-    """Print the kawaii ``+---+ | title | +---+`` header used by /tools and /toolsets."""
+    """Print the compact ``+---+ | title | +---+`` header used by /tools and /toolsets."""
     pad = width - len(title)
     print("+" + "-" * width + "+")
     print("|" + " " * (pad // 2) + title + " " * (pad - pad // 2) + "|")
@@ -260,10 +260,10 @@ class CLIInfoMixin:
 
         try:
             from panergos_cli.skin_engine import get_active_help_header
-            header = get_active_help_header("(^_^)? Available Commands")
+            header = get_active_help_header("PANERGOS / COMMANDS")
         except Exception:
-            header = "(^_^)? Available Commands"
-        header = ((header or "").strip() or "(^_^)? Available Commands")[:55]
+            header = "PANERGOS / COMMANDS"
+        header = ((header or "").strip() or "PANERGOS / COMMANDS")[:55]
         _cprint(f"\n{_BOLD}+{'-' * 55}+{_RST}")
         _cprint(f"{_BOLD}|{header:^55}|{_RST}")
         _cprint(f"{_BOLD}+{'-' * 55}+{_RST}")
@@ -340,7 +340,7 @@ class CLIInfoMixin:
             _cprint(f"  {_DIM}Paste image: Alt+V (or /paste){_RST}\n")
 
     def show_tools(self):
-        """Display available tools with kawaii ASCII art."""
+        """Display available tools in a compact terminal index."""
         from cli import get_tool_definitions
         from model_tools import get_toolset_for_tool
         # Pre-assembly list: /tools is a discovery surface, so it must show the full catalog
@@ -349,11 +349,11 @@ class CLIInfoMixin:
                                      disabled_toolsets=self.disabled_toolsets, quiet_mode=True,
                                      skip_tool_search_assembly=True)
         if not tools:
-            print("(;_;) No tools available")
+            print("! No tools available")
             return
 
         print()
-        _ascii_box("(^_^)/ Available Tools", 78)
+        _ascii_box("PANERGOS / TOOLS", 78)
         print()
 
         toolsets: dict[str, list] = {}
@@ -372,16 +372,16 @@ class CLIInfoMixin:
                 print(f"    * {name:<20} - {desc}")
             print()
 
-        print(f"  Total: {len(tools)} tools  ヽ(^o^)ノ")
+        print(f"  Total: {len(tools)} tools")
         print()
 
     def show_toolsets(self):
-        """Display available toolsets with kawaii ASCII art."""
+        """Display available toolsets in a compact terminal index."""
         from toolsets import get_all_toolsets, get_toolset_info
         all_toolsets = get_all_toolsets()
 
         print()
-        _ascii_box("(^_^)b Available Toolsets", 58)
+        _ascii_box("PANERGOS / TOOLSETS", 58)
         print()
 
         for name in sorted(all_toolsets.keys()):
@@ -490,7 +490,7 @@ class CLIInfoMixin:
 
         print()
         print("+" + "-" * 60 + "+")
-        print("|" + " " * 15 + "(✿◠‿◠) Gateway Status" + " " * 17 + "|")
+        print("| " + "PANERGOS / GATEWAY STATUS".ljust(59) + "|")
         print("+" + "-" * 60 + "+")
         print()
 
@@ -621,7 +621,7 @@ class CLIInfoMixin:
         per-category table; `all` appends per-skill / per-toolset costs. Read-only: same chars/4
         engine as the desktop popover (agent.context_breakdown) — no provider calls, no cache impact."""
         if not self.agent:
-            print("  (._.) No active agent -- send a message first.")
+            print("  ! No active agent -- send a message first.")
             return
 
         args = cmd_original.split(maxsplit=1)[1].strip().lower() if " " in cmd_original else ""
@@ -633,7 +633,7 @@ class CLIInfoMixin:
         try:
             payload = compute_session_context_breakdown(self.agent, self.conversation_history)
         except Exception as e:
-            print(f"  (._.) Could not compute context breakdown: {e}")
+            print(f"  ! Could not compute context breakdown: {e}")
             return
 
         details = None
@@ -655,12 +655,12 @@ class CLIInfoMixin:
         from cli import datetime, format_duration_compact
 
         if not self.agent:
-            print("(._.) No active agent -- send a message first.")
+            print("! No active agent -- send a message first.")
             return
         agent = self.agent
         calls = agent.session_api_calls
         if calls == 0:
-            print("(._.) No API calls made yet in this session.")
+            print("· No API calls made yet in this session.")
             return
 
         rl_state = agent.get_rate_limit_state()

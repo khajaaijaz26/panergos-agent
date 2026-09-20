@@ -58,7 +58,7 @@ panergos -w -z "Fix issue #123"     # 在 worktree 中以单次查询模式运�
 一个持久状态栏位于输入区域上方，实时更新：
 
 ```
- ▶ claude-sonnet-4-20250514 │ 12.4K/200K │ [██████░░░░] 6% │ $0.06 │ 15m
+ → claude-sonnet-4-20250514 │ 12.4K/200K │ [██████░░░░] 6% │ $0.06 │ 15m
 ```
 
 | 元素 | 描述 |
@@ -191,18 +191,18 @@ Panergos 会在第一轮对话前将每个指定的 skill 加载到会话 prompt
 
 ```
 /personality pirate
-/personality kawaii
+/personality creative
 /personality concise
 ```
 
-内置人格包括：`helpful`、`concise`、`technical`、`creative`、`teacher`、`kawaii`、`catgirl`、`pirate`、`shakespeare`、`surfer`、`noir`、`uwu`、`philosopher`、`hype`。
+内置人格包括：`helpful`、`concise`、`technical`、`creative`、`teacher`、`pirate`、`shakespeare`、`surfer`、`noir`、`philosopher`、`hype`。
 
 你也可以在 `~/.panergos/config.yaml` 中定义自定义人格：
 
 ```yaml
 personalities:
   helpful: "You are a helpful, friendly AI assistant."
-  kawaii: "You are a kawaii assistant! Use cute expressions..."
+  focused: "You are a focused collaborator. State constraints and evidence clearly."
   pirate: "Arrr! Ye be talkin' to Captain Panergos..."
   # 添加你自己的！
 ```
@@ -295,11 +295,11 @@ Panergos Agent has been suspended. Run `fg` to bring Panergos Agent back.
 
 CLI 在 agent 工作时显示动态反馈：
 
-**思考动画**（API 调用期间）：
+**Relay 进度**（API 调用期间）：
 ```
-  ◜ (｡•́︿•̀｡) pondering... (1.2s)
-  ◠ (⊙_⊙) contemplating... (2.4s)
-  ✧٩(ˊᗜˋ*)و✧ got it! (3.1s)
+  ╲  ▶ receiving signal... (1.2s)
+  ╲━━▶ routing context... (2.4s)
+  ╱━━▶ validating links... (3.1s)
 ```
 
 **工具执行信息流：**
@@ -435,7 +435,7 @@ Panergos 立即确认任务并将提示符还给你：
 
 默认情况下，CLI 以静默模式运行，该模式会：
 - 抑制工具的详细日志
-- 启用 kawaii 风格的动态反馈
+- 显示 Panergos Relay 进度反馈
 - 保持输出简洁易读
 
 如需调试输出：

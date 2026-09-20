@@ -521,7 +521,7 @@ export const zhHant: Translations = {
       secrets: "秘密",
       secrets_hint: "在首次訊號出現前保持隱藏",
       highest_tier: "最高等級",
-      highest_tier_hint: "Copper → Silver → Gold → Diamond → Olympian",
+      highest_tier_hint: "Copper → Silver → Gold → Diamond → Continuum",
       latest: "最新",
       latest_hint_empty: "多多執行 Panergos",
       none_yet: "尚無",

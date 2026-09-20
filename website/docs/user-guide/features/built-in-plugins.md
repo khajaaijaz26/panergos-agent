@@ -271,7 +271,7 @@ Adds a **Steam-style achievements tab to the dashboard** — 60+ collectible, ti
 - First-ever scan runs in a background thread — the dashboard never blocks waiting for it, even on databases with thousands of sessions
 - Unlock state is persisted to `$PANERGOS_HOME/plugins/panergos-achievements/state.json`
 
-**Tier progression:** Copper → Silver → Gold → Diamond → Olympian. Each card exposes a "What counts" section listing the exact metric being tracked.
+**Tier progression:** Copper → Silver → Gold → Diamond → Continuum. Each card exposes a "What counts" section listing the exact metric being tracked.
 
 **Achievement states:**
 

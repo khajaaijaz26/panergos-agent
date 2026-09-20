@@ -171,11 +171,11 @@ export PANERGOS_TUI_THEME=light
 
 ## Busy indicator styles
 
-The status-bar busy indicator is pluggable — the default rotates Panergos' kawaii face palette every 2.5 seconds during agent work. Pick a different style via config or the `/indicator` slash command:
+The status-bar busy indicator is pluggable. The default traces Panergos Relay work lanes and advances through concrete execution phases. Pick a different style via config or the `/indicator` slash command:
 
 ```yaml
 display:
-  tui_status_indicator: kaomoji   # kaomoji | emoji | unicode | ascii
+  tui_status_indicator: relay     # relay | emoji | unicode | ascii
 ```
 
 Or in-session: `/indicator emoji` (etc.). Styles ship with matched glyph widths so the rest of the status bar doesn't jitter on rotation.

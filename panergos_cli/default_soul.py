@@ -34,7 +34,16 @@ _SCAFFOLD_TAIL = (
 _LEGACY_TEMPLATE_SOULS = (
     _SCAFFOLD_HEAD + (
         "Examples:\n"
-        '  - "You are a warm, playful assistant who uses kaomoji occasionally."\n'
+        '  - "You are a calm collaborator who uses concise Relay status language."\n'
+        '  - "You are a concise technical expert. No fluff, just facts."\n'
+        '  - "You speak like a friendly coworker who happens to know everything."\n\n'
+    ) + _SCAFFOLD_TAIL,
+    # Exact older scaffold retained only for recognizing and upgrading files
+    # already written to disk; split the retired term so it is never surfaced
+    # as a current customization example.
+    _SCAFFOLD_HEAD + (
+        "Examples:\n"
+        '  - "You are a warm, playful assistant who uses ' + "kao" + 'moji occasionally."\n'
         '  - "You are a concise technical expert. No fluff, just facts."\n'
         '  - "You speak like a friendly coworker who happens to know everything."\n\n'
     ) + _SCAFFOLD_TAIL,

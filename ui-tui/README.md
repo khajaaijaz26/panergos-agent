@@ -414,12 +414,12 @@ ui-tui/
 
     content/
       charms.ts                  ambient activity strings for long-running tools
-      faces.ts                   agent face / kaomoji pool
+      relay.ts                   Panergos Relay progress frames
       fortunes.ts                /fortune quote pool
       hotkeys.ts                 platform-aware hotkey display strings
       placeholders.ts            rotating input placeholder strings
       setup.ts                   setup-required panel content
-      verbs.ts                   tool activity verb map (browser → browsing, etc.)
+      verbs.ts                   Relay phases and tool activity verb map
 
     domain/
       blockLayout.ts             block layout and lead-gap helpers

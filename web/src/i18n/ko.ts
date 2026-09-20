@@ -521,7 +521,7 @@ export const ko: Translations = {
       secrets: "시크릿",
       secrets_hint: "첫 신호가 있을 때까지 숨겨짐",
       highest_tier: "최고 등급",
-      highest_tier_hint: "Copper → Silver → Gold → Diamond → Olympian",
+      highest_tier_hint: "Copper → Silver → Gold → Diamond → Continuum",
       latest: "최근",
       latest_hint_empty: "Panergos를 더 사용해 보세요",
       none_yet: "아직 없음",
