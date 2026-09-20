@@ -304,8 +304,9 @@ the desktop app itself last. See
   re-encrypted in place (Keychain on macOS, DPAPI on Windows, the session
   keyring backend on Linux). Turning it back off decrypts them again.
 - **The registry file** (`connections.json` under the app's user-data
-  directory) holds labels, URLs, and hosts — secrets only ever appear inside
-  encrypted envelopes.
+  directory) holds labels, URLs, hosts, and secret envelopes. Those envelopes
+  follow the storage setting above: owner-only plain text by default, or OS-
+  keychain-encrypted when the user enables it.
 - The plugin SDK's `host.connections()` deliberately returns labels, kinds,
   and the primary id — never token material.
 

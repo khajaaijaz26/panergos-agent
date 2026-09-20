@@ -7,26 +7,20 @@
  *
  * 2. SPLIT (side-by-side, visible) — a session dragged to the edge of the
  *    workspace zone opens as a split tile, visible on screen at the same time
- *    as the main session. When it finishes, it should NOT get the green
- *    "unread" dot — the user is looking right at it. This test FAILS until
- *    the fix in session-states.ts:174 lands (the unread check only compares
- *    against $selectedStoredSessionId and ignores $sessionTiles).
+ *    as the main session. When it finishes, it does NOT get the green
+ *    "unread" dot — the user is looking right at it.
  *
  * Prerequisite: `npm run build` must have been run so dist/ exists.
  */
 
 import { expect, test } from '@playwright/test'
 
-import {
-  type MockBackendFixture,
-  setupMockBackend,
-  waitForAppReady,
-} from './fixtures'
+import { type MockBackendFixture, setupMockBackend, waitForAppReady } from './fixtures'
 import {
   type BackgroundReleaseHandle,
   createBackgroundReleaseHandle,
   restartMockServer,
-  SIDEBAR_CROSS_TEXTS,
+  SIDEBAR_CROSS_TEXTS
 } from '../../../tests-js/scripts/mock-server'
 
 /** Finished-unread dot aria-label. */
@@ -65,11 +59,9 @@ async function startTurnAndSwitchAway(page: import('@playwright/test').Page) {
   await page.keyboard.press('Enter')
 
   // Wait for the user's message to appear.
-  await page.waitForFunction(
-    () => (document.body.textContent ?? '').includes('E2E_SIDEBAR_CROSS'),
-    undefined,
-    { timeout: 15_000 },
-  )
+  await page.waitForFunction(() => (document.body.textContent ?? '').includes('E2E_SIDEBAR_CROSS'), undefined, {
+    timeout: 15_000
+  })
 
   // NOTE: while the turn is busy the dot-state priority paints the session as
   // "working" ('Session running'), which OUTRANKS the background claim — the
@@ -82,16 +74,14 @@ async function startTurnAndSwitchAway(page: import('@playwright/test').Page) {
   // The final answer text streams before message.complete, so text visibility
   // alone is not a completion barrier. Wait for the foreground-running state
   // to clear before asserting the background-process state.
-  await page.waitForFunction(
-    (text) => (document.body.textContent ?? '').includes(text),
-    SIDEBAR_CROSS_TEXTS.finalText,
-    { timeout: 90_000 },
-  )
+  await page.waitForFunction(text => (document.body.textContent ?? '').includes(text), SIDEBAR_CROSS_TEXTS.finalText, {
+    timeout: 90_000
+  })
   await expect
-    .poll(
-      () => page.locator(`[aria-label="${SESSION_RUNNING_DOT_LABEL}"]`).count(),
-      { timeout: 30_000, message: 'session running dot should disappear after turn completes' },
-    )
+    .poll(() => page.locator(`[aria-label="${SESSION_RUNNING_DOT_LABEL}"]`).count(), {
+      timeout: 30_000,
+      message: 'session running dot should disappear after turn completes'
+    })
     .toBe(0)
 
   // The background dot must be visible now: the turn is done but the process
@@ -100,10 +90,10 @@ async function startTurnAndSwitchAway(page: import('@playwright/test').Page) {
   // dot flip is event-driven off the busy=false publish and can land a tick
   // after the running dot clears.
   await expect
-    .poll(
-      () => page.locator(`[aria-label="${BG_DOT_LABEL}"]`).count(),
-      { timeout: 30_000, message: 'background dot should be visible after turn completes' },
-    )
+    .poll(() => page.locator(`[aria-label="${BG_DOT_LABEL}"]`).count(), {
+      timeout: 30_000,
+      message: 'background dot should be visible after turn completes'
+    })
     .toBeGreaterThan(0)
 
   // Switch to a new session — session A is no longer $selectedStoredSessionId.
@@ -113,16 +103,13 @@ async function startTurnAndSwitchAway(page: import('@playwright/test').Page) {
 }
 
 /** Release the held background process, then wait for its dot to clear. */
-async function waitForBgProcessToFinish(
-  page: import('@playwright/test').Page,
-  release?: BackgroundReleaseHandle,
-) {
+async function waitForBgProcessToFinish(page: import('@playwright/test').Page, release?: BackgroundReleaseHandle) {
   release?.release()
   await expect
-    .poll(
-      () => page.locator(`[aria-label="${BG_DOT_LABEL}"]`).count(),
-      { timeout: 30_000, message: 'background dot should disappear after process finishes' },
-    )
+    .poll(() => page.locator(`[aria-label="${BG_DOT_LABEL}"]`).count(), {
+      timeout: 30_000,
+      message: 'background dot should disappear after process finishes'
+    })
     .toBe(0)
 }
 
@@ -140,7 +127,7 @@ test.describe('sidebar states — tab (hidden) unread is correct', () => {
     restartMockServer()
     fixture = await setupMockBackend({
       extraConfig: DISABLE_AUTO_TITLE,
-      mockServer: { backgroundReleasePath: bgRelease.path },
+      mockServer: { backgroundReleasePath: bgRelease.path }
     })
     await waitForAppReady(fixture, 120_000)
   })
@@ -181,10 +168,10 @@ test.describe('sidebar states — tab (hidden) unread is correct', () => {
     // released (rather than slowly-expiring) process there is no incidental
     // slack between the two. Same reasoning as the cross-session spec.
     await expect
-      .poll(
-        () => page.locator(`[aria-label="${UNREAD_DOT_LABEL}"]`).count(),
-        { timeout: 30_000, message: 'hidden tab should be marked unread' },
-      )
+      .poll(() => page.locator(`[aria-label="${UNREAD_DOT_LABEL}"]`).count(), {
+        timeout: 30_000,
+        message: 'hidden tab should be marked unread'
+      })
       .toBeGreaterThan(0)
 
     await page.screenshot({ path: 'test-results/tile-bug-tab-unread-correct.png' })
@@ -192,10 +179,10 @@ test.describe('sidebar states — tab (hidden) unread is correct', () => {
 })
 
 // ────────────────────────────────────────────────────────────────────────
-// Test 2: SPLIT (visible) — unread dot is WRONG (FAILS until fix)
+// Test 2: SPLIT (visible) — unread dot stays clear
 // ────────────────────────────────────────────────────────────────────────
 
-test.describe.skip('sidebar states — split (visible) unread bug (RED)', () => {
+test.describe('sidebar states — split (visible) stays read', () => {
   test.describe.configure({ mode: 'serial' })
 
   let fixture: MockBackendFixture
@@ -205,7 +192,7 @@ test.describe.skip('sidebar states — split (visible) unread bug (RED)', () => 
     restartMockServer()
     fixture = await setupMockBackend({
       extraConfig: DISABLE_AUTO_TITLE,
-      mockServer: { backgroundReleasePath: bgRelease.path },
+      mockServer: { backgroundReleasePath: bgRelease.path }
     })
     await waitForAppReady(fixture, 120_000)
   })
@@ -262,13 +249,12 @@ test.describe.skip('sidebar states — split (visible) unread bug (RED)', () => 
 
     await waitForBgProcessToFinish(page, bgRelease)
 
-    // THE BUG: the session visible in the split tile should NOT have the green
-    // "finished unread" dot — the user is looking right at it. This assertion
-    // FAILS until the fix in session-states.ts:174 lands.
+    // The session visible in the split tile should NOT have the green
+    // "finished unread" dot — the user is looking right at it.
     const unreadCount = await page.locator(`[aria-label="${UNREAD_DOT_LABEL}"]`).count()
     expect(unreadCount, 'session visible in a split tile should NOT be marked unread').toBe(0)
 
-    // Evidence: the green dot should NOT be here — this screenshot shows the bug.
+    // Evidence: the green dot is absent from the visible split session.
     await page.screenshot({ path: 'test-results/tile-bug-split-unread-should-not-exist.png' })
   })
 })

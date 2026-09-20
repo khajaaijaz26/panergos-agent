@@ -344,13 +344,7 @@ export function GroupMentionInput({ members, onChange, onSubmitDraft, value, ...
 }
 
 /** A pending prompt as the room renders it. */
-export interface GroupRoomPrompt extends GroupPrompt {
-  /** TODO(bot-mode-types): nothing ever sets this — syncGroupClarify builds
-   *  every entry without a thread — so the answer GroupClarifyCard echoes back
-   *  into the room always lands in the 'legacy' thread instead of the thread
-   *  the member asked from. */
-  thread?: string
-}
+export type GroupRoomPrompt = GroupPrompt
 
 /** A sub-question normalized for rendering: one card row, one answer. */
 interface GroupClarifyQuestion {
@@ -361,7 +355,7 @@ interface GroupClarifyQuestion {
 }
 
 interface GroupClarifyCardProps {
-  entry: GroupRoomPrompt
+  entry: GroupPrompt
   members: GroupMember[]
 }
 
@@ -442,7 +436,7 @@ export function GroupClarifyCard({ entry, members }: GroupClarifyCardProps) {
           name: 'You'
         },
         summary,
-        entry.thread || 'legacy'
+        entry.thread
       )
     } catch (err: any) {
       host.notify({

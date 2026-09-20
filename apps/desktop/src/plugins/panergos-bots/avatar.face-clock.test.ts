@@ -301,6 +301,18 @@ describe('the SDK budgeted-loop path', () => {
     expect(calls.wake).toBeGreaterThanOrEqual(2)
   })
 
+  it('reports a boolean when visibility observation is unavailable', async () => {
+    vi.stubGlobal('IntersectionObserver', undefined)
+    const { captured } = captureLoop()
+    const { startFaceClock } = await loadClock()
+
+    mountFace()
+    startFaceClock()
+    captured.draw!(1000)
+
+    expect(captured.idleWhen!()).toBe(false)
+  })
+
   it('disposes the loop and drops the window handle on stop', async () => {
     const { calls } = captureLoop()
     const { startFaceClock, stopFaceClock } = await loadClock()

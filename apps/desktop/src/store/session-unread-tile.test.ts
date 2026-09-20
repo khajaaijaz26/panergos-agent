@@ -9,11 +9,10 @@ import { createClientSessionState } from '@/lib/chat-runtime'
 import * as session from './session'
 import * as states from './session-states'
 
-// The completed-unread dot is keyed on the FOCUSED session, not the selected
-// one. A tile is never $selectedStoredSessionId, so keying either half on the
-// selection left a tiled session's dot green with no way to clear it.
+// A completion is read when its session is visible in any split pane, not only
+// when that pane owns keyboard focus.
 
-describe('completed-unread dot follows the focused session', () => {
+describe('completed-unread dot follows visible sessions', () => {
   const disposers: (() => void)[] = []
 
   afterEach(() => {
@@ -85,12 +84,12 @@ describe('completed-unread dot follows the focused session', () => {
     expect(session.$unreadFinishedSessionIds.get()).toEqual([])
   })
 
-  it('marks the primary session when a tile has focus', async () => {
+  it('does not mark the visible primary session when a tile has focus', async () => {
     const { finishTurn, session, tree } = await setup()
 
     tree.noteActiveTreeGroup('grp-tile')
     finishTurn('primary')
 
-    expect(session.$unreadFinishedSessionIds.get()).toEqual(['primary'])
+    expect(session.$unreadFinishedSessionIds.get()).toEqual([])
   })
 })

@@ -65,6 +65,8 @@ describe('CreateGroupChatDialog picker rows', () => {
 
     render(<CreateGroupChatDialog onClose={() => undefined} onCreated={() => undefined} open roster={roster} />)
 
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: /search/i }))
+
     const nameCell = screen.getByText(LONG_NAME)
     const label = nameCell.closest('label')
 

@@ -216,6 +216,7 @@ export interface GroupPrompt {
   questions?: GroupPromptQuestion[] | null
   requestId: string
   sessionId?: null | string
+  thread: string
 }
 
 export type GroupActivityKind =

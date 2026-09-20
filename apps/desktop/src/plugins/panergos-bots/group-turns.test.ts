@@ -186,6 +186,39 @@ describe('session resolution', () => {
     expect(result.stored).toBeTruthy()
     expect(result.stored).not.toBe('sid-gone')
   })
+
+  it('replaces the legacy true sentinel with the title on keyless title resume', async () => {
+    const room = await loadRoom()
+    const member: GroupMember = { name: 'research', title: '' }
+
+    await room.turns.ensureGroupChatSession('Legacy', member)
+    room.chat.updateGroupChat('Legacy', current => {
+      current.sessions = { research: true }
+
+      return current
+    })
+
+    const request = host.request as (method: string, params: Record<string, unknown>) => Promise<any>
+
+    host.request = async (method: string, params: Record<string, unknown>) => {
+      const result = await request(method, params)
+
+      if (method === 'session.resume' && params.session_id === 'Group: Legacy') {
+        const legacyResult = { ...result }
+
+        delete legacyResult.session_key
+
+        return legacyResult
+      }
+
+      return result
+    }
+
+    const resumed = await room.turns.ensureGroupChatSession('Legacy', member)
+
+    expect(resumed.stored).toBe('Group: Legacy')
+    expect(room.chat.$groupChats.get().Legacy.sessions?.research).toBe('Group: Legacy')
+  })
 })
 
 describe('session-gone classification', () => {
@@ -402,7 +435,7 @@ describe('clarify and approvals (#90694)', () => {
     const { chat, turns } = await loadRoom()
     const member: GroupMember = { name: 'research', title: '' }
 
-    expect(turns.syncGroupClarify('Core', member, { open_requests: [CLARIFY] })).toBe(true)
+    expect(turns.syncGroupClarify('Core', member, { open_requests: [CLARIFY] }, 'thread-42')).toBe(true)
 
     const mirrored = Object.values(chat.$groupClarify.get())
 
@@ -410,6 +443,7 @@ describe('clarify and approvals (#90694)', () => {
     expect(mirrored[0].requestId).toBe('req-clarify-1')
     expect(mirrored[0].question).toBe('Which env should I target?')
     expect(mirrored[0].choices).toEqual(['staging', 'prod'])
+    expect(mirrored[0].thread).toBe('thread-42')
     // Badge is derived from $groupClarify, not a copy — nothing writes
     // $groupNeedsYou here, so there is nothing to keep in sync.
     expect(turns.groupHasPendingClarify(chat.$groupClarify.get(), 'Core')).toBe(true)

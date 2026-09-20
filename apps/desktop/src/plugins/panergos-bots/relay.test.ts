@@ -29,6 +29,7 @@ import type { ProfileRoute } from './types'
 const { clearBotAttentionMock, hostMock, noteBotAttentionMock, UnboundedCache } = vi.hoisted(() => ({
   clearBotAttentionMock: vi.fn(),
   hostMock: {
+    connections: vi.fn(),
     onEvent: vi.fn(),
     profileRoutes: vi.fn(),
     requestProfile: vi.fn(),
@@ -129,6 +130,10 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
   hostMock.onEvent = vi.fn(() => vi.fn())
+  hostMock.connections = vi.fn(async () => [
+    { id: 'a', label: 'Gateway A' },
+    { id: 'b', label: 'Gateway B' }
+  ])
   hostMock.profileRoutes = vi.fn(async () => [route('a'), route('b')])
   hostMock.requestProfile = vi.fn(async () => ({}))
   hostMock.retainProfileSocket = vi.fn(() => vi.fn())
@@ -389,7 +394,7 @@ describe('the roster loop pushes the OTHER connections’ agents', () => {
 
     expect(syncs.map(call => call.connectionId)).toEqual(['a', 'b'])
     expect(syncs[0].params.agents).toEqual([
-      expect.objectContaining({ connection_id: 'b', handle: 'ops', profile: 'ops' })
+      expect.objectContaining({ connection_id: 'b', connection_label: 'Gateway B', handle: 'ops', profile: 'ops' })
     ])
     // The primary profile is published by its callable alias, never "default".
     expect(syncs[1].params.agents).toEqual([

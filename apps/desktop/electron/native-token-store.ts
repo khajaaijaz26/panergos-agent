@@ -1,14 +1,14 @@
 /**
  * native-token-store.ts
  *
- * The encrypted-at-rest persistence seam for RFC 8252 native OAuth tokens:
- * NativeTokenSet → JSON → safeStorage blob → store file, and back again on the
- * next launch.
+ * The persistence seam for RFC 8252 native OAuth tokens: NativeTokenSet → JSON
+ * → policy-encoded secret envelope → store file, and back again on the next
+ * launch.
  *
  * Kept standalone (no `import 'electron'`) so the whole restart path unit-tests
  * with the `electron` vitest project — the same pattern as native-oauth.ts.
- * main.ts owns the electron-coupled halves and injects them: the safeStorage
- * encrypt/decrypt pair and the userData store-file read/write.
+ * main.ts owns the electron-coupled halves and injects them: the active
+ * secret-storage encode/decode pair and the userData store-file read/write.
  *
  * The parser direction is the load-bearing detail. What lands on disk is the
  * *normalized* camelCase NativeTokenSet, so the reload boundary is
@@ -19,7 +19,7 @@
 
 import { type NativeTokenSet, parseStoredTokenSet } from './native-oauth'
 
-/** One encrypted blob as written per gateway base URL. */
+/** One policy-encoded secret as written per gateway base URL. */
 export interface StoredTokenSecret {
   encoding?: string
   value?: string
@@ -28,12 +28,12 @@ export interface StoredTokenSecret {
 /**
  * The narrow set of side effects main.ts owns. Everything here is injected so
  * the store/load round trip can be exercised without an Electron runtime, and
- * so production keeps using safeStorage unchanged.
+ * so production can apply its active storage policy.
  */
 export interface NativeTokenStoreIo {
   /**
-   * Encrypt one plaintext blob. main.ts passes the strict safeStorage helper,
-   * which THROWS when the OS keychain is unavailable — that must stay loud.
+   * Encode one plaintext blob. main.ts applies the active storage policy; when
+   * keychain encryption is enabled, its strict helper throws if unavailable.
    * A `null` return is treated as the same authoritative failure: the caller
    * throws rather than persisting an empty entry over good tokens.
    */
@@ -128,7 +128,7 @@ export function persistNativeTokenSet(baseUrl: string, tokens: NativeTokenSet | 
 }
 
 /**
- * Reconstruct a gateway's token set from the stored encrypted payload. Returns
+ * Reconstruct a gateway's token set from the stored secret payload. Returns
  * null when nothing is stored, when the blob cannot be decrypted, or when it
  * does not parse — never a partially-populated set.
  */

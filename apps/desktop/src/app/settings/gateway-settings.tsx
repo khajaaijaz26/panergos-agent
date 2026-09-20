@@ -891,9 +891,10 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
                 title={g.tokenTitle}
               />
 
-              {/* The saved token is on disk in plain text (no OS keyring). Same
-                  banner idiom as envOverride so it reads as a real warning. */}
-              {state.remoteTokenPlainText ? (
+              {/* Plain text is the documented default while keychain encryption
+                  is off. Warn only when an enabled keychain policy had to fall
+                  back to plain text. */}
+              {keychainEncryption && state.remoteTokenPlainText ? (
                 <div className="mt-2 flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-[length:var(--conversation-caption-font-size)] text-destructive">
                   <AlertCircle className="mt-0.5 size-4 shrink-0" />
                   <div>

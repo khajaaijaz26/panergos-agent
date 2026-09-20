@@ -1,116 +1,12 @@
 /**
- * E2E at-rest contract for the remote-gateway session token (issue #77486).
+ * E2E contract for remote-gateway tokens at rest.
  *
- * The reported bug: configuring a remote gateway persisted the dashboard
- * session token as PLAINTEXT into `connection.json` under the app's userData
- * dir (macOS `~/Library/Application Support/Panergos/connection.json`, Windows
- * `AppData\Roaming\Panergos\connection.json`). Anything that can read the file
- * — a backup, a sync client, another local process, a support bundle — got a
- * live gateway credential.
- *
- * The contract these tests encode is deliberately stated WITHOUT naming a
- * storage strategy:
- *
- *   1. ABSENT FROM DISK. After the app has been configured with a remote
- *      gateway token, the token's plaintext value must not appear anywhere in
- *      `connection.json`, in any sibling file the app writes under userData,
- *      or in PANERGOS_HOME (logs included).
- *   2. STILL FUNCTIONAL. After a restart, the app must still be able to USE
- *      that credential — it decrypts the stored blob and puts the exact
- *      original token on the wire.
- *   3. UNREADABLE BY OTHER LOCAL ACCOUNTS. `connection.json` must not be
- *      group/other-accessible, whether the app just wrote it or inherited it
- *      from an older install.
- *
- * All three matter and none is sufficient alone. (1) alone is trivially
- * satisfied by a "fix" that drops the token on the floor; (2) alone is
- * satisfied by the bug itself. So (2) is verified through the app's own
- * connection test against a fake gateway that records the
- * `X-Panergos-Session-Token` header it receives — a dropped or mangled token
- * cannot produce that header.
- *
- * (3) is orthogonal to (1) and invisible to it: safeStorage keeps the token
- * opaque no matter what the file's mode is, so a 0644 `connection.json` passes
- * the raw-bytes scan every time while still exposing the ciphertext blob, the
- * gateway URL and the SSH host/user/keyPath to any other local account. It is
- * asserted explicitly (see `expectOwnerOnlyMode`) because no amount of
- * encryption evidence implies it.
- *
- * We deliberately do NOT assert `encoding === 'safeStorage'` or any other
- * shape of the stored blob. That would be a change-detector: a fix that moved
- * to the OS keychain proper, to an async safeStorage provider, or to a
- * separate credential file would break the test while being *more* correct.
- * The load-bearing assertion is the raw-bytes absence of the secret.
- *
- * Four at-rest paths, hence four tests — three enforced, one a documented gap:
- *
- *   1. A NEWLY configured token (ACTIVE). The app's own write path routes
- *      through the strict `encryptDesktopSecret`; this test holds it there
- *      against regression, and pins the mode of the file it actually wrote.
- *   2. An EXISTING `connection.json` at the old 0644 (ACTIVE). Covers the
- *      read-side tighten, and ONLY the mode — its token is already ciphertext,
- *      which is what keeps it independent of the migration test 4 defers.
- *   3. A CORRUPT `connection.json` at 0644 (ACTIVE). The tighten must not be
- *      gated on the parse succeeding: a truncated file still holds the token
- *      bytes, and the parse failure is swallowed, so nothing would ever come
- *      back for it.
- *   4. An EXISTING plaintext `connection.json` (`test.fixme`). Legacy payloads
- *      are deliberately NOT migrated yet. The test is kept, disabled, with a
- *      precise reason — see the block comment above it.
- *
- * ── Correcting the record on test 4 ─────────────────────────────────────
- *
- * An earlier revision of this file asserted that migration and justified it by
- * claiming the first implementation (`d3d177283`) fell back to
- * `{ encoding: 'plain', value }` when `isEncryptionAvailable()` was false.
- * That citation is FALSE for this codebase. What is actually true:
- *
- *   git merge-base --is-ancestor d3d1772837a7b0552940b55455ae734c72e0a8f1 HEAD  -> 1 (NOT an ancestor)
- *   git merge-base --is-ancestor 51c68d4ab1a9e3c62fb1048fccb84144c409f0e7 HEAD  -> 0 (IS an ancestor)
- *   git log -S 'Fall through to plaintext' upstream/main -- apps/desktop        -> (no commits)
- *
- * `d3d177283` exists only on `upstream/bb/gui-mainmerge-tmp`,
- * `brooklyn/gui-installer-prereqs`, and the `desktop-pr20059-installers`
- * pre-release tag. Mainline NEVER shipped a code path that wrote a plaintext
- * gateway token: `51c68d4ab` ("Add Panergos desktop app (#20059)"), the commit
- * that brought the desktop app to mainline, already contained the strict
- * throw ("Secure token storage is unavailable, …") in `hardening.cjs`.
- *
- * One `{ encoding: 'plain', value }` literal does remain on mainline
- * (`electron/main.ts`, in `coerceDesktopConnectionConfig`), but it is
- * unreachable as an at-rest write: it is gated on `persistToken === false`,
- * whose only caller is the connection-TEST handler, which never calls
- * `writeDesktopConnectionConfig`. That token stays in memory for the duration
- * of one probe.
- *
- * So the affected population is not "anyone who configured a gateway before
- * the fix". It is narrow and non-mainline: pre-release `bb/gui` installs
- * (including the `desktop-pr20059-installers` build) plus hand-edited or
- * hand-migrated `connection.json` files. Those files DO still work, because
- * `decryptDesktopSecret` returns any non-safeStorage `value` verbatim on read
- * — the read path is intentionally unchanged, so nobody is signed out. That
- * read-path acceptance, not a mainline writer, is what makes the fixme'd
- * fixture realistic.
- *
- * Migration is DEFERRED, not forgotten. An adversarial review of the
- * migration that briefly lived here returned DO NOT SHIP, having reproduced
- * two token-loss scenarios: it silently reverts and then destroys the opt-in
- * plaintext choice that open upstream PR #62319 deliberately adds; and it
- * converts a portable credential into a keychain-bound one with no consent,
- * destroying the only recoverable copy while not actually remediating the
- * exposure (the plaintext is already in backups, so the real remedy is
- * ROTATION). The prerequisites are enumerated above test 2.
- *
- * Environment limits are encoded rather than papered over. Electron's
- * safeStorage is unavailable on Linux with no keyring, which is the shape of
- * this suite's CI runner (ubuntu-latest, see .github/workflows/e2e-desktop.yml).
- * The absence assertion is unconditional there — it is the security
- * requirement, and it must hold in every environment. Only the *other* half is
- * conditional: with secure storage the save must succeed, and without it the
- * save must fail loudly (which is what the current strict `encryptDesktopSecret`
- * does) instead of quietly writing plaintext. See the branch comments in each
- * test for the reasoning, including the one case this spec refuses to invent a
- * policy for.
+ * Keychain encryption is optional and off by default. Under either policy the
+ * connection file must be owner-only, a saved token must survive a restart,
+ * and the app must send the exact token to the gateway. When encryption is
+ * enabled, plaintext token bytes must not appear anywhere under userData or
+ * PANERGOS_HOME. Existing 0644 files are tightened on first read even when the
+ * JSON is corrupt.
  *
  * Prerequisite: `npm run build` must have been run so dist/ exists.
  */
@@ -722,14 +618,6 @@ test.describe('remote gateway session token at rest', () => {
    * save would leave the file group/other-readable indefinitely, which is why
    * `readDesktopConnectionConfig` tightens on a cache miss.
    *
-   * Scoped to the MODE, and deliberately independent of the deferred migration
-   * below. The fixture's token is already safeStorage ciphertext (the app wrote
-   * it), so nothing here re-encrypts anything, touches the #62319 opt-in
-   * plaintext marker, or needs rotation guidance — the three prerequisites that
-   * keep the next test fixme'd. Tightening a permission bit neither performs a
-   * migration nor claims to, so it can be covered now while migration stays
-   * deferred.
-   *
    * The fixture is produced by the app itself rather than hand-written, so the
    * only difference from a real pre-fix install is the one bit under test.
    */
@@ -739,22 +627,6 @@ test.describe('remote gateway session token at rest', () => {
 
     const first = await launchAgainst(sandbox)
     app = first.app
-
-    const capability = await readSafeStorageCapability(app)
-
-    test.info().annotations.push({
-      description: `isEncryptionAvailable=${capability.available} backend=${capability.backend}`,
-      type: 'safeStorage',
-    })
-
-    if (!capability.available) {
-      // Without secure storage the save is refused by design, so there is no
-      // app-written artifact to loosen and re-read. The refusal itself is
-      // already asserted in the first test.
-      test.skip(true, 'secure storage unavailable on this host — no app-written connection.json to tighten')
-
-      return
-    }
 
     const userDataDir = await resolveUserDataDir(app)
     const connectionFile = path.join(userDataDir, 'connection.json')
@@ -766,7 +638,7 @@ test.describe('remote gateway session token at rest', () => {
     app = null
 
     // Regress the file to what a pre-fix install has on disk. Everything else
-    // about it — including the encrypted token — is exactly what the app wrote.
+    // about it — including the token envelope — is exactly what the app wrote.
     fs.chmodSync(connectionFile, 0o644)
     expect(fs.statSync(connectionFile).mode & 0o077, 'the fixture must start group/other-accessible').not.toBe(0)
 
@@ -866,134 +738,4 @@ test.describe('remote gateway session token at rest', () => {
     ).toBeLessThan(1)
   })
 
-  /**
-   * DEFERRED GAP — legacy plaintext payloads are not migrated.
-   *
-   * Held as `fixme` rather than deleted: the fixture below is the correct
-   * fixture for the population that a migration must eventually cover, and
-   * the harness (seed → boot-poll → authoritative re-save → raw-bytes scan →
-   * wire check) is the harness such a migration needs. Keeping it typechecked
-   * and listed makes the gap visible in `--list` and in every report; deleting
-   * it would make the gap invisible and cost the next implementer this setup.
-   *
-   * It is NOT enabled because the migration it asserted was reviewed
-   * DO NOT SHIP. Before this can be un-fixme'd, three prerequisites (see the
-   * header, and the matching note in electron/main.ts readDesktopConnectionConfig):
-   *
-   *   1. Sequence with #62319's opt-in plaintext marker, so a user who
-   *      deliberately chose plaintext is not silently overridden. This
-   *      fixture has NO marker, so it stays in scope for migration — but the
-   *      implementation must be able to tell the two apart.
-   *   2. Write through the config sanitizer, not around it.
-   *   3. Surface ROTATION guidance. Re-encrypting cannot un-expose a secret
-   *      that is already in a backup; it only prevents future exposure.
-   *
-   * Un-fixme'ing this without (1) risks destroying a deliberate user choice,
-   * and without (3) it reports a remediation it did not actually perform.
-   */
-  test('an existing plaintext connection.json is migrated off plaintext and keeps working', async () => {
-    test.fixme(
-      true,
-      'Deferred: legacy plaintext connection.json is intentionally NOT migrated. ' +
-        'Affected population is pre-release bb/gui installs (incl. the desktop-pr20059-installers build) ' +
-        'plus hand-edited configs — mainline never wrote a plaintext gateway token. ' +
-        'Blocked on: (1) #62319 opt-in-marker coordination, (2) writing through the config sanitizer, ' +
-        '(3) surfacing token-rotation guidance. Re-encrypting alone does not remediate an already-backed-up secret.',
-    )
-
-    const fake = gateway!
-    sandbox = createSandbox('at-rest-migrate')
-
-    // Seed the file an affected user has on disk. This is live, usable
-    // plaintext rather than a strawman, because `decryptDesktopSecret` returns
-    // `value` verbatim for any non-safeStorage encoding — the READ path
-    // accepts it. Note what does NOT justify this fixture: mainline never
-    // WROTE this shape to disk. `coerceDesktopConnectionConfig` does build it,
-    // but only under `persistToken: false`, whose sole caller is the
-    // connection-test handler, which never persists. The writers were
-    // non-mainline pre-release builds and hand edits. There is deliberately no
-    // opt-in marker here, so this payload is in scope for a future migration.
-    fs.writeFileSync(
-      path.join(sandbox.userDataDir, 'connection.json'),
-      JSON.stringify(
-        {
-          mode: 'remote',
-          profiles: {},
-          remote: {
-            authMode: 'token',
-            token: { encoding: 'plain', value: SENTINEL_TOKEN },
-            url: fake.url,
-          },
-        },
-        null,
-        2,
-      ),
-      'utf8',
-    )
-
-    const launched = await launchAgainst(sandbox)
-    app = launched.app
-
-    const capability = await readSafeStorageCapability(app)
-
-    test.info().annotations.push({
-      description: `isEncryptionAvailable=${capability.available} backend=${capability.backend}`,
-      type: 'safeStorage',
-    })
-
-    if (!capability.available) {
-      // With no secure storage there is nowhere to migrate the secret TO, and
-      // scrubbing it would silently sign the user out of a working gateway.
-      // Asserting either outcome here would be inventing policy.
-      test.skip(
-        true,
-        'secure storage unavailable on this host — the correct migration policy for an existing plaintext file is undecided',
-      )
-
-      return
-    }
-
-    const userDataDir = await resolveUserDataDir(app)
-    const connectionFile = path.join(userDataDir, 'connection.json')
-    const needles = secretNeedles(SENTINEL_TOKEN)
-
-    // Two chances, so the test does not depend on WHERE the fix hooks the
-    // migration: (a) on read at boot, (b) on the next authoritative write.
-    // Poll for (a) first.
-    const deadline = Date.now() + 15_000
-    let stillPlaintext = true
-
-    while (Date.now() < deadline) {
-      stillPlaintext = readIfExists(connectionFile).includes(needles[0].bytes)
-
-      if (!stillPlaintext) {
-        break
-      }
-
-      await launched.page.waitForTimeout(500)
-    }
-
-    if (stillPlaintext) {
-      // (b) A real save through the app's own surface, carrying no new token —
-      // the stored blob is inherited. Re-persisting an inherited secret is the
-      // other place plaintext must not survive.
-      const resaved = await saveRemoteToken(launched.page, fake.url)
-      expect(resaved.error, 'a re-save that inherits the stored token must not fail').toBeNull()
-    }
-
-    expect(
-      scanTreeForSecret(userDataDir, needles),
-      'an existing plaintext gateway token must not remain readable under userData after the app has run ' +
-        `(stored token encoding is still "${storedTokenEncoding(connectionFile)}")`,
-    ).toEqual([])
-
-    // And the migration must not have cost the user their credential.
-    const before = fake.sessionTokens.length
-    await exerciseStoredToken(launched.page, fake.url)
-
-    expect(
-      fake.sessionTokens.slice(before),
-      'the migrated token must still reach the gateway unchanged',
-    ).toContain(SENTINEL_TOKEN)
-  })
 })

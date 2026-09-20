@@ -103,12 +103,11 @@ const relay: RelayLifecycle = {
 // exemption). stopBotRelay releases everything.
 const relayRouteRetentions = new Map<string, () => void>()
 
-/** One reachable gateway plus a representative route onto it. The route comes
- *  from `host.profileRoutes()`, which carries identity only — the optional
- *  label fields are read defensively in relayAgentsOn and never arrive. */
+/** One reachable gateway plus its human label and a representative route. */
 interface RelayConnection {
   id: string
-  route: ProfileRoute & { connectionLabel?: string; label?: string }
+  label: string
+  route: ProfileRoute
 }
 
 /** One agent as pushed to a peer gateway's relay roster. */
@@ -185,6 +184,25 @@ async function relayConnections(): Promise<RelayConnection[]> {
   try {
     const routes = await host.profileRoutes()
     const byConnection = new Map<string, ProfileRoute>()
+    const labels = new Map<string, string>()
+
+    if (typeof host.connections === 'function') {
+      try {
+        const value: any = await host.connections()
+        const rows = Array.isArray(value) ? value : Array.isArray(value?.connections) ? value.connections : []
+
+        for (const row of rows) {
+          const id = String(row?.id || '').trim()
+          const label = String(row?.label || '').trim()
+
+          if (id && label) {
+            labels.set(id, label)
+          }
+        }
+      } catch {
+        // Labels are cosmetic; relay routing still works from profile routes.
+      }
+    }
 
     for (const route of Array.isArray(routes) ? routes : []) {
       const id = String(route?.connectionId || '')
@@ -196,6 +214,7 @@ async function relayConnections(): Promise<RelayConnection[]> {
 
     return [...byConnection.entries()].map(([id, route]) => ({
       id,
+      label: labels.get(id) || id,
       route
     }))
   } catch {
@@ -216,18 +235,13 @@ async function relayAgentsOn(connection: RelayConnection): Promise<RelayAgentRow
     })
 
     const profiles = Array.isArray(res?.profiles) ? res.profiles : []
-    // TODO(bot-mode-types): neither `connectionLabel` nor `label` can exist on
-    // a `host.profileRoutes()` route (connectionId / mode / profile /
-    // targetProfile only), so this always falls through to the raw connection
-    // id and peer gateways list agents by id instead of the human label.
-    const label = String(connection.route?.connectionLabel || connection.route?.label || connection.id)
 
     return profiles
       .map(profile => ({
         profile: String(profile?.name || ''),
         handle: botHandle(profile?.name, profile),
         connection_id: connection.id,
-        connection_label: label,
+        connection_label: connection.label,
         title: String(profile?.ui_meta?.['panergos-bots']?.title || profile?.display_name || ''),
         description: String(profile?.description || '')
       }))

@@ -114,8 +114,8 @@ interface GroupSessionSnapshot {
 interface GroupMemberSessionHandle {
   /** Live runtime id every RPC in this turn targets. */
   runtime: null | string
-  /** Durable id persisted in `room.sessions`; `true` is the legacy sentinel. */
-  stored?: null | string | true
+  /** Durable id persisted in `room.sessions`. */
+  stored?: null | string
 }
 
 /** Ensure the member's per-group session exists and return a LIVE runtime
@@ -167,14 +167,9 @@ export async function ensureGroupChatSession(group: string, member: GroupMember)
         }
 
         if (res?.session_id) {
-          // TODO(bot-mode-types): `known` is `room.sessions[key]`, which the
-          // domain model types `string | true` — and the `target === true` skip
-          // above shows the legacy `true` sentinel is expected here. A backend
-          // that answers the title resume without a `session_key` therefore
-          // stores `true` back into room.sessions and hands `true` on as the
-          // durable id, which later rides into `session_id` on the recovery
-          // resume and on session.interrupt. Typed as-written.
-          const stored = res.session_key || known
+          // Older gateways omit session_key. The target that successfully
+          // resumed is still durable; `known` may only be a legacy boolean.
+          const stored = res.session_key || target
 
           if (stored) {
             updateGroupChat(group, (current: GroupChatRoom) => {
@@ -391,7 +386,7 @@ async function retainGroupTurnRoute(member: GroupMember): Promise<() => void> {
 async function submitGroupTurnPrompt(
   member: GroupMember,
   runtime: string,
-  stored: null | string | true | undefined,
+  stored: GroupMemberSessionHandle['stored'],
   text: string
 ): Promise<string> {
   try {
@@ -443,7 +438,12 @@ const GROUP_TURN_HARD_CAP_MS = 20 * 60000
  *  payload always sync to "no prompt". Clarify wins when both are somehow
  *  present (approvals resolve inside tool batches; clarify is the outer
  *  blocker). */
-export function syncGroupClarify(group: string, member: GroupMember, state: GroupSessionSnapshot | null): boolean {
+export function syncGroupClarify(
+  group: string,
+  member: GroupMember,
+  state: GroupSessionSnapshot | null,
+  thread = 'legacy'
+): boolean {
   const key = `${group}::${groupMemberKey(member)}`
 
   const openClarify = Array.isArray(state?.open_requests)
@@ -490,6 +490,7 @@ export function syncGroupClarify(group: string, member: GroupMember, state: Grou
     group,
     member: member.name,
     memberKey: groupMemberKey(member),
+    thread,
     // approval.respond keys on the session, not just the request — carry the
     // runtime id the snapshot came from.
     sessionId: state?.session_id || null,
@@ -828,7 +829,7 @@ async function pollGroupMemberTurn(context: GroupTurnPollContext): Promise<null 
     // A clarify blocking inside the member's session is a question for the
     // HUMAN (#90694) — mirror it into the room store so a card renders, and
     // hold the turn open: the member isn't stalling, it's waiting on us.
-    const awaitingUser = syncGroupClarify(context.group, member, state)
+    const awaitingUser = syncGroupClarify(context.group, member, state, thread)
     const done = !busy && !awaitingUser
 
     if (messages.length > before && done) {
@@ -1023,7 +1024,7 @@ export async function harvestStrandedGroupReply(group: string, member: GroupMemb
     }
 
     // Pending prompts are authoritative even while the session is running.
-    const awaitingUser = syncGroupClarify(group, member, state)
+    const awaitingUser = syncGroupClarify(group, member, state, strandedThread)
 
     if (state?.inflight || state?.running || awaitingUser) {
       return

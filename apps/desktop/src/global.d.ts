@@ -866,13 +866,13 @@ export interface DesktopConnectionConfig {
   remoteOauthConnected: boolean
   remoteTokenPreview: string | null
   remoteTokenSet: boolean
-  // Whether OS-keychain-backed encryption (Electron safeStorage) is currently
-  // available on this machine. When false, a persisted remote token can only be
-  // stored as plain text on disk (with an explicit opt-in).
+  // Whether the current storage policy can save secrets without a fallback
+  // confirmation. Always true while keychain encryption is off; while it is on,
+  // reflects Electron safeStorage availability.
   secureTokenStorage: boolean
   // Whether the currently-persisted remote token is stored with encoding
-  // 'plain' (i.e. plain text on disk in connection.json), which happens when
-  // the user opted in on a machine without secure storage.
+  // 'plain' (i.e. plain text on disk in connection.json). This is the default
+  // while keychain encryption is off and can also be an explicit fallback.
   remoteTokenPlainText: boolean
   remoteUrl: string
   sshHost: string
@@ -967,8 +967,8 @@ export interface DesktopConnectionsRegistry {
   // Last source the Sessions workspace opened successfully. Optional for
   // compatibility with an older Electron main during a rolling app update.
   lastUsed?: string
-  // Whether OS-keychain-backed encryption (Electron safeStorage) is available;
-  // false drives the plain-text token opt-in on keyring-less Linux.
+  // Whether the current storage policy can save secrets without a fallback
+  // confirmation. See DesktopConnectionConfig.secureTokenStorage.
   secureTokenStorage: boolean
   connections: DesktopRegistryConnection[]
 }
@@ -980,13 +980,15 @@ export interface DesktopRegistryConnectionInput {
   label: string
   url?: string
   authMode?: 'oauth' | 'token'
-  // Plaintext token to store (encrypted at rest); omit to keep the saved one.
+  // Plaintext token to store under the current secret-storage policy; omit to
+  // keep the saved one.
   token?: string
   allowPlainTextToken?: boolean
   // Extra gateway headers for remote entries (access proxies such as
   // Cloudflare Access). The map is authoritative when present: name → new
-  // plaintext value (encrypted at rest), or null to keep the stored secret
-  // for that name. Omit the field entirely to keep the saved set unchanged.
+  // plaintext value stored under the current secret-storage policy, or null to
+  // keep the stored secret for that name. Omit the field entirely to keep the
+  // saved set unchanged.
   headers?: Record<string, null | string>
   host?: string
   user?: string
@@ -1202,7 +1204,7 @@ export interface PanergosApiRequest {
   body?: unknown
   // Single-file multipart upload (FastAPI UploadFile endpoints). Mutually
   // exclusive with `body`; bytes transfer over IPC as a structured-clone
-  // ArrayBuffer. Token-mode backends only.
+  // ArrayBuffer. Supported by token- and OAuth-authenticated backends.
   upload?: { filename: string; contentType?: string; bytes: ArrayBuffer }
   timeoutMs?: number
   // Route this REST call to a specific profile's backend. Omit for the primary

@@ -492,6 +492,12 @@ export function CreateAgentDialog({ open, onClose, roster }: CreateAgentDialogPr
     return flight
   }
 
+  const ensureMcpProfile = async () => {
+    const created = await ensureAgentCreated()
+
+    return created && remoteTarget ? { connectionId: targetConnection, profile: created } : created
+  }
+
   const submit = async () => {
     if (!valid || taken || busy) {
       return
@@ -940,7 +946,7 @@ export function CreateAgentDialog({ open, onClose, roster }: CreateAgentDialogPr
                               ) : null}
                               {needsSetup ? (
                                 <McpSetupButton
-                                  ensureProfile={ensureAgentCreated}
+                                  ensureProfile={ensureMcpProfile}
                                   entry={m}
                                   onDone={() => {
                                     // Setup done: mark installed so the row's
@@ -966,7 +972,11 @@ export function CreateAgentDialog({ open, onClose, roster }: CreateAgentDialogPr
                                       mcp: true
                                     }))
                                   }}
-                                  profile={createdRef.current}
+                                  profile={
+                                    remoteTarget
+                                      ? { connectionId: targetConnection, profile: createdRef.current || slug }
+                                      : createdRef.current
+                                  }
                                 />
                               ) : null}
                               {m.description ? (
@@ -1132,6 +1142,7 @@ export function CreateGroupChatDialog({ open, roster, onClose, onCreated }: Crea
   const [checked, setChecked] = useState<Record<string, boolean>>({})
   const [name, setName] = useState('')
   const [image, setImage] = useState<null | string>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Reset per open so a cancelled draft doesn't leak into the next one.
   useEffect(() => {
@@ -1140,6 +1151,7 @@ export function CreateGroupChatDialog({ open, roster, onClose, onCreated }: Crea
       setChecked({})
       setName('')
       setImage(null)
+      searchInputRef.current?.focus()
     }
   }, [open])
 
@@ -1222,13 +1234,11 @@ export function CreateGroupChatDialog({ open, roster, onClose, onCreated }: Crea
           <DialogTitle>{b.group.newTitle}</DialogTitle>
           <DialogDescription>{`Pick 2–${GROUP_CHAT_MAX_MEMBERS} bots. Local memberships sync through each Bot profile; cross-machine members stay scoped to this room.`}</DialogDescription>
         </DialogHeader>
-        {/* TODO(bot-mode-types): this search box never takes focus when the dialog
-            opens — SearchField accepts no `autoFocus` prop and forwards no extra
-            props, so the `autoFocus` that used to sit here was inert. */}
         <SearchField
           aria-label={b.group.searchToAdd}
           containerClassName="w-full"
           inputClassName="w-full"
+          inputRef={searchInputRef}
           onChange={setQuery}
           placeholder={b.group.searchToAddPlaceholder}
           value={query}

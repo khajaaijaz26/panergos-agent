@@ -186,10 +186,7 @@ export default {
     // every settle path — the roster holds a loading state until it does,
     // and a storage quirk must not strand it there.
     try {
-      // TODO(bot-mode-types): PluginStorage.get(key, fallback) requires the fallback; every
-      // Bot Mode read omits it (works at runtime, undefined fallback) — same at the two reads below.
-      // @ts-expect-error typed as written rather than changing the call.
-      Promise.resolve(ctx.storage?.get?.('selected-roster-bot-v1'))
+      Promise.resolve(ctx.storage.get('selected-roster-bot-v1', ''))
         .then(value => {
           if (typeof value === 'string' && value.trim()) {
             $selectedRosterKey.set(value.trim())
@@ -208,8 +205,7 @@ export default {
 
     // Hydrate the activity-toast pref (default OFF).
     try {
-      // @ts-expect-error TODO(bot-mode-types): PluginStorage.get requires a fallback argument.
-      Promise.resolve(ctx.storage?.get?.('activity-toasts'))
+      Promise.resolve(ctx.storage.get('activity-toasts', false))
         .then(value => {
           if (typeof value === 'boolean') {
             $activityToasts.set(value)
@@ -223,8 +219,7 @@ export default {
     // Hydrate persisted group-chat room logs (epoch/running are runtime-only
     // and always reset — a loop can't survive a window reload anyway).
     try {
-      // @ts-expect-error TODO(bot-mode-types): PluginStorage.get requires a fallback argument.
-      Promise.resolve(ctx.storage?.get?.('group-chats'))
+      Promise.resolve(ctx.storage.get<Record<string, GroupChat>>('group-chats', {}))
         .then(async value => {
           if (value && typeof value === 'object' && !Array.isArray(value)) {
             const rooms: Record<string, GroupChat> = {}

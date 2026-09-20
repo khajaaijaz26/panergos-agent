@@ -43,6 +43,26 @@ export async function requestWithOauthFallback<T>(baseUrl: string, deps: OauthRe
   return nativeAccessToken ? deps.requestWithBearer(nativeAccessToken) : deps.requestWithCookie()
 }
 
+export interface OauthJsonRequestDeps<T> {
+  ensureNativeAccessToken: OauthRestRequestDeps<T>['ensureNativeAccessToken']
+  fetchJson: (url: string, token: null, options: any) => Promise<T>
+  fetchJsonViaOauthSession: (url: string, options: any) => Promise<T>
+}
+
+/** Route one REST request without dropping body options such as uploads. */
+export function requestOauthJson<T>(
+  baseUrl: string,
+  url: string,
+  options: any,
+  deps: OauthJsonRequestDeps<T>
+): Promise<T> {
+  return requestWithOauthFallback(baseUrl, {
+    ensureNativeAccessToken: deps.ensureNativeAccessToken,
+    requestWithBearer: bearer => deps.fetchJson(url, null, { ...options, bearer }),
+    requestWithCookie: () => deps.fetchJsonViaOauthSession(url, options)
+  })
+}
+
 export interface MintGatewayWsTicketDeps {
   ensureNativeAccessToken: OauthRestRequestDeps<unknown>['ensureNativeAccessToken']
   fetchJson: (url: string, token: string | null, options: any) => Promise<any>

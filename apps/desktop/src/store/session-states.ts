@@ -376,6 +376,23 @@ function clearSettled(storedId: string) {
   settledExpiry.delete(storedId)
 }
 
+/** True when any chat surface in this window is actually showing the session. */
+function sessionIsVisible(storedId: string): boolean {
+  const aliases = lineageAliases(storedId, $sessions.get())
+  const focused = $focusedStoredSessionId.get()
+  const selected = $selectedStoredSessionId.get()
+
+  return (
+    Boolean(focused && aliases.includes(focused)) ||
+    Boolean(selected && aliases.includes(selected) && isPaneVisible('workspace')) ||
+    $sessionTiles
+      .get()
+      .some(
+        tile => aliases.includes(tile.storedSessionId) && isPaneVisible(`${TILE_PANE_PREFIX}${tile.storedSessionId}`)
+      )
+  )
+}
+
 /** Stored ids whose turn ended within the grace window. Prunes expired. */
 export function getRecentlySettledSessionIds(now: number = Date.now()): string[] {
   const live: string[] = []
@@ -441,9 +458,9 @@ function handleTransition(previous: ClientSessionState | null, next: ClientSessi
   } else if (!next.busy && wasWorking) {
     markSettled(storedId)
 
-    // FOCUSED, not selected: a session finishing in the tile the user is
-    // watching is already seen, and a tile is never the primary selection.
-    if (storedId !== $focusedStoredSessionId.get()) {
+    // A split can show several sessions at once. Only hidden tabs/background
+    // sessions are unread; finishing in any visible pane is already seen.
+    if (!sessionIsVisible(storedId)) {
       // Re-light only genuinely new completions: if the user already viewed
       // this session (or its family) at or after this settle moment, a
       // re-assert of the same completion must not re-arm the dot. `-1` for

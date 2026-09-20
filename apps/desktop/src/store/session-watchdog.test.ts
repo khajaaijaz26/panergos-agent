@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { ClientSessionState } from '@/app/types'
+import { group, split } from '@/components/pane-shell/tree/model'
+import { $layoutTree } from '@/components/pane-shell/tree/store'
 import { createClientSessionState } from '@/lib/chat-runtime'
 
 import { $activeSessionId, $selectedStoredSessionId, $unreadFinishedSessionIds } from './session'
 import {
   $attentionSessionIds,
+  $sessionTiles,
   $stalledSessionIds,
   $workingSessionIds,
   clearAllSessionStates,
@@ -30,6 +33,8 @@ describe('session status transitions', () => {
     $unreadFinishedSessionIds.set([])
     $selectedStoredSessionId.set(null)
     $activeSessionId.set(null)
+    $sessionTiles.set([])
+    $layoutTree.set(null)
   })
 
   afterEach(() => {
@@ -39,6 +44,8 @@ describe('session status transitions', () => {
     $unreadFinishedSessionIds.set([])
     $selectedStoredSessionId.set(null)
     $activeSessionId.set(null)
+    $sessionTiles.set([])
+    $layoutTree.set(null)
   })
 
   it('adds a session to $workingSessionIds when busy transitions to true', () => {
@@ -88,6 +95,28 @@ describe('session status transitions', () => {
     publishSessionState('rt1', { ...working, busy: false })
 
     expect($unreadFinishedSessionIds.get()).toEqual([])
+  })
+
+  it('does not mark a visible split session unread, but still marks a hidden tab', () => {
+    $selectedStoredSessionId.set('main')
+    $sessionTiles.set([{ runtimeId: 'rt1', storedSessionId: 's1' }])
+    const working = state({ busy: true, storedSessionId: 's1' })
+
+    $layoutTree.set(
+      split('row', [
+        group(['workspace'], { active: 'workspace', id: 'main' }),
+        group(['session-tile:s1'], { active: 'session-tile:s1', id: 'split' })
+      ])
+    )
+    publishSessionState('rt1', working)
+    publishSessionState('rt1', { ...working, busy: false })
+    expect($unreadFinishedSessionIds.get()).toEqual([])
+
+    $unreadFinishedSessionIds.set([])
+    $layoutTree.set(group(['workspace', 'session-tile:s1'], { active: 'workspace', id: 'stack' }))
+    publishSessionState('rt1', { ...working, busy: true })
+    publishSessionState('rt1', { ...working, busy: false })
+    expect($unreadFinishedSessionIds.get()).toEqual(['s1'])
   })
 
   it('does NOT mark unread on idle→idle re-asserts (no prior working state)', () => {

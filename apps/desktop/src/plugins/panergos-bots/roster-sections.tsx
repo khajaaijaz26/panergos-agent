@@ -222,20 +222,21 @@ export function GatewayKindGlyph({ className, kind }: GatewayKindGlyphProps) {
 
 /** Foldable roster heading. It organizes rows visually but never supplies or
  * reconstructs ownership; every action still receives the full bot row. */
-interface RosterSectionHeaderProps {
+interface RosterSectionHeaderBaseProps {
   /** Trailing control drawn beside the heading (outside its button — a
    *  button cannot nest a button). User sections put their ⋯ menu here. */
   action?: ReactNode
   collapsed: boolean
   count: number
-  gatewayKind?: string
-  icon?: string
   label: string
   onDoubleClick?: () => void
   onToggle: () => void
   status?: { available: boolean; label: string }
   tip?: string
 }
+
+type RosterSectionHeaderProps = RosterSectionHeaderBaseProps &
+  ({ gatewayKind: string; icon?: never } | { gatewayKind?: never; icon: string })
 
 export function RosterSectionHeader({
   action,
@@ -260,12 +261,9 @@ export function RosterSectionHeader({
       onDoubleClick={onDoubleClick}
     >
       <DisclosureCaret open={!collapsed} />
-      {gatewayKind ? (
+      {gatewayKind !== undefined ? (
         <GatewayKindGlyph kind={gatewayKind} />
       ) : (
-        // TODO(bot-mode-types): neither `gatewayKind` nor `icon` is required, so a header
-        // given neither renders `codicon-undefined`. Both current callers pass exactly one.
-        // @ts-expect-error `icon` is optional here; Codicon's `name` is required.
         <Codicon className="shrink-0" name={icon} />
       )}
       <span className="flex min-w-0 items-center gap-1">

@@ -228,6 +228,48 @@ describe('materializing the draft profile', () => {
       })
     )
   })
+
+  it('keeps a remote draft MCP setup on its selected connection', async () => {
+    mocks.connections.mockResolvedValue([
+      { id: 'local', label: 'This Mac' },
+      { id: 'studio', label: 'Studio' }
+    ])
+    mocks.requestProfile.mockImplementation(async (_route?: unknown, method?: string) => {
+      if (method === 'mcp.catalog') {
+        return { servers: [catalog] }
+      }
+
+      return {}
+    })
+
+    await renderDialog(false)
+    await screen.findByText('Create on')
+    fireEvent.click(controlUnder('Create on'))
+    fireEvent.click(await screen.findByRole('option', { name: 'Studio' }))
+    fireEvent.click(screen.getByRole('button', { name: 'MCP' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Set up/ }))
+
+    await waitFor(() =>
+      expect(mocks.requestProfile).toHaveBeenCalledWith(
+        expect.objectContaining({ connectionId: 'studio' }),
+        'profiles.create',
+        expect.objectContaining({ name: 'inbox-triage' })
+      )
+    )
+    await waitFor(() =>
+      expect(mocks.requestProfile).toHaveBeenCalledWith(
+        {
+          connectionId: 'studio',
+          mode: 'remote',
+          profile: 'inbox-triage',
+          targetProfile: 'inbox-triage'
+        },
+        'mcp.servers.add',
+        { name: 'linear', preset: 'linear', profile: 'inbox-triage' }
+      )
+    )
+    expect(mocks.request.mock.calls.some(([method]) => method === 'mcp.servers.add')).toBe(false)
+  })
 })
 
 describe('the clone-from default', () => {

@@ -274,9 +274,13 @@ import {
 import { runNativeLogin } from './native-oauth-login'
 import { loadNativeTokenSet, type NativeTokenStoreIo, persistNativeTokenSet } from './native-token-store'
 import { registerNativeNotifications } from './notification-ipc'
-import { serializeJsonBody, setJsonRequestHeaders } from './oauth-net-request'
+import { multipartBody, serializeJsonBody, setJsonRequestHeaders } from './oauth-net-request'
 import { LEGACY_OAUTH_PARTITION, resolveOauthPartition } from './oauth-partition'
-import { mintGatewayWsTicket as mintOauthGatewayWsTicket, requestWithOauthFallback } from './oauth-rest-request'
+import {
+  mintGatewayWsTicket as mintOauthGatewayWsTicket,
+  requestOauthJson,
+  requestWithOauthFallback
+} from './oauth-rest-request'
 import { wireOauthSessionResponse } from './oauth-session-response'
 import { createParentStartMarkerResolver, parentWatchdogEnv } from './parent-process-identity'
 import { registerPetOverlayIpc } from './pet-overlay-ipc'
@@ -5392,26 +5396,6 @@ async function runEnsureRuntime(backend: any): Promise<any> {
   return backend
 }
 
-// Assemble a single-file multipart/form-data body (FastAPI `UploadFile`
-// endpoints, e.g. kanban attachments). Hand-rolled because node's http has no
-// FormData and the payload is one file — a dependency would be overkill.
-function multipartBody(upload) {
-  const boundary = `----panergos-${crypto.randomBytes(12).toString('hex')}`
-  const filename = String(upload.filename || 'file').replace(/["\r\n]/g, '_')
-
-  const body = Buffer.concat([
-    Buffer.from(
-      `--${boundary}\r\n` +
-        `Content-Disposition: form-data; name="file"; filename="${filename}"\r\n` +
-        `Content-Type: ${upload.contentType || 'application/octet-stream'}\r\n\r\n`
-    ),
-    Buffer.from(upload.bytes),
-    Buffer.from(`\r\n--${boundary}--\r\n`)
-  ])
-
-  return { body, contentType: `multipart/form-data; boundary=${boundary}` }
-}
-
 function fetchJson(url, token, options: any = {}) {
   // Retry policy lives in api-transport.ts: idempotent verbs retry on any
   // transient transport error; POST/PUT/DELETE only when the request provably
@@ -7790,9 +7774,9 @@ function openOauthLoginWindow(baseUrl) {
   })
 }
 
-// JSON request routed through the OAuth session partition so the HttpOnly
-// session cookie is attached automatically by Electron's net stack. Used for
-// authed REST against a gated gateway, including minting WS tickets.
+// Request routed through the OAuth session partition so the HttpOnly session
+// cookie is attached automatically by Electron's net stack. Supports JSON and
+// the same single-file multipart payload as fetchJson.
 function fetchJsonViaOauthSession(url, options: any = {}) {
   return new Promise((resolve, reject) => {
     const sess = getOauthSessionForUrl(url)
@@ -7819,7 +7803,8 @@ function fetchJsonViaOauthSession(url, options: any = {}) {
       return
     }
 
-    const body = serializeJsonBody(options.body)
+    const multipart = options.upload ? multipartBody(options.upload) : null
+    const body = multipart?.body || serializeJsonBody(options.body)
     const timeoutMs = resolveTimeoutMs(options.timeoutMs, DEFAULT_FETCH_TIMEOUT_MS)
 
     const request = electronNet.request({
@@ -7830,7 +7815,11 @@ function fetchJsonViaOauthSession(url, options: any = {}) {
       redirect: 'follow'
     } as any)
 
-    setJsonRequestHeaders(request)
+    if (multipart) {
+      request.setHeader('Content-Type', multipart.contentType)
+    } else {
+      setJsonRequestHeaders(request)
+    }
 
     for (const [name, value] of Object.entries({ ...headersForRemoteRequest(url), ...(options.headers || {}) })) {
       request.setHeader(name, String(value))
@@ -7883,25 +7872,25 @@ function fetchJsonViaOauthSession(url, options: any = {}) {
 // tokens it holds itself: the access token authenticates REST via
 // ``Authorization: Bearer`` (which the gateway gate now accepts) and mints WS
 // tickets the same way, so NO browser session cookie or embedded webview is
-// involved. Tokens are persisted encrypted at rest via Electron ``safeStorage``
-// (OS keychain) keyed by gateway base URL, and refreshed via
+// involved. Tokens are persisted under the user's secret-storage policy,
+// keyed by gateway base URL, and refreshed via
 // ``/auth/native/refresh`` before expiry. This is the desktop half of the
 // feature; the server half lives in panergos_cli/dashboard_auth/native_flow.py.
 // ---------------------------------------------------------------------------
 
 // In-memory cache of decrypted native tokens, keyed by normalized base URL.
-// Backed by the encrypted on-disk store so it survives restarts.
+// Backed by the owner-only on-disk store so it survives restarts.
 const _nativeTokens = new Map<string, NativeTokenSet>()
 
 function _nativeTokenStorePath() {
   // Co-located with the connection config under userData; one JSON file mapping
-  // baseUrl → { encoding, value } safeStorage payloads.
+  // baseUrl → { encoding, value } secret envelopes.
   return path.join(app.getPath('userData'), 'native-oauth-tokens.json')
 }
 
-// The electron-coupled half of the token store: safeStorage encryption plus the
-// userData file. native-token-store.ts owns the serialization/parse round trip
-// so it can be tested without an Electron runtime.
+// The electron-coupled half of the token store: policy-aware secret encoding
+// plus the userData file. native-token-store.ts owns the serialization/parse
+// round trip so it can be tested without an Electron runtime.
 function _nativeTokenStoreIo(): NativeTokenStoreIo {
   return {
     encrypt: encryptDesktopSecret,
@@ -8789,14 +8778,6 @@ function readDesktopConnectionConfig() {
 
     const parsed = JSON.parse(raw)
 
-    // NOT done here: migrating a legacy non-safeStorage token payload to
-    // ciphertext at rest. Deferred deliberately — it has to honor the opt-in
-    // plaintext choice PR #62319 adds (re-encrypting it converts a portable
-    // credential into a keychain-bound one and can lose the token), write
-    // through sanitizeConnectionProfiles below rather than persisting raw
-    // `parsed`, and tell the user to ROTATE, since every existing backup copy
-    // still holds the old secret. Do not add it without those three.
-
     if (parsed && typeof parsed === 'object') {
       const remote = parsed.remote && typeof parsed.remote === 'object' ? parsed.remote : {}
       // authMode lives on the remote sub-object: 'oauth' (cookie + ws-ticket)
@@ -8827,9 +8808,9 @@ function writeDesktopConnectionConfig(config) {
   // Owner-only, not writeFileAtomic: this is the single choke point for every
   // connection.json write (the IPC save/apply handlers and
   // persistSshConnectionToken all land here), and the file carries the
-  // safeStorage-encrypted gateway token plus its URL and SSH host/user/keyPath.
-  // safeStorage keeps the token opaque; 0600 keeps the whole record — and the
-  // fields that are NOT encrypted — off other local accounts, matching
+  // gateway token envelope plus its URL and SSH host/user/keyPath. The optional
+  // keychain policy can keep the token opaque; 0600 keeps the whole record off
+  // other local accounts either way, matching
   // native-oauth-tokens.json and desktop-installation.json.
   writeSecretFileAtomic(DESKTOP_CONNECTION_CONFIG_PATH, JSON.stringify(config, null, 2))
   connectionConfigCache = config
@@ -8961,8 +8942,8 @@ function preserveCorruptRegistrySidecar() {
 
 function writeDesktopConnectionsRegistry(registry) {
   fs.mkdirSync(path.dirname(DESKTOP_CONNECTIONS_REGISTRY_PATH), { recursive: true })
-  // Owner-only for the same reason as connection.json: entries carry
-  // safeStorage-encrypted tokens plus URLs and SSH host/user/keyPath.
+  // Owner-only for the same reason as connection.json: entries carry token
+  // envelopes plus URLs and SSH host/user/keyPath.
   writeSecretFileAtomic(DESKTOP_CONNECTIONS_REGISTRY_PATH, JSON.stringify(registry, null, 2))
   connectionRegistryCache = registry
   connectionRegistryCacheMtime = fs.statSync(DESKTOP_CONNECTIONS_REGISTRY_PATH).mtimeMs
@@ -8994,9 +8975,9 @@ function sanitizeRegistryConnection(entry) {
 }
 
 function sanitizeConnectionsRegistry(registry = readDesktopConnectionsRegistry()) {
-  // Same keyring signal the v1 sanitize exposes: lets the Connections panel
-  // offer the plain-text opt-in on keyring-less Linux instead of failing.
-  // Policy-aware: never touches safeStorage while encryption is opted out.
+  // Same policy-aware signal the v1 sanitize exposes. It never touches
+  // safeStorage while encryption is opted out; while opted in, false lets the
+  // Connections panel offer the explicit plain-text fallback.
   const secureTokenStorage = probeSecureTokenStorage()
 
   return {
@@ -9023,9 +9004,10 @@ function sanitizeConnectionsRegistry(registry = readDesktopConnectionsRegistry()
  * Edits merge over the stored entry (mergeConnectionInput) so fields the
  * editor doesn't carry — ssh `remotePanergosPath`/`remoteProfile` —
  * survive a rename. Token handling mirrors coerceDesktopConnectionConfig: an
- * incoming plaintext token is encrypted (honoring the same allowPlainTextToken
- * opt-in seam as Settings → Gateway); an absent token field inherits the
- * stored envelope on edit; switching auth away from 'token' clears it
+ * incoming plaintext token is encoded under the current storage policy
+ * (honoring the same allowPlainTextToken fallback as Settings → Gateway); an
+ * absent token field inherits the stored envelope on edit; switching auth away
+ * from 'token' clears it
  * (normalizeConnectionInput drops tokens on non-token entries).
  */
 async function saveRegistryConnection(input: any = {}) {
@@ -9042,8 +9024,8 @@ async function saveRegistryConnection(input: any = {}) {
   })
 
   // Extra gateway headers arrive as plaintext strings from the editor (or
-  // envelopes from a hand-edited import). Encrypt plaintext values the same
-  // way tokens are stored; a null/empty value drops that header. An absent
+  // envelopes from a hand-edited import). Store plaintext values under the
+  // same policy as tokens; a null/empty value drops that header. An absent
   // `headers` field inherits the stored set via mergeConnectionInput.
   const headers =
     input.headers && typeof input.headers === 'object'
@@ -9299,10 +9281,10 @@ function coerceDesktopConnectionConfig(input: any = {}, existing = readDesktopCo
     input.remoteHeaders && typeof input.remoteHeaders === 'object' ? input.remoteHeaders : existingBlock.headers
 
   // Persist decision lives in hardening.resolvePersistedRemoteToken so the
-  // IPC-propagation seam (allowPlainTextToken → encryptDesktopSecret opt-in) is
-  // covered by a focused regression test. Pass allowPlainText through RAW — the
-  // helper coerces with `=== true`, so a truthy-non-true value never enables
-  // plain-text storage, and that strictness is asserted in exactly one place.
+  // IPC-propagation seam (allowPlainTextToken → explicit fallback while
+  // keychain encryption is on) is covered by a focused regression test. Pass
+  // allowPlainText through RAW — the helper coerces with `=== true`, so a
+  // truthy-non-true value never enables the fallback.
   const nextToken = resolvePersistedRemoteToken({
     incomingToken,
     persistToken,
@@ -15368,23 +15350,18 @@ async function fetchJsonForBackend(
   const url = `${descriptor.baseUrl}${path}`
 
   if (descriptor.authMode === 'oauth') {
-    // The OAuth cookie path rides electron.net with JSON headers; multipart
-    // isn't wired there. Fail loudly rather than corrupting the upload.
-    if (opts.upload) {
-      throw new Error('File uploads are not supported against OAuth-gated remote backends yet.')
-    }
-
     const options = {
       method: opts.method,
       body: opts.body,
+      upload: opts.upload,
       timeoutMs: opts.timeoutMs,
       headers: descriptor.headers
     }
 
-    return requestWithOauthFallback(descriptor.baseUrl, {
+    return requestOauthJson(descriptor.baseUrl, url, options, {
       ensureNativeAccessToken,
-      requestWithBearer: bearer => fetchJson(url, null, { ...options, bearer }),
-      requestWithCookie: () => fetchJsonViaOauthSession(url, options)
+      fetchJson,
+      fetchJsonViaOauthSession
     })
   }
 

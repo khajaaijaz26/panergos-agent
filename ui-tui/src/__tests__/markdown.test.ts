@@ -416,6 +416,18 @@ describe('renderTable CJK width alignment', () => {
     // align with the rest now.
     expect(qwenCol2).toBe(headerCol2)
   })
+
+  it('preserves links inside an unwrapped cell', () => {
+    const url = 'https://docs.example.com/table'
+    const md = ['| Feature | Guide |', '|---|---|', `| **Memory** | [Open docs](${url}) |`].join('\n')
+
+    const ansi = renderAnsi(
+      React.createElement(Box, { width: 120 }, React.createElement(Md, { cols: 120, t: DEFAULT_THEME, text: md }))
+    )
+
+    expect(ansi).toContain(`;${url}${BEL}`)
+    expect(stripAnsi(ansi.replace(OSC_RE, ''))).toContain('Memory')
+  })
 })
 
 describe('body prose stays in the theme palette', () => {

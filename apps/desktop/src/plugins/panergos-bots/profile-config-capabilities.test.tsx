@@ -15,7 +15,7 @@
 
 import type * as PanergosSdk from '@panergos/plugin-sdk'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -261,11 +261,20 @@ describe('a connection-aware SkillsView', () => {
 describe('a build with no Capabilities exports at all', () => {
   const bareBuild = { McpTab: undefined, SkillsView: undefined, ToolsetConfigPanel: undefined }
 
-  it('keeps the checkbox MCP list with its inline setup button', async () => {
+  it('routes inline MCP setup to the connection-qualified profile', async () => {
     await renderEditor(bareBuild, localBot)
 
     expect(screen.getByText('remote-mcp')).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Set up/ })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Set up/ }))
+
+    await waitFor(() =>
+      expect(sdk.requestProfile).toHaveBeenCalledWith(
+        { connectionId: 'local', mode: 'local', profile: 'default', targetProfile: 'default' },
+        'mcp.servers.add',
+        { name: 'remote-mcp', preset: 'remote-mcp', profile: 'default' }
+      )
+    )
+    expect(sdk.request).not.toHaveBeenCalled()
   })
 
   it('says so plainly when the profile has no MCP servers', async () => {

@@ -1186,7 +1186,7 @@ export const zh = defineLocale({
       sshHostTitle: 'SSH 主机',
       headersTitle: '额外网关请求头',
       headersDesc:
-        '随发往此网关的每个 HTTP 和 WebSocket 请求一起发送——用于 Cloudflare Access 等访问代理（CF-Access-Client-Id / CF-Access-Client-Secret）。值加密存储。由 Panergos 管理的请求头（Authorization、Cookie、Host 等）会被忽略。',
+        '随发往此网关的每个 HTTP 和 WebSocket 请求一起发送——用于 Cloudflare Access 等访问代理（CF-Access-Client-Id / CF-Access-Client-Secret）。值会遵循已保存机密的加密设置。由 Panergos 管理的请求头（Authorization、Cookie、Host 等）会被忽略。',
       headerValuePlaceholder: '值',
       headerValueSaved: '已保存——留空以保留',
       headerAdd: '添加请求头',
