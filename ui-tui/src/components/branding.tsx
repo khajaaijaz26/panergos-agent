@@ -126,12 +126,21 @@ export function Banner({ maxWidth, t }: { maxWidth?: number; t: Theme }) {
           paddingY={0}
           rowGap={0}
           widgets={[
-            { children: <ArtLines lines={logoLines} />, id: 'banner-art' },
             {
               children: (
-                <Text color={t.color.muted} wrap="truncate-end">
-                  {t.brand.icon} {TAG_FULL}
-                </Text>
+                <Box justifyContent="center" width="100%">
+                  <ArtLines lines={logoLines} />
+                </Box>
+              ),
+              id: 'banner-art'
+            },
+            {
+              children: (
+                <Box justifyContent="center" width="100%">
+                  <Text color={t.color.muted} wrap="truncate-end">
+                    {t.brand.icon} {TAG_FULL}
+                  </Text>
+                </Box>
               ),
               id: 'banner-tagline'
             }
@@ -352,7 +361,9 @@ export function SessionPanel({ info, maxWidth, sid, t }: SessionPanelProps) {
   // hand-rolled widths exactly: usable = (leftW + 2 + w) - gap = leftW + w.
   const heroColumn = wide ? (
     <Box flexDirection="column" width="100%">
-      <ArtLines lines={heroLines} />
+      <Box justifyContent="center" width="100%">
+        <ArtLines lines={heroLines} />
+      </Box>
       <Text />
 
       <Text color={t.color.accent}>
