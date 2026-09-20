@@ -51,7 +51,7 @@ export const ru: Translations = {
 
   app: {
     brand: "Panergos Agent",
-    brandShort: "HA",
+    brandShort: "PA",
     closeNavigation: "Закрыть навигацию",
     closeModelTools: "Закрыть модель и инструменты",
     footer: {
@@ -346,7 +346,7 @@ export const ru: Translations = {
     removeConfirm: "Удалить этот плагин из ~/.panergos/plugins/?",
     removeHint: "Удалять можно только плагины, установленные пользователем в ~/.panergos/plugins.",
     rescanHeading: "Реестр SPA-плагинов",
-    rescanHint: "Пересканируйте после добавления файлов на диск, чтобы боковая панель подхватила новые манифесты.",
+    rescanHint: "Пересканируйте после добавления файлов на диск, чтобы навигация подхватила новые манифесты.",
     runtimeHeading: "Рантайм шлюза (YAML-плагины)",
     saveProviders: "Сохранить настройки провайдеров",
     savedProviders: "Настройки провайдеров сохранены.",
@@ -355,8 +355,8 @@ export const ru: Translations = {
     authRequiredHint: "Выполните эту команду для аутентификации:",
     updateGit: "Git pull",
     versionBadge: "Версия",
-    showInSidebar: "Показывать в боковой панели",
-    hideFromSidebar: "Скрыть из боковой панели",
+    showInSidebar: "Показывать в навигации",
+    hideFromSidebar: "Скрыть из навигации",
   },
 
   skills: {
@@ -605,7 +605,7 @@ export const ru: Translations = {
         "«Поделиться в X» открывает пост с заранее заполненным текстом в новой вкладке. Сначала нажмите «Скопировать изображение», если хотите прикрепить значок 1200×630 — X позволяет вставить его прямо в редактор твита. «Скачать PNG» сохраняет файл для использования где угодно.",
       clipboard_unsupported:
         "Копирование изображений в буфер обмена не поддерживается в этом браузере — используйте «Скачать».",
-      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ◆",
+      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ▶",
     },
   },
   kanban: {

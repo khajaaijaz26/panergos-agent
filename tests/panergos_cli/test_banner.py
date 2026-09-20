@@ -9,14 +9,13 @@ import model_tools
 import tools.mcp_tool_discovery
 
 
-def test_default_hero_is_the_fourteen_line_panergos_knot():
+def test_default_mark_is_compact_and_uses_all_three_panergos_colours():
     from rich.markup import render
 
-    lines = banner.PANERGOS_MARK.splitlines()
-
-    assert len(lines) == 14
-    assert all(render(line).plain.strip() for line in lines)
-    assert "PANERGOS" not in render(banner.PANERGOS_MARK).plain
+    assert render(banner.PANERGOS_MARK).plain == "━━━╲\n━━━━▶\n━━━╱"
+    assert "#FF6B5E" in banner.PANERGOS_MARK
+    assert "#F7C453" in banner.PANERGOS_MARK
+    assert "#2EE6A6" in banner.PANERGOS_MARK
 
 
 def test_cprint_falls_back_to_plain_print_when_prompt_toolkit_has_no_console(capsys):
@@ -35,8 +34,8 @@ def test_cprint_falls_back_to_plain_print_when_prompt_toolkit_has_no_console(cap
 
 
 
-def test_build_welcome_banner_title_falls_back_when_no_tag():
-    """Without a resolvable tag, the panel title renders as plain text (no hyperlink escape)."""
+def test_build_welcome_banner_version_falls_back_when_no_tag():
+    """Without a resolvable tag, the workstream header is plain text (no hyperlink escape)."""
     import io
     from unittest.mock import patch as _patch
     import panergos_cli.banner as _banner
@@ -62,8 +61,41 @@ def test_build_welcome_banner_title_falls_back_when_no_tag():
         )
 
     raw = buf.getvalue()
-    assert "Panergos Agent v" in raw, "Version label missing from title"
+    assert "Panergos Agent v" in raw, "Version label missing from workstream header"
     assert "\x1b]8;" not in raw, "OSC-8 hyperlink should not be emitted without a tag"
+
+
+def test_default_banner_is_a_compact_continuity_lane():
+    import io
+
+    buf = io.StringIO()
+    with (
+        patch.object(banner, "get_available_skills", return_value={"work": ["plan", "ship"]}),
+        patch.object(banner, "_mcp_configured", return_value=False),
+        patch.object(banner, "get_update_result", return_value=None),
+        patch.object(banner, "get_latest_release_tag", return_value=None),
+    ):
+        console = Console(file=buf, force_terminal=False, color_system=None, width=100)
+        banner.build_welcome_banner(
+            console=console,
+            model="provider/fast-model",
+            provider="provider",
+            cwd="/tmp/project",
+            session_id="abc123",
+            tools=[{"function": {"name": "read_file"}}],
+        )
+
+    output = buf.getvalue()
+    assert "PANERGOS" in output and "WORK CONTINUITY" in output
+    assert "context stays · work moves" in output
+    assert "MODEL" in output and "ROUTE" in output and "WORKSPACE" in output and "MEMORY" in output
+    assert all(f"{n:02d} /" in output for n in range(1, 5))
+    assert "1 tool · 2 skills · 0 MCP live" in output
+    assert all(command in output for command in ("/model", "/resume", "/tools", "/skills", "/help"))
+    assert "Available Tools" not in output
+    assert "Available Skills" not in output
+    assert "██████" not in output
+    assert "╭" not in output and "╮" not in output
 
 
 
@@ -119,4 +151,4 @@ def test_build_welcome_banner_does_not_center_pad_hero_art():
                                     get_toolset_for_tool=lambda _: None)
 
     hero_line = next(line for line in buf.getvalue().splitlines() if "\u2800X" in line)
-    assert hero_line.startswith("\u2502  \u2800X"), repr(hero_line)
+    assert hero_line.startswith("\u2800X"), repr(hero_line)

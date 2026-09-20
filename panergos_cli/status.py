@@ -27,9 +27,9 @@ def check_mark(ok: bool) -> str:
 
 
 def _section(title: str) -> None:
-    """Print a blank line followed by a bold cyan ``◆`` section heading."""
+    """Print a blank line followed by a bold cyan Relay-arrow section heading."""
     print()
-    print(color(f"◆ {title}", Colors.CYAN, Colors.BOLD))
+    print(color(f"▶ {title}", Colors.CYAN, Colors.BOLD))
 
 
 def _row(name: str, ok: bool, text: str, width: int = 12, sep: str = "  ") -> None:
@@ -137,7 +137,7 @@ def _banner(lines, *styles) -> None:
 
 def _render_header(ctx):
     _banner(("┌─────────────────────────────────────────────────────────┐",
-             "│                  ◆ Panergos Agent Status                  │",
+             "│                  ▶ Panergos Agent Status                  │",
              "└─────────────────────────────────────────────────────────┘"), Colors.CYAN)
     paused = _estop_status_line()
     if paused:

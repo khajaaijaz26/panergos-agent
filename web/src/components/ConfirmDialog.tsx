@@ -1,7 +1,7 @@
 import { Button } from "@panergos/ui/ui/components/button";
 import { AlertTriangle } from "lucide-react";
-import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { cn, themedBody } from "@/lib/utils";
 
 interface ConfirmDialogProps {
@@ -27,33 +27,11 @@ export function ConfirmDialog({
   open,
   title,
 }: ConfirmDialogProps) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const prevActive = document.activeElement as HTMLElement | null;
-    dialogRef.current
-      ?.querySelector<HTMLButtonElement>("[data-confirm]")
-      ?.focus();
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onCancel();
-      }
-    };
-
-    document.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-      prevActive?.focus?.();
-    };
-  }, [open, onCancel]);
+  const dialogRef = useModalBehavior({
+    initialFocus: "[data-confirm]",
+    open,
+    onClose: onCancel,
+  });
 
   if (!open) return null;
 
@@ -63,13 +41,13 @@ export function ConfirmDialog({
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
       aria-describedby={description ? "confirm-dialog-desc" : undefined}
+      ref={dialogRef}
       onClick={(e) => {
         if (e.target === e.currentTarget) onCancel();
       }}
       className="fixed inset-0 z-[200] flex items-center justify-center bg-background/85 p-4"
     >
       <div
-        ref={dialogRef}
         className={cn(
           themedBody,
           "relative w-full max-w-md border border-border bg-card shadow-2xl",

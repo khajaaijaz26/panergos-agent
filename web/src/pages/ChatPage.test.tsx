@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, type ReactNode } from "react";
+import { act, type ReactElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -94,6 +94,10 @@ const maybeReloadForLoopbackWsAuthFailure = vi.fn(() => false);
 const apiMocks = vi.hoisted(() => ({
   buildWsUrl: vi.fn(async () => "ws://localhost/api/pty?channel=chat-1"),
 }));
+const pageHeaderMocks = vi.hoisted(() => ({
+  setEnd: vi.fn(),
+  setTitle: vi.fn(),
+}));
 
 vi.mock("@xterm/addon-fit", () => ({ FitAddon: FakeFitAddon }));
 vi.mock("@xterm/addon-unicode11", () => ({ Unicode11Addon: class {} }));
@@ -101,7 +105,7 @@ vi.mock("@xterm/addon-web-links", () => ({ WebLinksAddon: class {} }));
 vi.mock("@xterm/addon-webgl", () => ({ WebglAddon: FakeWebglAddon }));
 vi.mock("@xterm/xterm", () => ({ Terminal: FakeTerminal }));
 vi.mock("@/components/ChatSidebar", () => ({
-  ChatSidebar: () => null,
+  ChatSidebar: () => <div data-chat-sidebar />,
 }));
 vi.mock("@/components/ChatSessionList", () => ({
   ChatSessionList: () => null,
@@ -111,7 +115,7 @@ vi.mock("@/plugins", () => ({
   PluginSlot: () => null,
 }));
 vi.mock("@/contexts/usePageHeader", () => ({
-  usePageHeader: () => ({ setEnd: vi.fn(), setTitle: vi.fn() }),
+  usePageHeader: () => pageHeaderMocks,
 }));
 vi.mock("@/contexts/useProfileScope", () => ({
   useProfileScope: () => ({ profile: "" }),
@@ -126,6 +130,7 @@ vi.mock("@/i18n", () => ({
         closeModelTools: "Close model tools",
         modelToolsSheetSubtitle: "Tools",
         modelToolsSheetTitle: "Model",
+        openNavigation: "Open navigation",
       },
     },
   }),
@@ -172,7 +177,7 @@ let root: Root;
 
 // jsdom runs without an origin here (per-file @vitest-environment jsdom on a
 // node-default config), so localStorage is undefined. Stub it so components
-// that persist UI state (side panel collapse) can be exercised.
+// that persist UI state (Work Dock visibility) can be exercised.
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
@@ -206,6 +211,8 @@ beforeEach(() => {
   maybeReloadForLoopbackWsAuthFailure.mockClear();
   apiMocks.buildWsUrl.mockReset();
   apiMocks.buildWsUrl.mockResolvedValue("ws://localhost/api/pty?channel=chat-1");
+  pageHeaderMocks.setEnd.mockClear();
+  pageHeaderMocks.setTitle.mockClear();
   vi.stubGlobal("WebSocket", FakeWebSocket);
   vi.stubGlobal(
     "ResizeObserver",
@@ -351,7 +358,15 @@ describe("ChatPage", () => {
   });
 });
 
-describe("ChatPage side panel collapse", () => {
+describe("ChatPage Work Dock", () => {
+  function headerButton() {
+    const calls = pageHeaderMocks.setEnd.mock.calls;
+    return calls[calls.length - 1]?.[0] as ReactElement<{
+      "aria-label": string;
+      onClick: () => void;
+    }>;
+  }
+
   async function renderChat() {
     const { default: ChatPage } = await import("./ChatPage");
     await render(
@@ -361,41 +376,70 @@ describe("ChatPage side panel collapse", () => {
     );
   }
 
-  it("collapses the desktop side panel and persists the choice", async () => {
+  it("opens on demand, persists the compatible preference, and closes with Escape", async () => {
     localStorage.clear();
     await renderChat();
     await vi.waitFor(() => expect(FakeWebSocket.instances).toHaveLength(1));
 
-    const collapseButton = container.querySelector(
-      '[aria-label="Collapse chat side panel"]',
-    );
-    expect(collapseButton).not.toBeNull();
+    expect((document.querySelector("#chat-work-dock") as HTMLElement).hidden).toBe(true);
+    expect(document.querySelectorAll("[data-chat-sidebar]")).toHaveLength(1);
+    expect(headerButton().props["aria-label"]).toBe("Model Tools");
 
     await act(async () => {
-      collapseButton!.dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
+      headerButton().props.onClick();
     });
 
-    expect(localStorage.getItem("panergos-chat-panel-collapsed")).toBe("1");
-    expect(
-      container.querySelector('[aria-label="Collapse chat side panel"]'),
-    ).toBeNull();
-    expect(
-      container.querySelector('[aria-label="Show chat side panel"]'),
-    ).not.toBeNull();
+    const dock = document.querySelector('[role="dialog"]:not([hidden])');
+    expect(dock?.id).toBe("chat-work-dock");
+    expect(dock?.getAttribute("aria-modal")).toBe("true");
+    expect(dock?.textContent).toContain("Model Tools");
+    expect(document.querySelectorAll("[data-chat-sidebar]")).toHaveLength(1);
+    expect(localStorage.getItem("panergos-chat-panel-collapsed")).toBe("0");
+    expect(headerButton().props["aria-label"]).toBe("Close model tools");
 
-    // Reopening restores the panel and clears the persisted flag.
     await act(async () => {
-      container
-        .querySelector('[aria-label="Show chat side panel"]')!
+      window.dispatchEvent(new Event("panergos:close-work-dock"));
+    });
+
+    expect((document.querySelector("#chat-work-dock") as HTMLElement).hidden).toBe(true);
+    expect(localStorage.getItem("panergos-chat-panel-collapsed")).toBe("1");
+    expect(headerButton().props["aria-label"]).toBe("Model Tools");
+
+    await act(async () => {
+      headerButton().props.onClick();
+    });
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect((document.querySelector("#chat-work-dock") as HTMLElement).hidden).toBe(true);
+  });
+
+  it("honours the old expanded preference and closes from the backdrop", async () => {
+    localStorage.setItem("panergos-chat-panel-collapsed", "0");
+    await renderChat();
+
+    expect(document.querySelector('[role="dialog"]:not([hidden])')).not.toBeNull();
+
+    await act(async () => {
+      document
+        .querySelector('[aria-label="Close model tools"]')!
         .dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
-    expect(localStorage.getItem("panergos-chat-panel-collapsed")).toBe("0");
-    expect(
-      container.querySelector('[aria-label="Collapse chat side panel"]'),
-    ).not.toBeNull();
+    expect((document.querySelector("#chat-work-dock") as HTMLElement).hidden).toBe(true);
+    expect(localStorage.getItem("panergos-chat-panel-collapsed")).toBe("1");
+  });
+
+  it("keeps the event bridge mounted while persistent chat is inactive", async () => {
+    const { default: ChatPage } = await import("./ChatPage");
+    await render(
+      <MemoryRouter initialEntries={["/sessions"]}>
+        <ChatPage isActive={false} />
+      </MemoryRouter>,
+    );
+
+    expect(document.querySelectorAll("[data-chat-sidebar]")).toHaveLength(1);
+    expect((document.querySelector("#chat-work-dock") as HTMLElement).hidden).toBe(true);
   });
 });
 

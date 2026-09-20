@@ -3,7 +3,7 @@ import { mix } from '@panergos/shared/color'
 import { useEffect, useState } from 'react'
 import unicodeSpinners from 'unicode-animations'
 
-import { artWidth, logo, LOGO_WIDTH, PANERGOS_KNOT_WIDTH, panergosKnot } from '../banner.js'
+import { artWidth, logo, panergosRelay } from '../banner.js'
 import { flat } from '../lib/text.js'
 import type { Theme } from '../theme.js'
 import type { PanelSection, SessionInfo } from '../types.js'
@@ -49,55 +49,15 @@ export function ArtLines({ lines }: { lines: [string, string][] }) {
   )
 }
 
-// Responsive Banner: full art → compact rule → text → hidden.
-//
-// Terminals can't scale glyphs, so "responsive" means picking a layout that
-// fits the available columns. Thresholds are picked so each tier reads
-// comfortably without forcing wrap or truncation drift on box-drawing edges.
-const TAG_FULL = 'Panergos · Durable intelligence at work'
-const TAG_MID = 'Durable intelligence at work'
-const TAG_TINY = 'Panergos'
-const HIDE_BELOW = 34
-const COMPACT_FROM = 58
+// Three work lanes converge into one cursor. Unlike the former centred
+// mascot/card composition, this stays left-aligned and leads straight into
+// the live workspace below it.
+const TAG_FULL = 'context stays · work moves'
+const HIDE_BELOW = 24
+const SIGNAL_LABEL_WIDTH = 11
 
-const clip = (s: string, w: number) => (w <= 0 ? '' : s.length > w ? `${s.slice(0, Math.max(0, w - 1))}…` : s)
-
-const centerIn = (s: string, w: number) => {
-  const f = clip(s, w)
-  const slack = Math.max(0, w - f.length)
-  const left = slack >> 1
-
-  return `${' '.repeat(left)}${f}${' '.repeat(slack - left)}`
-}
-
-const ruleIn = (label: string, w: number) => {
-  const f = clip(label, Math.max(1, w - 4))
-  const slack = Math.max(0, w - f.length - 2)
-  const left = slack >> 1
-
-  return `${'─'.repeat(left)} ${f} ${'─'.repeat(slack - left)}`
-}
-
-function CompactBanner({ cols, t }: { cols: number; t: Theme }) {
-  // -4 keeps a margin so exact-edge rows don't trip terminal pending-wrap.
-  const w = Math.max(28, cols - 4)
-
-  // No `opaque` (see ArtLines): the dashed rules are glyphs and the tagline's
-  // centering spaces carry the text's own fg style, so every cell paints with
-  // a real see-through background. The opaque fill was writing default-bg
-  // spaces that a transparent terminal renders as black bars.
-  // NOT bold: on Cursor's transparent-background terminal, a full-width run
-  // of BOLD box-drawing dashes renders with an opaque black cell background
-  // (the plain-dash rule right below renders clean — pixel-diffed live; the
-  // only stylistic delta was bold). Bold on short label runs is fine; bold on
-  // full-width box-drawing rows is what triggers the slab.
-  return (
-    <Box flexDirection="column" height={3} marginBottom={1} width={w}>
-      <Text color={t.color.primary}>{ruleIn(t.brand.name, w)}</Text>
-      <Text color={t.color.muted}>{centerIn(TAG_FULL, w)}</Text>
-      <Text color={t.color.primary}>{'─'.repeat(w)}</Text>
-    </Box>
-  )
+function FlowMark({ t }: { t: Theme }) {
+  return <ArtLines lines={panergosRelay(t.color)} />
 }
 
 export function Banner({ maxWidth, t }: { maxWidth?: number; t: Theme }) {
@@ -108,95 +68,78 @@ export function Banner({ maxWidth, t }: { maxWidth?: number; t: Theme }) {
     return null
   }
 
-  const logoLines = logo(t.color, t.bannerLogo || undefined)
-  const logoW = t.bannerLogo ? artWidth(logoLines) : LOGO_WIDTH
+  // Explicit custom skin art remains supported. The default identity stays
+  // compact at every width so opening a session reaches the work immediately.
+  if (t.bannerLogo) {
+    const logoLines = logo(t.color, t.bannerLogo)
 
-  // Each tier renders its rows through a single-column WidgetGrid sized to
-  // the available columns — same visual output as the old plain flex column
-  // (cells clip where truncate-end used to), but the banner is now a
-  // layout-engine surface.
-  if (cols >= logoW + 2) {
-    return (
-      <Box flexDirection="column" marginBottom={1}>
-        <WidgetGrid
-          cols={cols}
-          columns={1}
-          gap={0}
-          paddingX={0}
-          paddingY={0}
-          rowGap={0}
-          widgets={[
-            {
-              children: (
-                <Box justifyContent="center" width="100%">
-                  <ArtLines lines={logoLines} />
-                </Box>
-              ),
-              id: 'banner-art'
-            },
-            {
-              children: (
-                <Box justifyContent="center" width="100%">
-                  <Text color={t.color.muted} wrap="truncate-end">
-                    {t.brand.icon} {TAG_FULL}
-                  </Text>
-                </Box>
-              ),
-              id: 'banner-tagline'
-            }
-          ]}
-        />
-      </Box>
-    )
+    if (cols >= artWidth(logoLines) + 2) {
+      return (
+        <Box flexDirection="column" marginBottom={1}>
+          <Box justifyContent="center" width="100%">
+            <ArtLines lines={logoLines} />
+          </Box>
+        </Box>
+      )
+    }
   }
 
-  if (cols >= COMPACT_FROM) {
-    return (
-      <WidgetGrid
-        cols={cols}
-        columns={1}
-        gap={0}
-        paddingX={0}
-        paddingY={0}
-        rowGap={0}
-        widgets={[{ children: <CompactBanner cols={cols} t={t} />, id: 'banner-compact' }]}
-      />
-    )
-  }
-
-  const name = cols >= 52 ? t.brand.name : (t.brand.name.split(' ')[0] ?? t.brand.name)
-  const tag = cols >= 64 ? TAG_FULL : cols >= 46 ? TAG_MID : TAG_TINY
+  const full = cols >= 48
+  const brand = t.brand.name === 'Panergos Agent' ? 'PANERGOS' : t.brand.name.toUpperCase()
+  const customToken = t.brand.name === 'Panergos Agent' ? '' : `${t.brand.icon} `
 
   return (
-    <Box flexDirection="column" marginBottom={1}>
-      <WidgetGrid
-        cols={cols}
-        columns={1}
-        gap={0}
-        paddingX={0}
-        paddingY={0}
-        rowGap={0}
-        widgets={[
-          {
-            children: (
-              <Text bold color={t.color.primary} wrap="truncate-end">
-                {t.brand.icon} {name}
-              </Text>
-            ),
-            id: 'banner-name'
-          },
-          {
-            children: (
-              <Text color={t.color.muted} wrap="truncate-end">
-                {t.brand.icon} {tag}
-              </Text>
-            ),
-            id: 'banner-tag'
-          }
-        ]}
-      />
+    <Box marginBottom={1} width={Math.max(1, cols - 2)}>
+      <FlowMark t={t} />
+      <Box flexDirection="column" marginLeft={1}>
+        <Text color={t.color.muted} wrap="truncate-end">
+          {full ? 'WORK CONTINUITY' : 'CONTINUITY'}
+        </Text>
+        <Text bold color={t.color.primary} wrap="truncate-end">
+          {customToken}
+          {brand}
+        </Text>
+        {full ? (
+          <Text color={t.color.muted} wrap="truncate-end">
+            {TAG_FULL}
+          </Text>
+        ) : (
+          <Text color={t.color.muted}>READY</Text>
+        )}
+      </Box>
     </Box>
   )
+}
+
+function Signal({ code, detail, label, t, tone, value, width }: SignalProps) {
+  return (
+    <Box flexDirection="column" width={width}>
+      <Text wrap="truncate-end">
+        <Text bold color={tone}>
+          {code}
+        </Text>
+        <Text color={t.color.muted}> / </Text>
+        <Text bold color={t.color.label}>
+          {label.padEnd(SIGNAL_LABEL_WIDTH)}
+        </Text>
+        <Text color={t.color.text}>{value}</Text>
+      </Text>
+      <Text color={t.color.muted} wrap="truncate-end">
+        {' '.repeat(SIGNAL_LABEL_WIDTH + 5)}
+        {detail}
+      </Text>
+    </Box>
+  )
+}
+
+interface SignalProps {
+  code: string
+  detail: string
+  label: string
+  t: Theme
+  tone: string
+  value: string
+  width: number
 }
 
 // ── Skeleton ─────────────────────────────────────────────────────────
@@ -221,11 +164,9 @@ const TOOLSETS_MAX = 8
 export function SessionPanel({ info, maxWidth, sid, t }: SessionPanelProps) {
   const term = useStdout().stdout?.columns ?? 100
   const cols = Math.max(20, Math.min(term, maxWidth ?? term))
-  const heroLines = panergosKnot(t.color, t.bannerHero || undefined)
-  const leftW = Math.min((artWidth(heroLines) || PANERGOS_KNOT_WIDTH) + 4, Math.floor(cols * 0.4))
-  const wide = cols >= 90 && leftW + 40 < cols
-  const w = Math.max(20, wide ? cols - leftW - 14 : cols - 12)
-  const lineBudget = Math.max(12, w - 2)
+  const innerCols = Math.max(16, cols - 6)
+  const wide = innerCols >= 74
+  const lineBudget = Math.max(12, innerCols - 2)
   const strip = (s: string) => (s.endsWith('_tools') ? s.slice(0, -6) : s)
 
   // Hierarchy: labels lead in the label tone; member lists recede in the
@@ -233,10 +174,10 @@ export function SessionPanel({ info, maxWidth, sid, t }: SessionPanelProps) {
   // keeps the fade readable on both poles even when polarity detection is
   // wrong — surface-relative blends go invisible when text is already pale.
   const listFade = mix(t.color.muted, t.color.text, 0.5)
+  const customHero = t.bannerHero ? panergosRelay(t.color, t.bannerHero) : null
 
-  // ── Local collapse state for each section ──
-  const [toolsOpen, setToolsOpen] = useState(true)
-  const [skillsOpen, setSkillsOpen] = useState(false)
+  // Capability detail stays one click away without dominating startup.
+  const [capabilitiesOpen, setCapabilitiesOpen] = useState(false)
   const [systemOpen, setSystemOpen] = useState(false)
   const [mcpOpen, setMcpOpen] = useState(false)
 
@@ -262,7 +203,6 @@ export function SessionPanel({ info, maxWidth, sid, t }: SessionPanelProps) {
   const skills = info.skills ?? {}
   const skillEntries = Object.entries(skills).sort()
   const skillsTotal = flat(skills).length
-  const skillsCatCount = skillEntries.length
 
   const skillsBody = () => {
     if (info.lazy && skillEntries.length === 0) {
@@ -354,84 +294,155 @@ export function SessionPanel({ info, maxWidth, sid, t }: SessionPanelProps) {
     return <Text color={t.color.muted}>{info.system_prompt}</Text>
   }
 
-  // The wide layout is a real two-column grid: a fixed-width hero track and a
-  // flexible info track (grid-template-columns: <leftW> 1fr, gap 2) — the
-  // terminal equivalent of the desktop pane shell's fixed-vs-flex tracks.
-  // Narrow drops to a single flexible track. Track math reproduces the old
-  // hand-rolled widths exactly: usable = (leftW + 2 + w) - gap = leftW + w.
-  const heroColumn = wide ? (
-    <Box flexDirection="column" width="100%">
-      <Box justifyContent="center" width="100%">
-        <ArtLines lines={heroLines} />
-      </Box>
-      <Text />
+  const model = info.model || 'select a model'
+  const provider = info.provider || (model.includes('/') ? model.split('/')[0] : 'automatic')
 
-      <Text color={t.color.accent}>
-        {(info.model ?? '').split('/').pop()}
-        <Text color={t.color.muted}> · Panergos</Text>
-      </Text>
+  const routeMode = [info.fast ? 'boost on' : null, info.service_tier, info.reasoning_effort]
+    .filter(Boolean)
+    .join(' · ')
 
-      <Text color={t.color.muted} wrap="truncate-end">
-        {info.cwd || process.cwd()}
-      </Text>
+  const cwd = info.cwd || process.cwd()
+  const workspace = info.project?.name || cwd.split(/[\\/]/).filter(Boolean).at(-1) || cwd
 
-      {sid && (
-        <Text>
-          <Text color={t.color.sessionLabel}>Session: </Text>
-          <Text color={t.color.sessionBorder}>{sid}</Text>
-        </Text>
-      )}
-    </Box>
-  ) : null
+  const workspaceDetail = [info.branch, info.profile_name ? `profile ${info.profile_name}` : null, cwd]
+    .filter(Boolean)
+    .join(' · ')
+
+  const usage = info.usage ?? {}
+  const memoryValue = info.stored_session_id ? 'resumable' : sid ? 'live session' : 'ready'
+
+  const memoryDetail = [
+    typeof usage.cache_hit_pct === 'number' ? `${Math.round(usage.cache_hit_pct)}% cache hit` : 'context ready',
+    typeof usage.context_percent === 'number' ? `${Math.round(usage.context_percent)}% context` : null
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
+  const pace = [
+    typeof usage.avg_tps === 'number' ? `${Math.round(usage.avg_tps)} t/s` : null,
+    typeof usage.avg_latency_s === 'number' ? `${usage.avg_latency_s.toFixed(1)}s latency` : null
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
+  const signalWidgets = [
+    {
+      id: 'model-signal',
+      render: (width: number) => (
+        <Signal
+          code="01"
+          detail={model}
+          label="MODEL"
+          t={t}
+          tone={t.color.primary}
+          value={model.split('/').pop() || model}
+          width={width}
+        />
+      )
+    },
+    {
+      id: 'route-signal',
+      render: (width: number) => (
+        <Signal
+          code="02"
+          detail={[routeMode || 'adaptive selection', pace].filter(Boolean).join(' · ')}
+          label="ROUTE"
+          t={t}
+          tone={t.color.accent}
+          value={provider}
+          width={width}
+        />
+      )
+    },
+    {
+      id: 'workspace-signal',
+      render: (width: number) => (
+        <Signal
+          code="03"
+          detail={workspaceDetail || cwd}
+          label="WORKSPACE"
+          t={t}
+          tone={t.color.warn}
+          value={workspace}
+          width={width}
+        />
+      )
+    },
+    {
+      id: 'memory-signal',
+      render: (width: number) => (
+        <Signal
+          code="04"
+          detail={memoryDetail}
+          label="MEMORY"
+          t={t}
+          tone={t.color.ok}
+          value={memoryValue}
+          width={width}
+        />
+      )
+    }
+  ]
 
   const infoColumn = (
     <Box flexDirection="column" width="100%">
-      {wide ? (
-        <Box justifyContent="center" marginBottom={1}>
-          <Text bold color={t.color.primary}>
-            {t.brand.name}
-            {info.version ? ` v${info.version}` : ''}
-            {info.release_date ? ` (${info.release_date})` : ''}
-          </Text>
+      {customHero && artWidth(customHero) <= innerCols ? (
+        <Box justifyContent="center" marginBottom={1} width="100%">
+          <ArtLines lines={customHero} />
         </Box>
-      ) : (
-        // Narrow layout hides the hero column; surface model/cwd/session
-        // here so they aren't lost.
-        <Box flexDirection="column" marginBottom={1}>
-          <Text color={t.color.accent} wrap="truncate-end">
-            {(info.model ?? '').split('/').pop()}
-            <Text color={t.color.muted}> · Panergos</Text>
-          </Text>
-          <Text color={t.color.muted} wrap="truncate-end">
-            {info.cwd || process.cwd()}
-          </Text>
-          {sid && (
-            <Text wrap="truncate-end">
-              <Text color={t.color.sessionLabel}>Session: </Text>
-              <Text color={t.color.sessionBorder}>{sid}</Text>
-            </Text>
-          )}
-        </Box>
-      )}
-
-      {/* ── Tools (expanded by default) ── */}
-      <Box flexDirection="column" marginTop={1}>
-        <Accordion onToggle={() => setToolsOpen(v => !v)} open={toolsOpen} t={t} title="Available Tools">
-          {toolsBody()}
-        </Accordion>
+      ) : null}
+      <Box justifyContent="space-between" marginBottom={1}>
+        <Text bold color={t.color.primary} wrap="truncate-end">
+          LIVE WORKSTREAM
+        </Text>
+        <Text color={t.color.muted} wrap="truncate-end">
+          {info.version ? `v${info.version}` : ''}
+          {sid ? `${info.version ? ' · ' : ''}${sid.slice(0, 8)}` : ''}
+        </Text>
       </Box>
 
-      {/* ── Skills (collapsed by default) ── */}
+      <WidgetGrid
+        cols={innerCols}
+        columns={wide ? 2 : 1}
+        gap={wide ? 2 : 0}
+        paddingX={0}
+        paddingY={0}
+        rowGap={1}
+        widgets={signalWidgets}
+      />
+
+      <Box marginTop={1}>
+        <Text color={t.color.muted} wrap="truncate-end">
+          <Text bold color={t.color.accent}>
+            GO / COMMAND LANE
+          </Text>
+          {'  '}
+          <Text color={t.color.text}>Ctrl+O</Text> model · <Text color={t.color.text}>Ctrl+X</Text> sessions ·{' '}
+          <Text color={t.color.text}>?</Text> help · <Text color={t.color.text}>/</Text> commands
+        </Text>
+      </Box>
+
+      {/* Capability detail is available without becoming the startup view. */}
       <Box flexDirection="column" marginTop={1}>
         <Accordion
-          count={skillsTotal}
-          onToggle={() => setSkillsOpen(v => !v)}
-          open={skillsOpen}
-          suffix={skillsCatCount > 0 ? `in ${skillsCatCount} categor${skillsCatCount === 1 ? 'y' : 'ies'}` : undefined}
+          onToggle={() => setCapabilitiesOpen(v => !v)}
+          open={capabilitiesOpen}
+          suffix={info.lazy && !toolsTotal && !skillsTotal ? 'loading' : `${toolsTotal} tools · ${skillsTotal} skills`}
           t={t}
-          title="Available Skills"
+          title="Capability map"
         >
-          {skillsBody()}
+          <Box flexDirection="column" marginLeft={2}>
+            <Text bold color={t.color.label}>
+              Tools
+            </Text>
+            {toolsBody()}
+            <Box marginTop={1}>
+              <Text bold color={t.color.label}>
+                Skills
+              </Text>
+            </Box>
+            {skillsBody()}
+          </Box>
         </Accordion>
       </Box>
 
@@ -450,16 +461,15 @@ export function SessionPanel({ info, maxWidth, sid, t }: SessionPanelProps) {
         </Box>
       )}
 
-      {/* ── MCP Servers (collapsed by default) ── */}
+      {/* Connected services stay inspectable without owning the workstream. */}
       {mcpServers.length > 0 && (
         <Box flexDirection="column" marginTop={1}>
           <Accordion
-            count={mcpConnected}
             onToggle={() => setMcpOpen(v => !v)}
             open={mcpOpen}
-            suffix="connected"
+            suffix={mcpConnected ? `${mcpConnected} MCP connected` : 'none active'}
             t={t}
-            title="MCP Servers"
+            title="Connections"
           >
             {mcpBody()}
           </Accordion>
@@ -468,13 +478,13 @@ export function SessionPanel({ info, maxWidth, sid, t }: SessionPanelProps) {
 
       <Text />
 
-      <Text color={t.color.text}>
+      <Text color={t.color.text} wrap="truncate-end">
         {/* Lazy boot: never print "0 tools · 0 skills" while counts load. */}
         {info.lazy && !toolsTotal ? '… ' : `${toolsTotal} `}tools{' · '}
         {info.lazy && !skillsTotal ? '… ' : `${skillsTotal} `}skills
         {mcpConnected ? ` · ${mcpConnected} MCP` : ''}
         {' · '}
-        <Text color={t.color.muted}>/help for commands</Text>
+        <Text color={t.color.muted}>continuity ready</Text>
       </Text>
 
       {typeof info.update_behind === 'number' && info.update_behind > 0 && (
@@ -503,22 +513,24 @@ export function SessionPanel({ info, maxWidth, sid, t }: SessionPanelProps) {
   )
 
   return (
-    <Box borderColor={t.color.border} borderStyle="round" marginBottom={1} paddingX={2} paddingY={1}>
+    <Box
+      borderBottom={false}
+      borderColor={t.color.border}
+      borderLeft
+      borderRight={false}
+      borderStyle="single"
+      borderTop={false}
+      marginBottom={1}
+      paddingLeft={2}
+    >
       <WidgetGrid
-        cols={wide ? leftW + 2 + w : w}
-        columns={wide ? [leftW, { fr: 1 }] : 1}
-        gap={2}
+        cols={innerCols}
+        columns={1}
+        gap={0}
         paddingX={0}
         paddingY={0}
         rowGap={0}
-        widgets={
-          wide
-            ? [
-                { children: heroColumn, id: 'session-hero' },
-                { children: infoColumn, id: 'session-info' }
-              ]
-            : [{ children: infoColumn, id: 'session-info' }]
-        }
+        widgets={[{ children: infoColumn, id: 'session-info' }]}
       />
     </Box>
   )

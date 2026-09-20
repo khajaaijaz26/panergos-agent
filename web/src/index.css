@@ -1,7 +1,7 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 /* Load Panergos typography variables before the component tokens. */
-@import '@panergos/ui/styles/fonts.css';
-@import '@panergos/ui/styles/globals.css';
+@import "@panergos/ui/styles/fonts.css";
+@import "@panergos/ui/styles/globals.css";
 
 /* Scan the published design-system bundle so its utility classes survive
    Tailwind's JIT purge. */
@@ -16,25 +16,25 @@
 /* ------------------------------------------------------------------ */
 
 @font-face {
-  font-family: 'JetBrains Mono';
+  font-family: "JetBrains Mono";
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('/fonts-terminal/JetBrainsMono-Regular.woff2') format('woff2');
+  src: url("/fonts-terminal/JetBrainsMono-Regular.woff2") format("woff2");
 }
 @font-face {
-  font-family: 'JetBrains Mono';
+  font-family: "JetBrains Mono";
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url('/fonts-terminal/JetBrainsMono-Bold.woff2') format('woff2');
+  src: url("/fonts-terminal/JetBrainsMono-Bold.woff2") format("woff2");
 }
 @font-face {
-  font-family: 'JetBrains Mono';
+  font-family: "JetBrains Mono";
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url('/fonts-terminal/JetBrainsMono-Italic.woff2') format('woff2');
+  src: url("/fonts-terminal/JetBrainsMono-Italic.woff2") format("woff2");
 }
 
 /* ------------------------------------------------------------------ */
@@ -54,7 +54,7 @@
   --background-base: #120b1f;
   --background-alpha: 1;
 
-  /* Semantic brand roles mirror the knot: pearl text, jade actions,
+  /* Semantic brand roles mirror the Relay: pearl text, jade actions,
      coral selections, plum surfaces, and amber focus/warning signals. */
   --text-primary: #f7f2ff;
   --text-secondary: color-mix(in srgb, #f7f2ff 78%, transparent);
@@ -65,10 +65,9 @@
 
   /* Typography tokens — rewritten by ThemeProvider. Defaults match the
      system stack so themes that don't override look native. */
-  --theme-font-sans: system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
-  --theme-font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo,
-    Consolas, monospace;
+  --theme-font-sans:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --theme-font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
   --theme-font-display: var(--theme-font-sans);
   --theme-base-size: 15px;
   --theme-line-height: 1.55;
@@ -82,7 +81,7 @@
 
   /* Data-series accents — consumed by Analytics + Models pages for the
      input-vs-output token visualisations (chart bars, table values,
-     legend swatches). Orbit gold and electric jade stay distinct against
+     legend swatches). Relay gold and electric jade stay distinct against
      the eclipse-plum canvas. Themes override via ThemeProvider, which emits
      these as `--series-input-token` / `--series-output-token`. */
   --series-input-token: #f7c453;
@@ -109,7 +108,12 @@ body {
   overflow: hidden;
 }
 
-code, kbd, pre, samp, .font-mono, .font-mono-ui {
+code,
+kbd,
+pre,
+samp,
+.font-mono,
+.font-mono-ui {
   font-family: var(--theme-font-mono);
 }
 
@@ -144,8 +148,12 @@ code, kbd, pre, samp, .font-mono, .font-mono-ui {
 
 /* The Panergos layout bumps `small` and `code` to readable
    dashboard sizes. Keep in sync. */
-small { font-size: 1.0625rem; }
-code { font-size: 0.875rem; }
+small {
+  font-size: 1.0625rem;
+}
+code {
+  font-size: 0.875rem;
+}
 
 /* Shadcn-compat tokens.
    The dashboard's page code uses shadcn-style
@@ -195,31 +203,58 @@ code { font-size: 0.875rem; }
   --tw-ring-color: var(--color-ring);
 }
 
-
 /* Collapsed sidebar tooltip entrance — skipped when moving between items. */
 @keyframes sidebar-tooltip-in {
-  from { opacity: 0; transform: translateY(-50%) translateX(-4px); }
-  to   { opacity: 1; transform: translateY(-50%) translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
 }
 
 /* Toast animations used by `components/Toast.tsx`. */
 @keyframes toast-in {
-  from { opacity: 0; transform: translateX(16px); }
-  to   { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 @keyframes toast-out {
-  from { opacity: 1; transform: translateX(0); }
-  to   { opacity: 0; transform: translateX(16px); }
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(16px);
+  }
 }
 
 /* Generic fade + dialog entrance used by popovers and confirm dialogs. */
 @keyframes fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 @keyframes dialog-in {
-  from { opacity: 0; transform: translateY(4px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* Hide scrollbar utility — used by the header's overflow-x nav row. */
@@ -245,19 +280,253 @@ code { font-size: 0.875rem; }
   position: relative;
 }
 .grain::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   opacity: 0.12;
   pointer-events: none;
-  background: repeating-conic-gradient(currentColor 0% 25%, #0000 0% 50%) 0 0 /
-    2px 2px;
+  background: repeating-conic-gradient(currentColor 0% 25%, #0000 0% 50%) 0 0 / 2px 2px;
 }
 
-/* RTL support — Arabic and any future right-to-left locale. The i18n provider
-   sets `dir` on <html>; Tailwind v4's logical spacing utilities (ms-/me-,
-   ps-/pe-) and logical properties then flip automatically. Scoped so the
-   default LTR layout is untouched. */
+/* Panergos signal shell: independent floating controls and an asymmetric
+   workspace keep the product silhouette separate from stock admin layouts. */
+.panergos-shell {
+  isolation: isolate;
+  background:
+    radial-gradient(
+      ellipse at 2% 4%,
+      color-mix(in srgb, var(--midground-base) 15%, transparent),
+      transparent 25rem
+    ),
+    radial-gradient(
+      ellipse at 97% 0%,
+      color-mix(in srgb, var(--color-accent) 15%, transparent),
+      transparent 28rem
+    ),
+    radial-gradient(
+      ellipse at 55% 110%,
+      color-mix(in srgb, var(--series-input-token) 8%, transparent),
+      transparent 36rem
+    ),
+    linear-gradient(
+      152deg,
+      var(--background-base),
+      color-mix(in srgb, var(--background-base) 87%, #29102f)
+    );
+}
+
+.panergos-shell::before {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  opacity: 0.22;
+  background-image:
+    radial-gradient(
+      circle at center,
+      transparent 0 2px,
+      color-mix(in srgb, var(--midground-base) 20%, transparent) 2.5px 3px,
+      transparent 3.5px
+    ),
+    linear-gradient(
+      118deg,
+      transparent 49.85%,
+      color-mix(in srgb, var(--series-input-token) 11%, transparent) 50%,
+      transparent 50.15%
+    );
+  background-size:
+    5rem 5rem,
+    11rem 11rem;
+  mask-image: radial-gradient(ellipse at 50% 10%, black, transparent 78%);
+}
+
+.panergos-command-deck {
+  background: transparent;
+}
+
+.panergos-brand-node,
+.panergos-control-node,
+.panergos-command-track {
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  background: color-mix(in srgb, var(--background-base) 82%, transparent);
+  box-shadow: 0 12px 34px -24px rgb(0 0 0 / 0.95);
+  backdrop-filter: blur(18px);
+}
+
+.panergos-brand-node {
+  border-radius: 1.35rem 0.55rem 1.35rem 0.55rem;
+}
+
+.panergos-control-node {
+  border-radius: 0.55rem 1.35rem 0.55rem 1.35rem;
+}
+
+.panergos-command-track {
+  border-radius: 999px;
+}
+
+.panergos-map-trigger {
+  border-left: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.panergos-mark-frame {
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--midground-base) 24%, transparent));
+}
+
+.panergos-command-panel {
+  background:
+    radial-gradient(
+      circle at 4% 3%,
+      color-mix(in srgb, var(--midground-base) 18%, transparent),
+      transparent 22rem
+    ),
+    radial-gradient(
+      circle at 96% 98%,
+      color-mix(in srgb, var(--color-accent) 13%, transparent),
+      transparent 26rem
+    ),
+    color-mix(in srgb, var(--background-base) 94%, transparent);
+  border-radius: 2.25rem 0.65rem 2.25rem 0.65rem;
+  backdrop-filter: blur(24px);
+  box-shadow:
+    0 34px 90px -30px rgb(0 0 0 / 0.95),
+    0 0 0 1px color-mix(in srgb, var(--midground-base) 8%, transparent);
+  animation: command-map-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.panergos-command-console {
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--midground-base) 9%, transparent),
+      transparent 58%
+    ),
+    color-mix(in srgb, var(--background-base) 52%, transparent);
+}
+
+.panergos-relay-glyph {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-accent) 18%, transparent),
+    transparent 72%
+  );
+  clip-path: polygon(0 0, 78% 0, 100% 22%, 100% 100%, 22% 100%, 0 78%);
+}
+
+.panergos-command-lane {
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--midground-base) 5%, transparent),
+      transparent 65%
+    ),
+    color-mix(in srgb, var(--background-base) 68%, transparent);
+  border-radius: 1.25rem 0.35rem 1.25rem 0.35rem;
+}
+
+.panergos-command-lane:nth-child(even) {
+  border-radius: 0.35rem 1.25rem 0.35rem 1.25rem;
+}
+
+.panergos-workspace-shell {
+  position: relative;
+  border-radius: 1.8rem 0.55rem 1.8rem 0.55rem;
+  background:
+    linear-gradient(
+      118deg,
+      color-mix(in srgb, var(--midground-base) 4%, transparent),
+      transparent 32%
+    ),
+    color-mix(in srgb, var(--background-base) 80%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.panergos-page-beacon {
+  position: relative;
+}
+
+.panergos-page-beacon::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  content: "";
+  background: linear-gradient(
+    90deg,
+    var(--midground-base),
+    color-mix(in srgb, var(--series-input-token) 45%, transparent) 38%,
+    transparent 86%
+  );
+}
+
+.panergos-page-signal {
+  border-radius: 999px;
+  background: linear-gradient(
+    to bottom,
+    var(--midground-base) 0 34%,
+    var(--series-input-token) 34% 67%,
+    var(--color-accent) 67%
+  );
+  box-shadow: 0 0 14px color-mix(in srgb, var(--midground-base) 30%, transparent);
+}
+
+.panergos-focus-stage {
+  border: 1px solid color-mix(in srgb, var(--midground-base) 13%, transparent);
+  border-radius: 1.65rem 0.45rem 1.65rem 0.45rem;
+}
+
+.panergos-launch-bay {
+  height: min(72dvh, 46rem);
+  border-radius: 2.4rem 2.4rem 0.7rem 0.7rem;
+  box-shadow:
+    0 -28px 90px -34px rgb(0 0 0 / 0.95),
+    0 0 0 1px color-mix(in srgb, var(--midground-base) 8%, transparent);
+  animation: launch-bay-in 190ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes command-map-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes launch-bay-in {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panergos-command-panel,
+  .panergos-launch-bay {
+    animation: none;
+  }
+}
+
+@media (max-width: 639px) {
+  .panergos-launch-bay {
+    height: min(84dvh, 46rem);
+    border-radius: 1.65rem 1.65rem 0.55rem 0.55rem;
+  }
+
+  .panergos-command-panel {
+    border-radius: 1.5rem 0.45rem 1.5rem 0.45rem;
+  }
+}
+
+/* RTL support — Arabic and any future right-to-left locale. */
 html[dir="rtl"] {
   direction: rtl;
 }

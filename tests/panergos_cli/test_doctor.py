@@ -324,7 +324,7 @@ def test_doctor_reports_vercel_backend_diagnostics(monkeypatch, tmp_path):
 
 
 class TestDoctorMemoryProviderSection:
-    """The ◆ Memory Provider section should respect memory.provider config."""
+    """The ▶ Memory Provider section should respect memory.provider config."""
 
     def _make_panergos_home(self, tmp_path, provider="", memory_config=None):
         """Create a minimal PANERGOS_HOME with config.yaml."""
@@ -1295,12 +1295,12 @@ class TestHasHealthyOauthFallbackForXai:
 
 
 # ---------------------------------------------------------------------------
-# ◆ Auth Providers — xAI OAuth display in run_doctor()
+# ▶ Auth Providers — xAI OAuth display in run_doctor()
 # ---------------------------------------------------------------------------
 
 
 class TestDoctorXaiOAuthStatus:
-    """The ◆ Auth Providers section must show xAI OAuth login state.
+    """The ▶ Auth Providers section must show xAI OAuth login state.
 
     xAI OAuth is checked in a *separate* try/except block so that an import
     failure (or runtime exception) cannot silence the Codex and MiniMax rows
@@ -1398,7 +1398,7 @@ class TestDoctorXaiOAuthStatus:
 
 
 # ---------------------------------------------------------------------------
-# ◆ Auth Providers — codex CLI import hint placement (issue #27975)
+# ▶ Auth Providers — codex CLI import hint placement (issue #27975)
 # ---------------------------------------------------------------------------
 
 

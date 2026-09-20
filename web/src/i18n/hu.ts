@@ -51,7 +51,7 @@ export const hu: Translations = {
 
   app: {
     brand: "Panergos Agent",
-    brandShort: "HA",
+    brandShort: "PA",
     closeNavigation: "Navigáció bezárása",
     closeModelTools: "Modell és eszközök bezárása",
     footer: {
@@ -346,7 +346,7 @@ export const hu: Translations = {
     removeConfirm: "Eltávolítja ezt a bővítményt a ~/.panergos/plugins/ mappából?",
     removeHint: "Csak a felhasználó által a ~/.panergos/plugins alá telepített bővítmények távolíthatók el.",
     rescanHeading: "SPA-bővítményregiszter",
-    rescanHint: "Olvassa újra a fájlokat a lemezen történő hozzáadás után, hogy az oldalsáv felvegye az új manifesteket.",
+    rescanHint: "Olvassa újra a fájlokat a lemezen történő hozzáadás után, hogy a navigáció felvegye az új manifesteket.",
     runtimeHeading: "Átjáró-futási idő (YAML-bővítmények)",
     saveProviders: "Szolgáltatóbeállítások mentése",
     savedProviders: "Szolgáltatóbeállítások mentve.",
@@ -355,8 +355,8 @@ export const hu: Translations = {
     authRequiredHint: "Futtassa ezt a parancsot a hitelesítéshez:",
     updateGit: "Git pull",
     versionBadge: "Verzió",
-    showInSidebar: "Megjelenítés az oldalsávon",
-    hideFromSidebar: "Elrejtés az oldalsávról",
+    showInSidebar: "Megjelenítés a navigációban",
+    hideFromSidebar: "Elrejtés a navigációból",
   },
 
   skills: {
@@ -605,7 +605,7 @@ export const hu: Translations = {
         "A „Megosztás az X-en” új lapon nyit meg egy előre kitöltött bejegyzést. Először kattints a „Kép másolása” gombra, ha az 1200×630-as jelvényt is csatolnád — az X engedi, hogy közvetlenül beillesszd a bejegyzésszerkesztőbe. A „PNG letöltése” bárhol felhasználható fájlként menti.",
       clipboard_unsupported:
         "A kép vágólapra másolása nem támogatott ebben a böngészőben — használd inkább a Letöltést.",
-      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ◆",
+      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ▶",
     },
   },
   kanban: {

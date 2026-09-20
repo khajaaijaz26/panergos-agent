@@ -173,7 +173,7 @@ layout:
 | Variant | Behaviour |
 |---------|-----------|
 | `standard` | Single column, 1600px max-width (default). |
-| `cockpit` | Left sidebar rail (260px) + main content. Populated by plugins via the `sidebar` slot — see [Shell slots](#shell-slots). Without a plugin the rail shows a placeholder. |
+| `cockpit` | Keeps the full workspace canvas and exposes `data-layout-variant="cockpit"` for denser theme-specific chrome. |
 | `tiled` | Drops the max-width clamp so pages can use the full viewport width. |
 
 ```yaml
@@ -189,10 +189,9 @@ Ship artwork URLs with a theme. Each named slot becomes a CSS var (`--theme-asse
 ```yaml
 assets:
   bg: "https://example.com/hero-bg.jpg"           # auto-wired into <Backdrop />
-  hero: "/my-images/strike-freedom.png"           # for plugin sidebars
+  hero: "/my-images/strike-freedom.png"           # for plugin overlays
   crest: "/my-images/crest.svg"                   # for header-left plugins
   logo: "/my-images/logo.png"
-  sidebar: "/my-images/rail.png"
   header: "/my-images/header-art.png"
   custom:
     scanLines: "/my-images/scanlines.png"         # → --theme-asset-custom-scanLines
@@ -464,7 +463,7 @@ None of them are required; include only the layers you need.
     "override": "/",
     "hidden": false
   },
-  "slots": ["sidebar", "header-left"],
+  "slots": ["header-left", "overlay"],
   "entry": "dist/index.js",
   "css": "dist/style.css",
   "api": "plugin_api.py"
@@ -566,12 +565,12 @@ See [Web Dashboard → REST API](./web-dashboard#rest-api) for the full list.
 
 ### Shell slots
 
-Slots let a plugin inject components into named locations of the app shell — the cockpit sidebar, the header, the footer, an overlay layer — without claiming a whole tab. Multiple plugins can populate the same slot; they render stacked in registration order.
+Slots let a plugin inject components into named locations of the app shell — the header, footer, workspace edges, or overlay layer — without claiming a whole tab. Multiple plugins can populate the same slot; they render stacked in registration order.
 
 Register from inside the plugin bundle:
 
 ```javascript
-window.__PANERGOS_PLUGINS__.registerSlot("my-plugin", "sidebar", MySidebar);
+window.__PANERGOS_PLUGINS__.registerSlot("my-plugin", "overlay", MyOverlay);
 window.__PANERGOS_PLUGINS__.registerSlot("my-plugin", "header-left", MyCrest);
 ```
 
@@ -583,9 +582,8 @@ window.__PANERGOS_PLUGINS__.registerSlot("my-plugin", "header-left", MyCrest);
 |------|----------|
 | `backdrop` | Inside the `<Backdrop />` layer stack, above the noise layer. |
 | `header-left` | Before the Panergos brand in the top bar. |
-| `header-right` | Before the theme/language switchers in the top bar. |
+| `header-right` | Between the gateway summary and **Navigation** control in the top bar. |
 | `header-banner` | Full-width strip below the nav. |
-| `sidebar` | Cockpit sidebar rail — **only rendered when `layoutVariant === "cockpit"`**. |
 | `pre-main` | Above the route outlet (inside `<main>`). |
 | `post-main` | Below the route outlet (inside `<main>`). |
 | `footer-left` | Footer cell content (replaces default). |
@@ -619,7 +617,7 @@ function PinnedSessionsBanner() {
 window.__PANERGOS_PLUGINS__.registerSlot("my-plugin", "sessions:top", PinnedSessionsBanner);
 ```
 
-Combine page-scoped slots with `tab.hidden: true` if your plugin only augments existing pages and doesn't need a sidebar tab of its own.
+Combine page-scoped slots with `tab.hidden: true` if your plugin only augments existing pages and doesn't need a Command Map entry of its own.
 
 The shell only renders `<PluginSlot name="..." />` for the slots above. Additional names are accepted by the registry for nested plugin UIs — a plugin can expose its own slots via `SDK.components.PluginSlot`.
 
@@ -699,7 +697,7 @@ Minimal example — pin a banner to the top of the Sessions page:
 
 Key points:
 
-- `tab.hidden: true` keeps the plugin out of the sidebar — it has no standalone page.
+- `tab.hidden: true` keeps the plugin out of Navigation — it has no standalone page.
 - The `slots` manifest field is documentation only. The actual binding happens in the JS bundle via `registerSlot()`.
 - Multiple plugins can claim the same page-scoped slot. They render stacked in registration order.
 - Zero footprint when no plugin registers: the built-in page renders exactly as before.
@@ -709,7 +707,7 @@ into any dashboard plugin bundle.
 
 ### Slot-only plugins (`tab.hidden`)
 
-When `tab.hidden: true`, the plugin registers its component (for direct URL visits) and any slots, but never adds a tab to the navigation. Used by plugins that only exist to inject into slots — a header crest, a sidebar HUD, an overlay.
+When `tab.hidden: true`, the plugin registers its component (for direct URL visits) and any slots, but never adds an entry to the Command Map. Used by plugins that only exist to inject into slots — a header crest, status overlay, or workspace banner.
 
 ```json
 {
@@ -847,7 +845,7 @@ forking the dashboard. A typical combination uses:
 
 - A full theme using palette, typography, `fontUrl`, `layoutVariant: cockpit`, `assets`, `componentStyles` (notched card corners, gradient backgrounds), `colorOverrides`, and `customCSS` (scanline overlay).
 - A slot-only plugin (`tab.hidden: true`) that registers into three slots:
-  - `sidebar` — an MS-STATUS panel with live telemetry bars driven by `SDK.api.getStatus()`.
+  - `overlay` — an on-demand MS-STATUS HUD with live telemetry bars driven by `SDK.api.getStatus()`.
   - `header-left` — a faction crest that reads `--theme-asset-crest` from the active theme.
   - `footer-right` — a custom tagline replacing the default org line.
 - The plugin reads theme-supplied artwork via CSS vars, so swapping themes changes the hero/crest without plugin code changes.
@@ -909,7 +907,7 @@ Check that the file is in `~/.panergos/dashboard-themes/` and ends in `.yaml` or
 5. Verify your bundle calls `window.__PANERGOS_PLUGINS__.register(...)` with the **same name** as `manifest.json:name`.
 
 **Slot-registered components don't render.**
-The `sidebar` slot only renders when the active theme has `layoutVariant: cockpit`. Other slots always render. If you're registering into a slot with no hits, add `console.log` inside `registerSlot` to confirm the plugin bundle ran at all.
+Verify the name appears in the [slot catalogue](#slot-catalogue), then add `console.log` inside `registerSlot` to confirm the plugin bundle ran at all. Custom names are valid only when another plugin actually renders a matching `PluginSlot`.
 
 **Plugin backend routes return 404.**
 1. Confirm the manifest has `"api": "plugin_api.py"` pointing to an existing file inside `dashboard/`.

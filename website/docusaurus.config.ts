@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'Panergos Agent',
   tagline: 'The open agent for any work',
-  favicon: 'img/panergos-icon.png',
+  favicon: 'img/panergos-mark.svg',
 
   url: 'https://khajaaijaz26.github.io',
   baseUrl: '/panergos-agent/docs/',
@@ -109,7 +109,7 @@ const config: Config = {
       title: 'Panergos Agent',
       logo: {
         alt: 'Panergos Agent',
-        src: 'img/panergos-icon.png',
+        src: 'img/panergos-mark.svg',
       },
       items: [
         {

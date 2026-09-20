@@ -51,7 +51,7 @@ export const it: Translations = {
 
   app: {
     brand: "Panergos Agent",
-    brandShort: "HA",
+    brandShort: "PA",
     closeNavigation: "Chiudi navigazione",
     closeModelTools: "Chiudi modello e strumenti",
     footer: {
@@ -346,7 +346,7 @@ export const it: Translations = {
     removeConfirm: "Rimuovere questo plugin da ~/.panergos/plugins/?",
     removeHint: "Solo i plugin installati dall'utente in ~/.panergos/plugins possono essere rimossi.",
     rescanHeading: "Registro plugin SPA",
-    rescanHint: "Riscansiona dopo aver aggiunto file su disco affinché la barra laterale rilevi i nuovi manifest.",
+    rescanHint: "Riscansiona dopo aver aggiunto file su disco affinché la navigazione rilevi i nuovi manifest.",
     runtimeHeading: "Runtime gateway (plugin YAML)",
     saveProviders: "Salva impostazioni provider",
     savedProviders: "Impostazioni provider salvate.",
@@ -355,8 +355,8 @@ export const it: Translations = {
     authRequiredHint: "Esegui questo comando per autenticarti:",
     updateGit: "Git pull",
     versionBadge: "Versione",
-    showInSidebar: "Mostra nella barra laterale",
-    hideFromSidebar: "Nascondi dalla barra laterale",
+    showInSidebar: "Mostra nella navigazione",
+    hideFromSidebar: "Nascondi dalla navigazione",
   },
 
   skills: {
@@ -604,7 +604,7 @@ export const it: Translations = {
         "Condividi su X apre un post precompilato in una nuova scheda. Clicca prima su Copia immagine se vuoi allegare il badge 1200×630 — X ti permette di incollarlo direttamente nell'editor del tweet. Scarica PNG salva il file per l'uso ovunque.",
       clipboard_unsupported:
         "La copia delle immagini negli appunti non è supportata in questo browser — usa Scarica invece.",
-      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ◆",
+      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ▶",
     },
   },
   kanban: {

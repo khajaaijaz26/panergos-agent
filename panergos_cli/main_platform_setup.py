@@ -128,7 +128,7 @@ def cmd_whatsapp(args):
     _require_tty("whatsapp")
     from panergos_cli.config import get_env_value, save_env_value
     from panergos_constants import find_node_executable, with_panergos_node_path
-    _say("", "◆ WhatsApp Setup", "=" * 50)
+    _say("", "▶ WhatsApp Setup", "=" * 50)
 
     wa_mode = _whatsapp_choose_mode(get_env_value, save_env_value)
     if wa_mode is None:

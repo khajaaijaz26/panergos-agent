@@ -51,7 +51,7 @@ export const de: Translations = {
 
   app: {
     brand: "Panergos Agent",
-    brandShort: "HA",
+    brandShort: "PA",
     closeNavigation: "Navigation schließen",
     closeModelTools: "Modell und Werkzeuge schließen",
     footer: {
@@ -346,7 +346,7 @@ export const de: Translations = {
     removeConfirm: "Dieses Plugin aus ~/.panergos/plugins/ entfernen?",
     removeHint: "Nur vom Benutzer installierte Plugins unter ~/.panergos/plugins können entfernt werden.",
     rescanHeading: "SPA-Plugin-Registry",
-    rescanHint: "Nach dem Hinzufügen von Dateien auf dem Datenträger erneut scannen, damit die Sidebar neue Manifeste erkennt.",
+    rescanHint: "Nach dem Hinzufügen von Dateien auf dem Datenträger erneut scannen, damit die Navigation neue Manifeste erkennt.",
     runtimeHeading: "Gateway-Laufzeit (YAML-Plugins)",
     saveProviders: "Anbieter-Einstellungen speichern",
     savedProviders: "Anbieter-Einstellungen gespeichert.",
@@ -355,8 +355,8 @@ export const de: Translations = {
     authRequiredHint: "Führe diesen Befehl aus, um dich zu authentifizieren:",
     updateGit: "Git pull",
     versionBadge: "Version",
-    showInSidebar: "In Sidebar anzeigen",
-    hideFromSidebar: "Aus Sidebar ausblenden",
+    showInSidebar: "In Navigation anzeigen",
+    hideFromSidebar: "Aus Navigation ausblenden",
   },
 
   skills: {
@@ -604,7 +604,7 @@ export const de: Translations = {
         "Auf X teilen öffnet einen vorgefertigten Post in einem neuen Tab. Klicke zuerst auf Bild kopieren, wenn du das 1200×630-Abzeichen anhängen möchtest – X lässt dich es direkt in den Tweet-Editor einfügen. PNG herunterladen speichert die Datei zur Nutzung an beliebiger Stelle.",
       clipboard_unsupported:
         "Bildkopie über die Zwischenablage wird in diesem Browser nicht unterstützt – nutze stattdessen Herunterladen.",
-      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ◆",
+      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ▶",
     },
   },
   kanban: {

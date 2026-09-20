@@ -68,8 +68,8 @@ export interface ThemeLayout {
 }
 
 /** Overall layout variant the shell renders. `standard` = default single-
- *  column page layout. `cockpit` = reserves a left sidebar rail for a
- *  plugin slot (intended for HUD-style themes with persistent status panels).
+ *  column page layout. `cockpit` = exposes a theme hook for denser custom
+ *  chrome without reserving permanent workspace space.
  *  `tiled` = relaxes the main content max-width so pages can use the full
  *  viewport width. Themes set this; plugins react via CSS vars /
  *  `[data-layout-variant="..."]` selectors. */
@@ -120,7 +120,7 @@ export interface ThemeComponentStyles {
  *  `--series-input-token` / `--series-output-token` CSS vars consumed
  *  inline by pages that render input-vs-output token flows. Themes can
  *  omit either field to inherit the default token defined in
- *  `index.css` (orbit amber for input, Panergos jade for output). */
+ *  `index.css` (relay amber for input, Panergos jade for output). */
 export interface ThemeSeriesColors {
   /** Input-tokens series accent (Analytics chart bars + table values). */
   inputTokenAccent?: string;

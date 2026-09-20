@@ -1704,7 +1704,7 @@ panergos dashboard
 panergos dashboard --port 8080 --no-open
 
 # From a profile alias — routes to the machine dashboard with the
-# profile preselected in the sidebar switcher (attach if running)
+# profile preselected in the Navigation switcher (attach if running)
 worker dashboard
 ```
 

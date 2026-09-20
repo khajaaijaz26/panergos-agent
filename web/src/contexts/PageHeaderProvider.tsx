@@ -36,8 +36,7 @@ export function PageHeaderProvider({
 
   const isChatRoute = pathname === "/chat" || pathname === "/chat/";
   /** Env jump-nav is wide — stack below title on small screens so KEYS stays readable. */
-  const isEnvRoute =
-    pathname === "/env" || pathname.startsWith("/env/");
+  const isEnvRoute = pathname === "/env" || pathname.startsWith("/env/");
 
   const value = useMemo(
     () => ({
@@ -53,22 +52,23 @@ export function PageHeaderProvider({
       <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
         <header
           className={cn(
-            "z-1 w-full shrink-0",
-            "box-border border-b border-current/20",
-            "bg-background-base",
-            // Mobile stacks title + toolbar — fixed h-14 clips content; desktop stays one row.
-            "min-h-0 overflow-x-hidden overflow-y-visible py-3 sm:h-14 sm:min-h-[3.5rem] sm:overflow-hidden sm:py-0",
+            "z-1 w-full shrink-0 px-3 pt-2 sm:px-6 sm:pt-3",
+            "min-h-0 overflow-x-hidden overflow-y-visible",
           )}
           role="banner"
         >
           <div
             className={cn(
-              "flex w-full min-w-0 flex-1 gap-3 px-3 sm:h-full sm:gap-3 sm:px-6",
+              "panergos-page-beacon flex w-full min-w-0 flex-1 gap-3 pb-2 sm:min-h-11 sm:gap-3 sm:pb-3",
               isChatRoute
                 ? "flex-row items-center"
                 : "flex-col justify-center sm:flex-row sm:items-center",
             )}
           >
+            <span
+              aria-hidden
+              className="panergos-page-signal mt-1 h-7 w-1 shrink-0 self-start sm:mt-0 sm:self-center"
+            />
             <div
               className={cn(
                 "flex min-w-0 flex-1 gap-2 sm:gap-3",
@@ -81,7 +81,7 @@ export function PageHeaderProvider({
             >
               <h1
                 className={cn(
-                  "font-expanded min-w-0 text-sm font-bold tracking-[0.08em] text-midground",
+                  "font-expanded min-w-0 text-sm font-bold uppercase tracking-[0.16em] text-midground",
                   afterTitle && isEnvRoute
                     ? "max-w-full sm:min-w-0 sm:shrink sm:truncate"
                     : afterTitle

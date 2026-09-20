@@ -51,7 +51,7 @@ export const ja: Translations = {
 
   app: {
     brand: "Panergos Agent",
-    brandShort: "HA",
+    brandShort: "PA",
     closeNavigation: "ナビゲーションを閉じる",
     closeModelTools: "モデルとツールを閉じる",
     footer: {
@@ -345,7 +345,7 @@ export const ja: Translations = {
     removeConfirm: "このプラグインを ~/.panergos/plugins/ から削除しますか？",
     removeHint: "削除できるのは ~/.panergos/plugins 配下のユーザーがインストールしたプラグインのみです。",
     rescanHeading: "SPA プラグインレジストリ",
-    rescanHint: "ディスクにファイルを追加した後に再スキャンすると、ダッシュボードのサイドバーが新しいマニフェストを認識します。",
+    rescanHint: "ディスクにファイルを追加した後に再スキャンすると、ダッシュボードのナビゲーションが新しいマニフェストを認識します。",
     runtimeHeading: "ゲートウェイランタイム (YAML プラグイン)",
     saveProviders: "プロバイダー設定を保存",
     savedProviders: "プロバイダー設定を保存しました。",
@@ -354,8 +354,8 @@ export const ja: Translations = {
     authRequiredHint: "認証するには次のコマンドを実行してください:",
     updateGit: "Git pull",
     versionBadge: "バージョン",
-    showInSidebar: "サイドバーに表示",
-    hideFromSidebar: "サイドバーから非表示",
+    showInSidebar: "ナビゲーションに表示",
+    hideFromSidebar: "ナビゲーションから非表示",
   },
 
   skills: {
@@ -604,7 +604,7 @@ export const ja: Translations = {
         "「X で共有」は事前入力された投稿を新しいタブで開きます。1200×630 のバッジを添付したい場合は、先に「画像をコピー」を押してください — X では投稿エディタに直接貼り付けられます。「PNG をダウンロード」はファイルとして保存し、どこでも使えるようにします。",
       clipboard_unsupported:
         "このブラウザではクリップボードへの画像コピーがサポートされていません — 代わりに「ダウンロード」をご利用ください。",
-      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ◆",
+      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ▶",
     },
   },
   kanban: {

@@ -1493,7 +1493,7 @@ class QQAdapter(OwnAccessPolicyMixin, BasePlatformAdapter):
         are written to ``~/.panergos/.update_response`` by the interaction callback."""
         del session_key, metadata  # present for contract parity only.
         default_hint = f" (default: {default})" if default else ""
-        content = f"◆ **Update Needs Your Input**\n\n{prompt}{default_hint}"
+        content = f"▶ **Update Needs Your Input**\n\n{prompt}{default_hint}"
         return await self.send_with_keyboard(
             chat_id, content, build_update_prompt_keyboard(), reply_to=self._last_msg_id.get(chat_id)
         )

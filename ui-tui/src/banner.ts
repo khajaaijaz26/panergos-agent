@@ -63,41 +63,27 @@ const AGENT_ART = [
 
 const LOGO_ART = PANERGOS_ART.map((line, i) => `${line}       ${AGENT_ART[i]}`)
 
-// Braille reduction of the canonical Panergos Knot in assets/panergos-icon.png.
-const PANERGOS_KNOT_ART = [
-  '⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣶⣿⣿⣿⣿⣿⣿⣿⣿⣶⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⠀⣠⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠠⠚⠉⠉⠉⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣿⣿⣿⣿⡿⠋⠀⠀⠀⠀⠀⡄⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠀⠀⠈⠻⡿⠋⠀⠀⠀⠀⠀⣠⣾⡇⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣾⣿⣿⡇⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⠀⠀⢠⣿⣿⣿⠀⠀⠀⣷⣤⣀⣀⣠⣴⣾⣿⣿⣿⣿⡇⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣄⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠏⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣷⣄⣿⣿⣿⣿⣿⣿⣿⣿⠟⠁⠀⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⠉⠙⠛⠛⠛⠛⠉⠀⠀⠀⠀⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⡿⠟⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀',
-  '⠀⠀⠀⠀⠀⠀⠀⠀⢸⠿⠛⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀'
-]
+// Cell-safe reduction of the canonical Panergos Relay: coral and jade work
+// lanes converge into one amber execution path.
+const PANERGOS_RELAY_ART = ['━━━╲', '━━━━▶', '━━━╱']
 
 const LOGO_GRADIENT = [0, 0, 1, 1, 2, 2] as const
-const KNOT_GRADIENT = [0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3] as const
+const RELAY_GRADIENT = [0, 5, 4] as const
 
 const colorize = (art: string[], gradient: readonly number[], c: ThemeColors): Line[] => {
-  const p = [c.primary, c.accent, c.border, c.muted, c.ok]
+  const p = [c.primary, c.accent, c.border, c.muted, c.ok, c.warn]
 
   return art.map((text, i) => [p[gradient[i]!] ?? c.muted, text])
 }
 
 export const LOGO_WIDTH = Math.max(...LOGO_ART.map(line => line.length))
-export const PANERGOS_KNOT_WIDTH = Math.max(...PANERGOS_KNOT_ART.map(line => line.length))
+export const PANERGOS_RELAY_WIDTH = Math.max(...PANERGOS_RELAY_ART.map(line => line.length))
 
 export const logo = (c: ThemeColors, customLogo?: string): Line[] =>
   customLogo ? parseRichMarkup(customLogo) : colorize(LOGO_ART, LOGO_GRADIENT, c)
 
-export const panergosKnot = (c: ThemeColors, customHero?: string): Line[] =>
-  customHero ? parseRichMarkup(customHero) : colorize(PANERGOS_KNOT_ART, KNOT_GRADIENT, c)
+export const panergosRelay = (c: ThemeColors, customHero?: string): Line[] =>
+  customHero ? parseRichMarkup(customHero) : colorize(PANERGOS_RELAY_ART, RELAY_GRADIENT, c)
 
 export const artWidth = (lines: Line[]) => lines.reduce((m, [, t]) => Math.max(m, t.length), 0)
 

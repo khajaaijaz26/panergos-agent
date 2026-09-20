@@ -141,7 +141,7 @@ class TestShowStatusXaiOAuth:
         status_mod.show_status(SimpleNamespace(all=False, deep=False))
         out = capsys.readouterr().out
 
-        xai_section = out.split("xAI OAuth", 1)[1].split("◆", 1)[0]
+        xai_section = out.split("xAI OAuth", 1)[1].split("▶", 1)[0]
         assert "Auth file:" not in xai_section
 
 
@@ -164,7 +164,7 @@ class TestShowStatusXaiOAuth:
         status_mod.show_status(SimpleNamespace(all=False, deep=False))
         out = capsys.readouterr().out
 
-        assert "◆ Auth Providers" in out
+        assert "▶ Auth Providers" in out
 
     def test_import_failure_does_not_break_other_oauth_providers(self, monkeypatch, capsys, tmp_path):
         """Codex/MiniMax rows must still appear when xAI import fails."""
@@ -191,7 +191,7 @@ class TestShowStatusXaiOAuth:
         status_mod.show_status(SimpleNamespace(all=False, deep=False))
         out = capsys.readouterr().out
 
-        assert "◆ Auth Providers" in out
+        assert "▶ Auth Providers" in out
 
     def test_status_function_returns_none_does_not_crash(self, monkeypatch, capsys, tmp_path):
         """get_xai_oauth_auth_status returning None must be handled gracefully."""

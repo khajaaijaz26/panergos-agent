@@ -2,7 +2,7 @@
  * Plugin slot registry.
  *
  * Plugins can inject components into named locations in the app shell
- * (header-left, sidebar, backdrop, etc.) by calling
+ * (header-left, overlay, backdrop, etc.) by calling
  * `window.__PANERGOS_PLUGINS__.registerSlot(pluginName, slotName, Component)`
  * from their JS bundle. Multiple plugins can populate the same slot — they
  * render stacked in registration order.
@@ -22,10 +22,8 @@ import React, { Fragment, useEffect, useState } from "react";
  *  - `backdrop`         — optional full-viewport background decoration;
  *                         mounted behind shell chrome at z-0
  *  - `header-left`      — injected before the Panergos brand in the top bar
- *  - `header-right`     — injected before the theme/language switchers
+ *  - `header-right`     — injected before the Navigation control
  *  - `header-banner`    — injected below the top nav bar, full-width
- *  - `sidebar`          — the cockpit sidebar rail (only rendered when
- *                         `layoutVariant === "cockpit"`)
  *  - `pre-main`         — rendered above the route outlet (inside `<main>`)
  *  - `post-main`        — rendered below the route outlet (inside `<main>`)
  *  - `footer-left`      — replaces the left footer cell content
@@ -64,7 +62,6 @@ export const KNOWN_SLOT_NAMES = [
   "header-left",
   "header-right",
   "header-banner",
-  "sidebar",
   "pre-main",
   "post-main",
   "footer-left",
@@ -164,7 +161,7 @@ export function unregisterPluginSlots(plugin: string): void {
 }
 
 interface PluginSlotProps {
-  /** Slot identifier (e.g. `"sidebar"`, `"header-left"`). */
+  /** Slot identifier (e.g. `"overlay"`, `"header-left"`). */
   name: string;
   /** Optional content rendered when no plugins have claimed the slot.
    *  Useful for built-in defaults the plugin would replace. */

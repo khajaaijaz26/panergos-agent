@@ -73,7 +73,7 @@ def _print_records(noun: str, empty_message: str, records: list[tuple[Any, list[
         return
     print(f"\n{len(records)} {noun}:\n")
     for title, fields in records:
-        print(f"  ◆ {title}")
+        print(f"  ▶ {title}")
         for label, value, required in fields:
             if required or value:
                 print(f"    {label}: {value}")

@@ -29,9 +29,9 @@ def check_bool(cond, ok, bad, *, fail: bool = False):
 
 
 def _section(title: str) -> None:
-    """Print a doctor section banner: blank line + bold cyan ◆ title."""
+    """Print a doctor section banner: blank line + bold cyan Relay arrow title."""
     print()
-    print(color(f"◆ {title}", Colors.CYAN, Colors.BOLD))
+    print(color(f"▶ {title}", Colors.CYAN, Colors.BOLD))
 
 
 def _fail_and_issue(text: str, detail: str, fix: str, issues: list[str]) -> None:

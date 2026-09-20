@@ -25,7 +25,7 @@ import "@xterm/xterm/css/xterm.css";
 import { Button } from "@panergos/ui/ui/components/button";
 import { Typography } from "@panergos/ui/ui/components/typography/index";
 import { cn } from "@/lib/utils";
-import { Copy, PanelRight, RotateCcw, X } from "lucide-react";
+import { Copy, PanelBottom, RotateCcw, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router";
@@ -34,8 +34,10 @@ import { ChatSidebar } from "@/components/ChatSidebar";
 import { ChatSessionList } from "@/components/ChatSessionList";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { useI18n } from "@/i18n";
+import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { api } from "@/lib/api";
 import { latchChatActivation } from "@/lib/chat-activation";
+import { CLOSE_WORK_DOCK_EVENT } from "@/lib/command-deck";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { normalizeSessionTitle } from "@/lib/chat-title";
 import { createPtyCompositionForwarder } from "@/lib/pty-composition";
@@ -64,10 +66,7 @@ import {
   shouldTreatInputAsMobileReplacement,
 } from "@/lib/pty-mobile-input";
 import { computeKeyboardInset, shouldPinScroll } from "@/lib/keyboard-inset";
-import {
-  resolvePtyKeyboardShortcut,
-  sendPtyShortcutSequence,
-} from "@/lib/pty-keyboard-shortcuts";
+import { resolvePtyKeyboardShortcut, sendPtyShortcutSequence } from "@/lib/pty-keyboard-shortcuts";
 import {
   isViewportPinnedToBottom,
   parseResumeControlMessage,
@@ -111,7 +110,7 @@ function ptyAttachToken(rotate = false): string {
   return t;
 }
 
-// Channel id ties this chat tab's PTY child (publisher) to its sidebar
+// Channel id ties this chat tab's PTY child (publisher) to its Work Dock
 // (subscriber).  Generated once per mount so a tab refresh starts a fresh
 // channel — the previous PTY child terminates with the old WS, and its
 // channel auto-evicts when no subscribers remain.
@@ -120,9 +119,7 @@ function generateChannelId(scope?: string): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return `${prefix}-${crypto.randomUUID()}`;
   }
-  return `${prefix}-${Math.random().toString(36).slice(2)}-${Date.now().toString(
-    36,
-  )}`;
+  return `${prefix}-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
 }
 
 // Colors for the terminal body.  Matches the dashboard's dark teal canvas
@@ -138,8 +135,7 @@ function buildTerminalTheme(background: string, foreground: string) {
     foreground,
     cursor: foreground,
     cursorAccent: background,
-    selectionBackground:
-      foreground.length === 7 ? `${foreground}44` : foreground,
+    selectionBackground: foreground.length === 7 ? `${foreground}44` : foreground,
   };
 }
 
@@ -233,8 +229,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
   const connectingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ptyInputLineRef = useRef("");
   const mobileReplacementInputUntilRef = useRef(0);
-  const [ptyState, setPtyState] =
-    useState<PtyConnectionState>("connecting");
+  const [ptyState, setPtyState] = useState<PtyConnectionState>("connecting");
   const ptyStateRef = useRef<PtyConnectionState>("connecting");
   // True until the first real PTY payload arrives for a resumed session.
   // Covers the blank terminal + blinking-cursor window so users don't think
@@ -307,7 +302,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
       mobileReplacementInputUntilRef.current = 0;
     }
   }, [isActive]);
-  // Raw state for the mobile side-sheet + a derived value that force-
+  // Raw state for the Work Dock + a derived value that force-
   // closes whenever the chat tab isn't active.  The *derived* value is
   // what side-effects (body-scroll lock, keydown listener, portal render)
   // key on — that way switching to another tab triggers the effect's
@@ -315,18 +310,16 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
   // /chat re-runs the effect (derived flips back to true) and re-locks.
   // Keying on the raw state would leak the body.overflow="hidden" across
   // tabs because the dep wouldn't change on tab switch.
-  const [mobilePanelOpenRaw, setMobilePanelOpenRaw] = useState(false);
-  const mobilePanelOpen = isActive && mobilePanelOpenRaw;
-
-  // Collapse toggle for the desktop chat side panel (model + sessions),
-  // persisted in localStorage so the choice survives reloads.
-  const [chatPanelCollapsed, setChatPanelCollapsed] = useState(
-    () => localStorage.getItem("panergos-chat-panel-collapsed") === "1",
+  const [workDockOpenRaw, setWorkDockOpenRaw] = useState(
+    // Preserve the old rail preference: an explicit expanded value reopens
+    // as a dock, while new installs start in the full-width Focus Stage.
+    () => localStorage.getItem("panergos-chat-panel-collapsed") === "0",
   );
-  const toggleChatPanel = useCallback(() => {
-    setChatPanelCollapsed((prev) => {
+  const workDockOpen = isActive && workDockOpenRaw;
+  const toggleWorkDock = useCallback(() => {
+    setWorkDockOpenRaw((prev) => {
       const next = !prev;
-      localStorage.setItem("panergos-chat-panel-collapsed", next ? "1" : "0");
+      localStorage.setItem("panergos-chat-panel-collapsed", next ? "0" : "1");
       return next;
     });
   }, []);
@@ -336,7 +329,16 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
     title: string | null;
   }>({ scope: "", title: null });
   const { t } = useI18n();
-  const closeMobilePanel = useCallback(() => setMobilePanelOpenRaw(false), []);
+  const closeWorkDock = useCallback(() => {
+    setWorkDockOpenRaw(false);
+    localStorage.setItem("panergos-chat-panel-collapsed", "1");
+  }, []);
+  useEffect(() => {
+    if (!isActive) return;
+    window.addEventListener(CLOSE_WORK_DOCK_EVENT, closeWorkDock);
+    return () => window.removeEventListener(CLOSE_WORK_DOCK_EVENT, closeWorkDock);
+  }, [closeWorkDock, isActive]);
+  const workDockRef = useModalBehavior({ open: workDockOpen, onClose: closeWorkDock });
   const modelToolsLabel = useMemo(
     () => `${t.app.modelToolsSheetTitle} ${t.app.modelToolsSheetSubtitle}`,
     [t.app.modelToolsSheetSubtitle, t.app.modelToolsSheetTitle],
@@ -344,12 +346,6 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
   const [portalRoot] = useState<HTMLElement | null>(() =>
     typeof document !== "undefined" ? document.body : null,
   );
-  const [narrow, setNarrow] = useState(() =>
-    typeof window !== "undefined"
-      ? window.matchMedia("(max-width: 1023px)").matches
-      : false,
-  );
-
   const { theme } = useTheme();
   const terminalBg = theme.terminalBackground ?? DEFAULT_TERMINAL_BACKGROUND;
   const terminalFg = theme.terminalForeground ?? DEFAULT_TERMINAL_FOREGROUND;
@@ -374,8 +370,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
     [resumeParam, scopedProfile],
   );
   const titleScope = `${channel}\0${reconnectNonce}`;
-  const sessionTitle =
-    sessionTitleState.scope === titleScope ? sessionTitleState.title : null;
+  const sessionTitle = sessionTitleState.scope === titleScope ? sessionTitleState.title : null;
   const handleSessionTitleChange = useCallback(
     (title: string | null) => setSessionTitleState({ scope: titleScope, title }),
     [titleScope],
@@ -436,37 +431,6 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
     };
   }, [resumeParam, scopedProfile, searchParams, setSearchParams]);
 
-  useEffect(() => {
-    const mql = window.matchMedia("(max-width: 1023px)");
-    const sync = () => setNarrow(mql.matches);
-    sync();
-    mql.addEventListener("change", sync);
-    return () => mql.removeEventListener("change", sync);
-  }, []);
-
-  useEffect(() => {
-    if (!mobilePanelOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeMobilePanel();
-    };
-    document.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [mobilePanelOpen, closeMobilePanel]);
-
-  useEffect(() => {
-    const mql = window.matchMedia("(min-width: 1024px)");
-    const onChange = (e: MediaQueryListEvent) => {
-      if (e.matches) setMobilePanelOpenRaw(false);
-    };
-    mql.addEventListener("change", onChange);
-    return () => mql.removeEventListener("change", onChange);
-  }, []);
-
   useLayoutEffect(() => {
     // When hidden (non-chat tab) another page owns the header's end slot.
     // Don't touch it AT ALL — the persistent chat host mounts (plugin
@@ -474,15 +438,15 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
     // effect has already filled the slot, so even a "defensive"
     // setEnd(null) here wipes that page's header buttons (Cron "Create",
     // Profiles "Build", …). Ownership rule: only write to the slot while
-    // /chat is the active route AND the narrow layout needs the button;
-    // the effect cleanup handles removal on every transition out.
-    if (!isActive || !narrow) return;
+    // /chat is the active route; cleanup handles every transition out.
+    if (!isActive) return;
     setEnd(
       <Button
         ghost
-        onClick={() => setMobilePanelOpenRaw(true)}
-        aria-expanded={mobilePanelOpen}
-        aria-controls="chat-side-panel"
+        onClick={toggleWorkDock}
+        aria-expanded={workDockOpen}
+        aria-controls="chat-work-dock"
+        aria-label={workDockOpen ? t.app.closeModelTools : modelToolsLabel}
         className={cn(
           "shrink-0 rounded border border-current/20",
           "px-2 py-1 text-xs font-medium tracking-wide",
@@ -490,13 +454,13 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
         )}
       >
         <span className="inline-flex items-center gap-1.5">
-          <PanelRight className="h-3 w-3 shrink-0" />
+          <PanelBottom className="h-3 w-3 shrink-0" />
           {modelToolsLabel}
         </span>
       </Button>,
     );
     return () => setEnd(null);
-  }, [isActive, narrow, mobilePanelOpen, modelToolsLabel, setEnd]);
+  }, [isActive, modelToolsLabel, setEnd, t.app.closeModelTools, toggleWorkDock, workDockOpen]);
 
   const handleCopyLast = () => {
     const ws = wsRef.current;
@@ -623,8 +587,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
       return true;
     });
 
-    const isMac =
-      typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
+    const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
 
     // ── Image paste / drop ───────────────────────────────────────────────
     // The Chat tab is an xterm mirror of a TUI inside the gateway. Server-side
@@ -632,8 +595,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
     // must upload browser bytes to PANERGOS_HOME/images, then drive `/image`
     // over the PTY (same burst-then-Return timing as handleCopyLast).
     let imageUploadDisposed = false;
-    const pasteDelay = () =>
-      new Promise<void>((resolve) => window.setTimeout(resolve, 40));
+    const pasteDelay = () => new Promise<void>((resolve) => window.setTimeout(resolve, 40));
     const reportImageUploadError = (err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
       console.warn("[dashboard chat] image upload failed:", message);
@@ -644,9 +606,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
         if (imageUploadDisposed) return;
         const ws = wsRef.current;
         if (!ws || ws.readyState !== WebSocket.OPEN) {
-          setBanner(
-            "Image uploaded, but chat is not connected — try again.",
-          );
+          setBanner("Image uploaded, but chat is not connected — try again.");
           return;
         }
         ws.send(`/image ${path}`);
@@ -709,15 +669,10 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
       const pasteModifier = isMac ? ev.metaKey : ev.ctrlKey;
 
       const terminalSelection = term.getSelection();
-      const shortcut = resolvePtyKeyboardShortcut(
-        ev,
-        isMac,
-        Boolean(terminalSelection),
-      );
+      const shortcut = resolvePtyKeyboardShortcut(ev, isMac, Boolean(terminalSelection));
 
       if (
-        (shortcut === "copy" ||
-          (copyModifier && ev.shiftKey && ev.key.toLowerCase() === "c")) &&
+        (shortcut === "copy" || (copyModifier && ev.shiftKey && ev.key.toLowerCase() === "c")) &&
         terminalSelection
       ) {
         // Direct copy inside the keydown handler preserves the user
@@ -772,9 +727,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
                 if (!type) continue;
                 const blob = await item.getType(type);
                 const ext = type.split("/")[1]?.split("+")[0] || "png";
-                files.push(
-                  new File([blob], `clipboard.${ext}`, { type }),
-                );
+                files.push(new File([blob], `clipboard.${ext}`, { type }));
               }
               if (files.length) {
                 uploadAndAttachImages(files);
@@ -788,8 +741,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
             const text = await navigator.clipboard.readText();
             if (text) term.paste(text);
           } catch (err) {
-            const message =
-              err instanceof Error ? err.message : String(err);
+            const message = err instanceof Error ? err.message : String(err);
             console.warn("[dashboard clipboard] paste failed:", message);
           }
         })();
@@ -878,13 +830,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
         /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
       const markReplacementInput = (ev: Event) => {
         const input = ev as InputEvent;
-        if (
-          shouldTreatInputAsMobileReplacement(
-            input.inputType,
-            input.data,
-            isMobileLike,
-          )
-        ) {
+        if (shouldTreatInputAsMobileReplacement(input.inputType, input.data, isMobileLike)) {
           mobileReplacementInputUntilRef.current = Date.now() + MOBILE_REPLACEMENT_WINDOW_MS;
         }
       };
@@ -913,10 +859,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
         webgl.onContextLoss(() => webgl.dispose());
         term.loadAddon(webgl);
       } catch (err) {
-        console.warn(
-          "[panergos-chat] WebGL renderer unavailable; falling back to default",
-          err,
-        );
+        console.warn("[panergos-chat] WebGL renderer unavailable; falling back to default", err);
       }
     }
 
@@ -957,9 +900,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
       const w = terminalTierWidthPx(host);
       const nextSize = terminalFontSizeForWidth(w);
       const nextLh = terminalLineHeightForWidth(w);
-      const fontChanged =
-        term.options.fontSize !== nextSize ||
-        term.options.lineHeight !== nextLh;
+      const fontChanged = term.options.fontSize !== nextSize || term.options.lineHeight !== nextLh;
       if (fontChanged) {
         term.options.fontSize = nextSize;
         term.options.lineHeight = nextLh;
@@ -976,11 +917,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
           /* ignore */
         }
       }
-      if (
-        fontChanged &&
-        wsRef.current &&
-        wsRef.current.readyState === WebSocket.OPEN
-      ) {
+      if (fontChanged && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(`\x1b[RESIZE:${term.cols};${term.rows}]`);
       }
     };
@@ -1115,10 +1052,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
     };
     if (resumeParam) {
       setResumeHydrating(true);
-      resumeMaxTimer = setTimeout(
-        finishResumeHydration,
-        PTY_RESUME_LOADING_MAX_MS,
-      );
+      resumeMaxTimer = setTimeout(finishResumeHydration, PTY_RESUME_LOADING_MAX_MS);
     } else {
       setResumeHydrating(false);
     }
@@ -1226,222 +1160,214 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
         }
       }, PTY_CONNECTING_TIMEOUT_MS);
 
-    ws.onopen = () => {
-      clearReconnectTimer();
-      clearConnectingTimer();
-      connectInFlightRef.current = false;
-      reconnectAttemptRef.current = 0;
-      setBanner(null);
-      setLastCloseCode(null);
-      setPtyState("open");
-      blockedInputNoticeRef.current = false;
-      // Connected — cancel any pending reconnect from a prior transient drop.
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current);
-        reconnectTimerRef.current = null;
+      ws.onopen = () => {
+        clearReconnectTimer();
+        clearConnectingTimer();
+        connectInFlightRef.current = false;
+        reconnectAttemptRef.current = 0;
+        setBanner(null);
+        setLastCloseCode(null);
+        setPtyState("open");
+        blockedInputNoticeRef.current = false;
+        // Connected — cancel any pending reconnect from a prior transient drop.
+        if (reconnectTimerRef.current) {
+          clearTimeout(reconnectTimerRef.current);
+          reconnectTimerRef.current = null;
+        }
+        // Send the initial RESIZE immediately so Ink has *a* size to lay
+        // out against on its first paint.  The double-rAF block above will
+        // follow up with the authoritative measurement — at worst Ink
+        // reflows once after the PTY boots, which is imperceptible.
+        ws.send(`\x1b[RESIZE:${term.cols};${term.rows}]`);
+        // Resumed sessions replay scrollback over the socket. Start pinned to
+        // the bottom so the latest output is in view; released once the user
+        // scrolls up (#59591).
+        if (resumeParam) stickToBottomRef.current = true;
+        // One-shot: a ?learn=<text> param (set by the Skills page "Learn a
+        // skill" panel) is typed into the composer as a /learn command once the
+        // PTY is up. /learn resolves via command.dispatch → a normal agent turn,
+        // so this reuses the existing composer path — no special PTY protocol.
+        const learnSeed = searchParams.get("learn");
+        if (learnSeed) {
+          const next = new URLSearchParams(searchParams);
+          next.delete("learn");
+          setSearchParams(next, { replace: true });
+          const cmd = `/learn ${learnSeed}`.trim();
+          // Delay so Ink's composer has mounted and grabbed focus before input.
+          setTimeout(() => {
+            try {
+              wsRef.current?.send(cmd + "\r");
+            } catch {
+              /* PTY not ready / closed — user can retype */
+            }
+          }, 800);
+        }
+      };
+
+      // Session resume: Ink's two-pass virtual scroll can flood the PTY with
+      // blank-line bursts while replaying a long session. Collapse only those;
+      // ANSI erase controls must reach xterm or stale glyphs remain onscreen.
+      const decoder = new TextDecoder();
+      const sanitizer = new PtyResumeSanitizer();
+      const beginResumeReplay = () => {
+        stickToBottomRef.current = true;
+        if (!resumeMaxTimer) {
+          setResumeHydrating(true);
+          resumeMaxTimer = setTimeout(finishResumeHydration, PTY_RESUME_LOADING_MAX_MS);
+        }
+      };
+      if (resumeParam) {
+        beginResumeReplay();
       }
-      // Send the initial RESIZE immediately so Ink has *a* size to lay
-      // out against on its first paint.  The double-rAF block above will
-      // follow up with the authoritative measurement — at worst Ink
-      // reflows once after the PTY boots, which is imperceptible.
-      ws.send(`\x1b[RESIZE:${term.cols};${term.rows}]`);
-      // Resumed sessions replay scrollback over the socket. Start pinned to
-      // the bottom so the latest output is in view; released once the user
-      // scrolls up (#59591).
-      if (resumeParam) stickToBottomRef.current = true;
-      // One-shot: a ?learn=<text> param (set by the Skills page "Learn a
-      // skill" panel) is typed into the composer as a /learn command once the
-      // PTY is up. /learn resolves via command.dispatch → a normal agent turn,
-      // so this reuses the existing composer path — no special PTY protocol.
-      const learnSeed = searchParams.get("learn");
-      if (learnSeed) {
-        const next = new URLSearchParams(searchParams);
-        next.delete("learn");
-        setSearchParams(next, { replace: true });
-        const cmd = `/learn ${learnSeed}`.trim();
-        // Delay so Ink's composer has mounted and grabbed focus before input.
-        setTimeout(() => {
-          try {
-            wsRef.current?.send(cmd + "\r");
-          } catch {
-            /* PTY not ready / closed — user can retype */
+
+      ws.onmessage = (ev) => {
+        if (typeof ev.data === "string") {
+          // The active-session fallback (no `?resume=` on the URL) tells us
+          // via a one-off JSON control frame that a replay is starting (#93518,
+          // see `pty_ws` in web_server.py). Real PTY output always arrives as
+          // binary frames, so any text frame is a candidate; anything that
+          // isn't this control shape (e.g. the ANSI "Chat unavailable" banners
+          // pty_ws sends as text on failure) falls through to the write path
+          // below unchanged.
+          const resumeId = parseResumeControlMessage(ev.data);
+          if (resumeId) {
+            effectiveResume = resumeId;
+            beginResumeReplay();
+            return;
           }
-        }, 800);
-      }
-    };
+        }
+        const text =
+          typeof ev.data === "string"
+            ? ev.data
+            : decoder.decode(new Uint8Array(ev.data as ArrayBuffer), {
+                stream: true,
+              });
+        // Gate hydration on the payload actually written to xterm. The
+        // sanitizer can turn a nonempty erase-only / all-newline / partial-CSI
+        // resume frame into "" (pty-resume-sanitizer.ts); keying off raw `text`
+        // would hide the wait notice while the terminal is still blank.
+        const rendered = effectiveResume ? sanitizer.next(text) : text;
+        // Resume replay lands over many write chunks; pin the viewport to the
+        // bottom as each chunk COMMITS (xterm write callback) instead of
+        // guessing with a fixed delay, and release the pin the moment the user
+        // scrolls up to read the backlog (#59591).
+        const followScroll = shouldFollowPtyOutput(effectiveResume, stickToBottomRef.current)
+          ? () => termRef.current?.scrollToBottom()
+          : undefined;
+        term.write(rendered, followScroll);
+        noteResumePtyChunk(rendered);
+      };
 
-    // Session resume: Ink's two-pass virtual scroll can flood the PTY with
-    // blank-line bursts while replaying a long session. Collapse only those;
-    // ANSI erase controls must reach xterm or stale glyphs remain onscreen.
-    const decoder = new TextDecoder();
-    const sanitizer = new PtyResumeSanitizer();
-    const beginResumeReplay = () => {
-      stickToBottomRef.current = true;
-      if (!resumeMaxTimer) {
-        setResumeHydrating(true);
-        resumeMaxTimer = setTimeout(
-          finishResumeHydration,
-          PTY_RESUME_LOADING_MAX_MS,
-        );
-      }
-    };
-    if (resumeParam) {
-      beginResumeReplay();
-    }
-
-    ws.onmessage = (ev) => {
-      if (typeof ev.data === "string") {
-        // The active-session fallback (no `?resume=` on the URL) tells us
-        // via a one-off JSON control frame that a replay is starting (#93518,
-        // see `pty_ws` in web_server.py). Real PTY output always arrives as
-        // binary frames, so any text frame is a candidate; anything that
-        // isn't this control shape (e.g. the ANSI "Chat unavailable" banners
-        // pty_ws sends as text on failure) falls through to the write path
-        // below unchanged.
-        const resumeId = parseResumeControlMessage(ev.data);
-        if (resumeId) {
-          effectiveResume = resumeId;
-          beginResumeReplay();
+      ws.onclose = (ev) => {
+        // Drain buffered sanitizer state. A buffered partial escape is dropped
+        // (writing an unterminated CSI would wedge xterm's parser); a buffered
+        // newline run is emitted collapsed.
+        if (effectiveResume) {
+          try {
+            term.write(sanitizer.flush());
+          } catch {
+            /* ignore */
+          }
+        }
+        wsRef.current = null;
+        connectInFlightRef.current = false;
+        clearConnectingTimer();
+        if (unmounting) {
           return;
         }
-      }
-      const text =
-        typeof ev.data === "string"
-          ? ev.data
-          : decoder.decode(new Uint8Array(ev.data as ArrayBuffer), {
-              stream: true,
-            });
-      // Gate hydration on the payload actually written to xterm. The
-      // sanitizer can turn a nonempty erase-only / all-newline / partial-CSI
-      // resume frame into "" (pty-resume-sanitizer.ts); keying off raw `text`
-      // would hide the wait notice while the terminal is still blank.
-      const rendered = effectiveResume ? sanitizer.next(text) : text;
-      // Resume replay lands over many write chunks; pin the viewport to the
-      // bottom as each chunk COMMITS (xterm write callback) instead of
-      // guessing with a fixed delay, and release the pin the moment the user
-      // scrolls up to read the backlog (#59591).
-      const followScroll = shouldFollowPtyOutput(
-        effectiveResume,
-        stickToBottomRef.current,
-      )
-        ? () => termRef.current?.scrollToBottom()
-        : undefined;
-      term.write(rendered, followScroll);
-      noteResumePtyChunk(rendered);
-    };
-
-    ws.onclose = (ev) => {
-      // Drain buffered sanitizer state. A buffered partial escape is dropped
-      // (writing an unterminated CSI would wedge xterm's parser); a buffered
-      // newline run is emitted collapsed.
-      if (effectiveResume) {
-        try {
-          term.write(sanitizer.flush());
-        } catch {
-          /* ignore */
-        }
-      }
-      wsRef.current = null;
-      connectInFlightRef.current = false;
-      clearConnectingTimer();
-      if (unmounting) {
-        return;
-      }
-      // Surface the real cause to the browser console on every close so a
-      // "chat won't connect" report can be diagnosed without server access.
-      // The server sends a machine-parseable reason on every rejection (see
-      // pty_ws in web_server.py); echo it verbatim alongside the close code.
-      const why = ev.reason ? ` reason=${ev.reason}` : "";
-      console.warn(`[chat] PTY WebSocket closed code=${ev.code}${why}`);
-      setLastCloseCode(ev.code);
-      if (ev.code === 4401) {
-        if (maybeReloadForLoopbackWsAuthFailure(ev.code)) {
+        // Surface the real cause to the browser console on every close so a
+        // "chat won't connect" report can be diagnosed without server access.
+        // The server sends a machine-parseable reason on every rejection (see
+        // pty_ws in web_server.py); echo it verbatim alongside the close code.
+        const why = ev.reason ? ` reason=${ev.reason}` : "";
+        console.warn(`[chat] PTY WebSocket closed code=${ev.code}${why}`);
+        setLastCloseCode(ev.code);
+        if (ev.code === 4401) {
+          if (maybeReloadForLoopbackWsAuthFailure(ev.code)) {
+            return;
+          }
+          setPtyState("closed");
+          setBanner(
+            ev.reason
+              ? `Auth failed (${ev.reason}). Reload to refresh the session.`
+              : "Auth failed. Reload the page to refresh the session token.",
+          );
           return;
         }
-        setPtyState("closed");
-        setBanner(
-          ev.reason
-            ? `Auth failed (${ev.reason}). Reload to refresh the session.`
-            : "Auth failed. Reload the page to refresh the session token.",
-        );
-        return;
-      }
-      if (ev.code === 4403) {
-        // Host/Origin mismatch (DNS-rebinding guard).
-        setPtyState("closed");
-        setBanner(
-          ev.reason
-            ? `Refused: ${ev.reason}.`
-            : "Refused: request host/origin doesn't match the dashboard.",
-        );
-        return;
-      }
-      if (ev.code === 4404) {
-        setPtyState("closed");
-        setBanner(
-          ev.reason
-            ? `Chat websocket unavailable: ${ev.reason}.`
-            : "Chat websocket unavailable on this server.",
-        );
-        return;
-      }
-      if (ev.code === 4408) {
-        setPtyState("closed");
-        setBanner(
-          ev.reason
-            ? `Refused: ${ev.reason}.`
-            : "Refused: your client isn't permitted (server bound to localhost only).",
-        );
-        return;
-      }
-      if (ev.code === 1011) {
-        // Server already wrote an ANSI error frame.
-        setPtyState("closed");
-        return;
-      }
-      // Keep-alive close-code contract (web_server.pty_ws + pty_session):
-      //   4410 = the agent PROCESS exited (real end) → restart affordance.
-      //   4409 = superseded by a newer tab attaching the same token → stay quiet.
-      if (ev.code === 4410) {
-        term.write(`\r\n\x1b[90m[session ended]\x1b[0m\r\n`);
+        if (ev.code === 4403) {
+          // Host/Origin mismatch (DNS-rebinding guard).
+          setPtyState("closed");
+          setBanner(
+            ev.reason
+              ? `Refused: ${ev.reason}.`
+              : "Refused: request host/origin doesn't match the dashboard.",
+          );
+          return;
+        }
+        if (ev.code === 4404) {
+          setPtyState("closed");
+          setBanner(
+            ev.reason
+              ? `Chat websocket unavailable: ${ev.reason}.`
+              : "Chat websocket unavailable on this server.",
+          );
+          return;
+        }
+        if (ev.code === 4408) {
+          setPtyState("closed");
+          setBanner(
+            ev.reason
+              ? `Refused: ${ev.reason}.`
+              : "Refused: your client isn't permitted (server bound to localhost only).",
+          );
+          return;
+        }
+        if (ev.code === 1011) {
+          // Server already wrote an ANSI error frame.
+          setPtyState("closed");
+          return;
+        }
+        // Keep-alive close-code contract (web_server.pty_ws + pty_session):
+        //   4410 = the agent PROCESS exited (real end) → restart affordance.
+        //   4409 = superseded by a newer tab attaching the same token → stay quiet.
+        if (ev.code === 4410) {
+          term.write(`\r\n\x1b[90m[session ended]\x1b[0m\r\n`);
+          setPtyState("ended");
+          return;
+        }
+        if (ev.code === 4409) {
+          setPtyState("closed");
+          return;
+        }
+        if (!ev.wasClean || ev.code === 1001 || ev.code === 1006) {
+          // Transient transport drop (refresh, sleep/wake, signal loss).
+          // Reconnect with backoff; the same ?attach= token reattaches to
+          // the still-living PTY, so the conversation continues in place.
+          scheduleReconnect(ev.code);
+          return;
+        }
+        // Normal/clean exit: the agent process ended (e.g. the user typed
+        // `/exit`, or started a new session). NS-504: surface an explicit
+        // restart affordance instead of leaving a dead terminal that only a
+        // full page refresh could recover.
+        term.write(`\r\n\x1b[90m[session ended (code ${ev.code})]\x1b[0m\r\n`);
         setPtyState("ended");
-        return;
-      }
-      if (ev.code === 4409) {
-        setPtyState("closed");
-        return;
-      }
-      if (!ev.wasClean || ev.code === 1001 || ev.code === 1006) {
-        // Transient transport drop (refresh, sleep/wake, signal loss).
-        // Reconnect with backoff; the same ?attach= token reattaches to
-        // the still-living PTY, so the conversation continues in place.
-        scheduleReconnect(ev.code);
-        return;
-      }
-      // Normal/clean exit: the agent process ended (e.g. the user typed
-      // `/exit`, or started a new session). NS-504: surface an explicit
-      // restart affordance instead of leaving a dead terminal that only a
-      // full page refresh could recover.
-      term.write(
-        `\r\n\x1b[90m[session ended (code ${ev.code})]\x1b[0m\r\n`,
-      );
-      setPtyState("ended");
-    };
+      };
 
-    // Keystrokes → PTY.
-    //
-    // IMPORTANT:
-    // The embedded web chat has occasionally surfaced stray letters/digits
-    // in the input line after a turn completes. The most likely culprit is
-    // browser-side terminal control traffic being forwarded back into the
-    // PTY as if it were user text. SGR mouse tracking is the highest-risk
-    // path here: xterm.js emits raw CSI reports (`\x1b[<...`) that look like
-    // ordinary bytes to the backend.
-    //
-    // For the browser embed we prefer input stability over terminal-style
-    // mouse reporting, so we drop SGR mouse reports entirely instead of
-    // forwarding them into Panergos. Keyboard input, paste, and resize still
-    // behave normally.
+      // Keystrokes → PTY.
+      //
+      // IMPORTANT:
+      // The embedded web chat has occasionally surfaced stray letters/digits
+      // in the input line after a turn completes. The most likely culprit is
+      // browser-side terminal control traffic being forwarded back into the
+      // PTY as if it were user text. SGR mouse tracking is the highest-risk
+      // path here: xterm.js emits raw CSI reports (`\x1b[<...`) that look like
+      // ordinary bytes to the backend.
+      //
+      // For the browser embed we prefer input stability over terminal-style
+      // mouse reporting, so we drop SGR mouse reports entirely instead of
+      // forwarding them into Panergos. Keyboard input, paste, and resize still
+      // behave normally.
       // eslint-disable-next-line no-control-regex -- intentional ESC byte in xterm SGR mouse report parser
       const SGR_MOUSE_RE = /^\x1b\[<(\d+);(\d+);(\d+)([Mm])$/;
       const forwardPtyData = (data: string, useMobileReplacement = true) => {
@@ -1452,15 +1378,10 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
           return;
         }
 
-        if (
-          ws.readyState !== WebSocket.OPEN ||
-          shouldBlockPtyInput(ptyStateRef.current)
-        ) {
+        if (ws.readyState !== WebSocket.OPEN || shouldBlockPtyInput(ptyStateRef.current)) {
           if (!blockedInputNoticeRef.current) {
             blockedInputNoticeRef.current = true;
-            term.write(
-              `\r\n\x1b[33m[${PTY_RECONNECT_INPUT_MESSAGE}]\x1b[0m\r\n`,
-            );
+            term.write(`\r\n\x1b[33m[${PTY_RECONNECT_INPUT_MESSAGE}]\x1b[0m\r\n`);
           }
           return;
         }
@@ -1552,14 +1473,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
         reconnectTimerRef.current = null;
       }
     };
-  }, [
-    hasActivated,
-    channel,
-    clearReconnectTimer,
-    resumeParam,
-    scopedProfile,
-    reconnectNonce,
-  ]);
+  }, [hasActivated, channel, clearReconnectTimer, resumeParam, scopedProfile, reconnectNonce]);
 
   // NS-434 follow-up: attach the visualViewport keyboard-inset listeners
   // ONLY while the chat tab is actually visible. ChatPage stays mounted
@@ -1603,7 +1517,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
   // a return after the user had been typing in the terminal, where
   // focus was already on the xterm textarea before the tab got hidden
   // and has since fallen back to <body>).  If the user had clicked
-  // into the sidebar (model picker, tool-call entry) before switching
+  // into the Work Dock (model picker, tool-call entry) before switching
   // tabs, we must not yank focus away from wherever they left it when
   // they come back — that's a surprise and an a11y foot-gun.
   useEffect(() => {
@@ -1615,9 +1529,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
       raf2 = requestAnimationFrame(() => {
         raf2 = 0;
         syncMetricsRef.current?.();
-        const active = typeof document !== "undefined"
-          ? document.activeElement
-          : null;
+        const active = typeof document !== "undefined" ? document.activeElement : null;
         if (shouldRestoreTerminalFocus(active, hostRef.current)) {
           termRef.current?.focus();
         }
@@ -1646,10 +1558,8 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
   }, [isActive]);
 
   const maybeReconnectOnPageResume = useCallback(() => {
-    const visibilityState =
-      typeof document !== "undefined" ? document.visibilityState : "visible";
-    const online =
-      typeof navigator === "undefined" ? true : navigator.onLine !== false;
+    const visibilityState = typeof document !== "undefined" ? document.visibilityState : "visible";
+    const online = typeof navigator === "undefined" ? true : navigator.onLine !== false;
     const socketReadyState = wsRef.current?.readyState ?? null;
 
     if (banner && ptyStateRef.current === "closed") {
@@ -1705,86 +1615,79 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
 
   // Layout:
   //   outer flex column — sits inside the dashboard's content area
-  //   row split — terminal pane (flex-1) + sidebar (fixed width, lg+)
-  //   terminal wrapper — rounded, dark, padded — the "terminal window"
+  //   Focus Stage — a full-width, persistently mounted terminal pane
   //   floating copy button — bottom-right corner, transparent with a
   //     subtle border; stays out of the way until hovered.  Sends
   //     `/copy\n` to Ink, which emits OSC 52 → our clipboard handler.
-  //   sidebar — ChatSidebar opens its own JSON-RPC sidecar; renders
-  //     model badge, tool-call list, model picker. Best-effort: if the
-  //     sidecar fails to connect the terminal pane keeps working.
+  //   Launch Bay — an on-demand bottom tray for model/tools/sessions. Its
+  //     JSON-RPC sidecar remains best-effort; the Focus Stage keeps working.
   //
-  // Mobile model/tools sheet is portaled to `document.body` so it stacks
-  // above the app sidebar (`z-50`) and mobile chrome (`z-40`).  The main
+  // The Work Dock is portaled to `document.body` so it stacks
+  // above the app chrome (`z-50`) and mobile layers (`z-40`). The main
   // dashboard column uses `relative z-2`, which traps `position:fixed`
   // descendants below those layers (see Toast.tsx).
   const reconnectBanner =
     ptyState === "reconnecting"
-      ? `Chat connection interrupted${
-          lastCloseCode ? ` (code ${lastCloseCode})` : ""
-        }. Reconnecting...`
+      ? `Chat connection interrupted${lastCloseCode ? ` (code ${lastCloseCode})` : ""}. Reconnecting...`
       : null;
   const visibleBanner = banner ?? reconnectBanner;
-  const showReconnectOverlay =
-    ptyState === "reconnecting" || (ptyState === "closed" && !banner);
+  const showReconnectOverlay = ptyState === "reconnecting" || (ptyState === "closed" && !banner);
   const showResumeLoadingOverlay = shouldShowResumeLoadingOverlay({
     hasResumeTarget: Boolean(resumeParam),
     ptyState,
     hydrating: resumeHydrating,
   });
-  const mobileModelToolsPortal =
-    isActive &&
-    narrow &&
+  const workDockPortal =
     portalRoot &&
     createPortal(
       <>
-        {mobilePanelOpen && (
+        {workDockOpen && (
           <Button
             ghost
             aria-label={t.app.closeModelTools}
-            onClick={closeMobilePanel}
-            className={cn(
-              "fixed inset-0 z-[55] p-0 block",
-              "bg-black/60",
-            )}
+            onClick={closeWorkDock}
+            className={cn("fixed inset-0 z-[55] block p-0", "bg-black/60")}
           />
         )}
 
-        <div
-          id="chat-side-panel"
-          role="complementary"
+        <aside
+          id="chat-work-dock"
+          role="dialog"
+          aria-modal={workDockOpen ? true : undefined}
+          aria-hidden={!workDockOpen}
+          hidden={!workDockOpen}
           aria-label={modelToolsLabel}
           className={cn(
-            "font-mondwest fixed top-0 right-0 z-[60] flex h-dvh max-h-dvh w-64 min-w-0 flex-col antialiased",
-            "border-l border-current/20 text-midground",
+            "panergos-launch-bay font-mondwest fixed inset-x-2 bottom-2 z-[60] mx-auto flex max-h-[calc(100dvh-1rem)] min-h-0 w-[calc(100vw-1rem)] max-w-[88rem] flex-col antialiased",
+            "border border-current/20 text-midground",
             "bg-background-base/95",
-            "transition-transform duration-200 ease-out",
             "[background:var(--component-sidebar-background,var(--background-base))]",
-            "[clip-path:var(--component-sidebar-clip-path)]",
             "[border-image:var(--component-sidebar-border-image)]",
-            mobilePanelOpen
-              ? "translate-x-0"
-              : "pointer-events-none translate-x-full",
           )}
+          ref={workDockRef}
+          tabIndex={-1}
         >
-          <div
-            className={cn(
-              "flex h-14 shrink-0 items-center justify-between gap-2 border-b border-current/20 px-5",
-            )}
-          >
-            <Typography
-              mondwest
-              className="text-display font-bold text-[1.125rem] leading-[0.95] tracking-[0.0525rem] text-midground"
-            >
-              {t.app.modelToolsSheetTitle}
-              <br />
-              {t.app.modelToolsSheetSubtitle}
-            </Typography>
+          <div className="relative flex min-h-16 shrink-0 items-center justify-between gap-2 border-b border-current/20 px-5 pt-2 sm:px-6">
+            <span
+              aria-hidden
+              className="absolute left-1/2 top-2 h-1 w-12 -translate-x-1/2 rounded-full bg-current/20"
+            />
+            <div>
+              <span className="block text-[0.6rem] uppercase tracking-[0.3em] text-text-tertiary">
+                Panergos / {t.app.modelToolsSheetSubtitle}
+              </span>
+              <Typography
+                mondwest
+                className="mt-1 text-display font-bold text-[1.125rem] leading-[0.95] tracking-[0.0525rem] text-midground"
+              >
+                {modelToolsLabel}
+              </Typography>
+            </div>
 
             <Button
               ghost
               size="icon"
-              onClick={closeMobilePanel}
+              onClick={closeWorkDock}
               aria-label={t.app.closeModelTools}
               className="text-text-secondary hover:text-midground"
             >
@@ -1792,13 +1695,8 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
             </Button>
           </div>
 
-          <div
-            className={cn(
-              "min-h-0 flex-1 overflow-y-auto overflow-x-hidden",
-              "border-t border-current/10",
-            )}
-          >
-            <div className="border-b border-current/10 px-1 py-2">
+          <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] overflow-hidden border-t border-current/10 lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.85fr)] lg:grid-rows-1">
+            <div className="min-h-0 overflow-y-auto border-b border-current/10 px-1 py-2 lg:border-b-0 lg:border-r">
               <ChatSidebar
                 channel={channel}
                 profile={scopedProfile}
@@ -1806,14 +1704,16 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
                 onSessionTitleChange={handleSessionTitleChange}
               />
             </div>
-            <ChatSessionList
-              activeSessionId={resumeParam}
-              profile={scopedProfile}
-              onPicked={closeMobilePanel}
-              onNewChat={startFreshDashboardChat}
-            />
+            <div className="min-h-0 overflow-y-auto">
+              <ChatSessionList
+                activeSessionId={resumeParam}
+                profile={scopedProfile}
+                onPicked={closeWorkDock}
+                onNewChat={startFreshDashboardChat}
+              />
+            </div>
           </div>
-        </div>
+        </aside>
       </>,
       portalRoot,
     );
@@ -1821,7 +1721,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <PluginSlot name="chat:top" />
-      {mobileModelToolsPortal}
+      {workDockPortal}
 
       {visibleBanner && (
         <div className="border border-warning/50 bg-warning/10 text-warning px-3 py-2 text-xs tracking-wide">
@@ -1829,11 +1729,11 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-2 lg:flex-row lg:gap-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-2">
         <div
           ref={termWrapRef}
           className={cn(
-            "relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg",
+            "panergos-focus-stage relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
             "p-2 sm:p-3",
           )}
           style={{
@@ -1841,18 +1741,13 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
             boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
           }}
         >
-          <div
-            ref={hostRef}
-            className="panergos-chat-xterm-host min-h-0 min-w-0 flex-1"
-          />
+          <div ref={hostRef} className="panergos-chat-xterm-host min-h-0 min-w-0 flex-1" />
 
           {showReconnectOverlay && (
             <div className="absolute inset-x-3 top-3 z-20 flex justify-center sm:inset-x-auto sm:right-3 sm:justify-end">
               <div className="flex max-w-[min(28rem,calc(100vw-3rem))] flex-col items-start gap-2 border border-warning/60 bg-black/80 px-3 py-2 text-xs text-warning shadow-lg">
                 <div className="tracking-wide">
-                  {ptyState === "reconnecting"
-                    ? "Chat is reconnecting."
-                    : "Chat disconnected."}
+                  {ptyState === "reconnecting" ? "Chat is reconnecting." : "Chat disconnected."}
                 </div>
                 <Button
                   size="sm"
@@ -1885,9 +1780,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
               whole page to get a working chat back. */}
           {ptyState === "ended" && (
             <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-black/60">
-              <div className="text-sm tracking-wide text-white/80">
-                Session ended.
-              </div>
+              <div className="text-sm tracking-wide text-white/80">Session ended.</div>
               <Button
                 onClick={startFreshPty}
                 prefix={<RotateCcw className="h-4 w-4" />}
@@ -1922,73 +1815,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
               </span>
             </span>
           </Button>
-
-          {chatPanelCollapsed && (
-            <Button
-              ghost
-              onClick={toggleChatPanel}
-              title="Show side panel (model + sessions)"
-              aria-label="Show chat side panel"
-              className={cn(
-                "absolute z-10",
-                "normal-case tracking-normal font-normal",
-                "rounded border border-current/30",
-                "bg-black/20",
-                "opacity-70 hover:opacity-100 hover:border-current/60",
-                "transition-opacity duration-150",
-                "top-2 right-2 px-2 py-1 text-xs sm:top-3 sm:right-3",
-              )}
-              style={{ color: terminalFg }}
-            >
-              <span className="inline-flex items-center gap-1">
-                <PanelRight className="h-3 w-3 shrink-0" />
-                <span className="hidden min-[400px]:inline tracking-wide">
-                  panel
-                </span>
-              </span>
-            </Button>
-          )}
         </div>
-
-        {!narrow && !chatPanelCollapsed && (
-          <div
-            id="chat-side-panel"
-            role="complementary"
-            aria-label={modelToolsLabel}
-            className="flex min-h-0 shrink-0 flex-col gap-3 overflow-hidden lg:h-full lg:w-60"
-          >
-            <div className="flex h-8 shrink-0 items-center justify-end pr-1">
-              <Button
-                ghost
-                size="icon"
-                onClick={toggleChatPanel}
-                aria-label="Collapse chat side panel"
-                title="Collapse side panel"
-                className="text-text-secondary hover:text-midground"
-              >
-                <X />
-              </Button>
-            </div>
-            {/* Model picker — keeps the rail thin. */}
-            <div className="shrink-0">
-              <ChatSidebar
-                channel={channel}
-                profile={scopedProfile}
-                onDashboardNewSessionRequest={startFreshDashboardChat}
-                onSessionTitleChange={handleSessionTitleChange}
-              />
-            </div>
-
-            {/* Session switcher fills the remaining height below the model box. */}
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <ChatSessionList
-                activeSessionId={resumeParam}
-                profile={scopedProfile}
-                onNewChat={startFreshDashboardChat}
-              />
-            </div>
-          </div>
-        )}
       </div>
       <PluginSlot name="chat:bottom" />
     </div>

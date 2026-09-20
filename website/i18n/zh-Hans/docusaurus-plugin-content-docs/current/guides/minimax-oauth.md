@@ -92,7 +92,7 @@ Panergos 针对 MiniMax OAuth 端点实现了 PKCE 设备码流程：
 panergos doctor
 ```
 
-`◆ Auth Providers` 部分将显示：
+`▶ Auth Providers` 部分将显示：
 
 ```
 ✓ MiniMax OAuth  (logged in, region=global)

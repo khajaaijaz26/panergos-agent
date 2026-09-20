@@ -5358,7 +5358,8 @@ class TestHashedAssetCacheHeaders:
         dist = tmp_path / "web_dist"
         (dist / "assets").mkdir(parents=True)
         (dist / "index.html").write_text(
-            "<html><head></head><body>SPA</body></html>", encoding="utf-8"
+            '<html><head><link rel="icon" href="/panergos-mark.svg"></head>'
+            "<body>SPA</body></html>", encoding="utf-8"
         )
         (dist / "assets" / "index-abc123.js").write_text(
             "console.log('bundle');", encoding="utf-8"
@@ -5407,6 +5408,12 @@ class TestHashedAssetCacheHeaders:
             cache_control = resp.headers["cache-control"]
             assert "no-store" in cache_control
             assert "immutable" not in cache_control
+
+    def test_index_brand_mark_keeps_proxy_prefix(self, tmp_path, monkeypatch):
+        client = self._client(tmp_path, monkeypatch)
+        resp = client.get("/", headers={"X-Forwarded-Prefix": "/panergos"})
+        assert resp.status_code == 200
+        assert 'href="/panergos/panergos-mark.svg"' in resp.text
 
     def test_missing_asset_is_not_marked_immutable(self, tmp_path, monkeypatch):
         """A 404 must never be cached for a year — a later rebuild can

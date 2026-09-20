@@ -447,7 +447,7 @@ The project root is the nearest ancestor directory containing `.git` (worktrees 
 Skills are procedure documents the agent follows, so Panergos does **not** auto-load them from arbitrary cloned repos. The first time you run Panergos in a repo with project skills, the banner shows a notice:
 
 ```text
-◆ 3 project skill(s) found in /home/you/myproject but not loaded — run `panergos skills trust` to enable them.
+▶ 3 project skill(s) found in /home/you/myproject but not loaded — run `panergos skills trust` to enable them.
 ```
 
 Trust the repo once (from inside it, or by passing the path):

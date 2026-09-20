@@ -51,7 +51,7 @@ export const fr: Translations = {
 
   app: {
     brand: "Panergos Agent",
-    brandShort: "HA",
+    brandShort: "PA",
     closeNavigation: "Fermer la navigation",
     closeModelTools: "Fermer modèle et outils",
     footer: {
@@ -347,7 +347,7 @@ export const fr: Translations = {
     removeConfirm: "Retirer ce plugin de ~/.panergos/plugins/ ?",
     removeHint: "Seuls les plugins installés par l'utilisateur sous ~/.panergos/plugins peuvent être supprimés.",
     rescanHeading: "Registre des plugins SPA",
-    rescanHint: "Re-scannez après avoir ajouté des fichiers sur le disque pour que la barre latérale prenne en compte les nouveaux manifestes.",
+    rescanHint: "Re-scannez après avoir ajouté des fichiers sur le disque pour que la navigation prenne en compte les nouveaux manifestes.",
     runtimeHeading: "Exécution de la passerelle (plugins YAML)",
     saveProviders: "Enregistrer les paramètres de fournisseur",
     savedProviders: "Paramètres de fournisseur enregistrés.",
@@ -356,8 +356,8 @@ export const fr: Translations = {
     authRequiredHint: "Exécutez cette commande pour vous authentifier:",
     updateGit: "Git pull",
     versionBadge: "Version",
-    showInSidebar: "Afficher dans la barre latérale",
-    hideFromSidebar: "Masquer de la barre latérale",
+    showInSidebar: "Afficher dans la navigation",
+    hideFromSidebar: "Masquer de la navigation",
   },
 
   skills: {
@@ -605,7 +605,7 @@ export const fr: Translations = {
         "Partager sur X ouvre une publication préremplie dans un nouvel onglet. Cliquez d'abord sur Copier l'image si vous voulez joindre le badge 1200×630 — X vous laisse le coller directement dans l'éditeur de tweet. Télécharger le PNG enregistre le fichier pour l'utiliser n'importe où.",
       clipboard_unsupported:
         "La copie d'image dans le presse-papiers n'est pas prise en charge par ce navigateur — utilisez Télécharger à la place.",
-      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ◆",
+      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ▶",
     },
   },
   kanban: {

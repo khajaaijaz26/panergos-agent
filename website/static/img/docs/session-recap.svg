@@ -7,7 +7,7 @@
   <line x1="48" y1="72" x2="912" y2="72" stroke="#332442"/>
 
   <text x="64" y="106" fill="#f7c453" font-family="JetBrains Mono, monospace" font-size="15">● You: What is Python?</text>
-  <text x="64" y="136" fill="#2ee6a6" font-family="JetBrains Mono, monospace" font-size="15">◆ Panergos: Python is a high-level programming language.</text>
+  <text x="64" y="136" fill="#2ee6a6" font-family="JetBrains Mono, monospace" font-size="15">▶ Panergos: Python is a high-level programming language.</text>
   <text x="64" y="166" fill="#f7c453" font-family="JetBrains Mono, monospace" font-size="15">● You: How do I install it?</text>
-  <text x="64" y="196" fill="#2ee6a6" font-family="JetBrains Mono, monospace" font-size="15">◆ Panergos: [3 tool calls: web_search, web_extract, terminal]</text>
+  <text x="64" y="196" fill="#2ee6a6" font-family="JetBrains Mono, monospace" font-size="15">▶ Panergos: [3 tool calls: web_search, web_extract, terminal]</text>
 </svg>

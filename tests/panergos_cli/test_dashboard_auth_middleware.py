@@ -134,6 +134,14 @@ def test_other_public_api_paths_are_public_under_gate(gated_app, path):
         )
 
 
+def test_login_brand_mark_bypasses_the_auth_gate(gated_app):
+    login = gated_app.get("/login")
+    assert 'rel="icon" type="image/svg+xml" href="./panergos-mark.svg"' in login.text
+
+    mark = gated_app.get("/panergos-mark.svg", follow_redirects=False)
+    assert mark.status_code not in {302, 401}
+
+
 # ---------------------------------------------------------------------------
 # OAuth round trip
 # ---------------------------------------------------------------------------
@@ -382,4 +390,3 @@ def test_all_providers_unreachable_returns_503(_gated_state):
     r = client.get("/api/auth/me")
     assert r.status_code == 503
     assert "unreachable" in r.text.lower()
-

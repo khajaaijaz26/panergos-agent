@@ -50,7 +50,7 @@ export const zh: Translations = {
 
   app: {
     brand: "Panergos Agent",
-    brandShort: "HA",
+    brandShort: "PA",
     closeNavigation: "关闭导航",
     closeModelTools: "关闭模型与工具",
     footer: {
@@ -341,7 +341,7 @@ export const zh: Translations = {
     removeConfirm: "从 ~/.panergos/plugins/ 删除此插件？",
     removeHint: "仅可移除用户安装在 ~/.panergos/plugins 下的插件。",
     rescanHeading: "SPA 插件注册表",
-    rescanHint: "在磁盘新增文件后扫描，使侧边栏载入新 manifest。",
+    rescanHint: "在磁盘新增文件后扫描，使导航载入新 manifest。",
     runtimeHeading: "网关运行时（YAML 插件）",
     saveProviders: "保存提供方设置",
     savedProviders: "提供方设置已保存。",
@@ -350,8 +350,8 @@ export const zh: Translations = {
     authRequiredHint: "运行此命令以完成认证：",
     updateGit: "git pull",
     versionBadge: "版本",
-    showInSidebar: "在侧边栏显示",
-    hideFromSidebar: "从侧边栏隐藏",
+    showInSidebar: "在导航中显示",
+    hideFromSidebar: "从导航中隐藏",
   },
 
   skills: {
@@ -599,7 +599,7 @@ export const zh: Translations = {
         "「在 X 上分享」会在新标签页中打开预填好的帖子。如果想附上 1200×630 的徽章，请先点击「复制图片」—— X 允许你直接粘贴到推文编辑器中。「下载 PNG」会将文件保存下来，可在任意位置使用。",
       clipboard_unsupported:
         "此浏览器不支持复制剪贴板图片 —— 请改用「下载」。",
-      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ◆",
+      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ▶",
     },
   },
 

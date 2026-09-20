@@ -1,4 +1,4 @@
-# Panergos Desktop ◆
+# Panergos Desktop ▶
 
 <p align="center">
   <a href="https://github.com/khajaaijaz26/panergos-agent/releases"><img src="https://img.shields.io/badge/Download-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-675CFF?style=for-the-badge" alt="Download"></a>

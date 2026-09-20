@@ -45,7 +45,7 @@ panergos dashboard --no-open
 
 The dashboard is a **machine-level** management surface: one server manages
 every [profile](../profiles.md) on the machine. A profile switcher in the
-sidebar (visible whenever more than one profile exists) decides which
+Command Map (visible whenever more than one profile exists) decides which
 profile the management pages read and write — Config, API Keys, Skills,
 MCP, Models, and the Chat tab all follow it. While a profile other than
 the dashboard's own is selected, an amber banner names the managed profile
@@ -91,6 +91,10 @@ The `web` and `pty` extras remain compatibility aliases for existing install com
 When you run `panergos dashboard` without the dependencies, it will tell you what to install. If the frontend hasn't been built yet and `npm` is available, it builds automatically on first launch.
 
 The Chat tab is part of every `panergos dashboard` launch — the embedded browser chat pane (running the TUI over PTY/WebSocket) is always available, with no extra flag required.
+
+## Command Map navigation
+
+Panergos uses separated signal nodes and a searchable Command Map instead of a permanent administration sidebar. The center track keeps the primary workspaces close; select **Navigation** or press `Ctrl+K` (`Cmd+K` on macOS) to search every built-in and installed-plugin page by label or route. Commands are grouped into Create, Models, Messaging, and System lanes. `Esc`, the backdrop, or selecting a route closes the map. Profile scope, gateway actions, authentication, language, and theme controls remain inside the map without reducing the workspace canvas.
 
 ## Pages
 
@@ -140,7 +144,7 @@ The **Chat** tab embeds the full Panergos TUI (the same interface you get from `
 
 **Resume an existing session:** from the **Sessions** tab, click the play icon (▶) next to any session. That jumps to `/chat?resume=<id>` and launches the TUI with `--resume`, loading the full history.
 
-**Session switcher (right rail):** the Chat tab carries its own ChatGPT-style conversation list in a thin right rail beside the terminal, so you can swap conversations without leaving the page. The rail stacks the model picker on top and the session list directly below it; the terminal takes up most of the screen. The list shows your most recent sessions for the active profile — title (falling back to a message preview), relative last-active time, message count, and the source channel for non-CLI sessions. Click any row to resume it in place (the terminal respawns with that conversation's history); the active session is highlighted. **New chat** starts a fresh session, and a refresh control re-pulls the list. The rail is read-only for switching — delete, rename, export, and bulk cleanup still live on the **Sessions** tab. On narrow screens it folds into a slide-over panel.
+**Focus Stage and Launch Bay:** the terminal owns the full Chat canvas instead of sharing it with a permanent rail. Select **Model & tools** to raise the bottom Launch Bay with model/tool controls and recent sessions; `Esc`, its backdrop, or selecting a session closes it. The list shows recent sessions for the active profile — title (falling back to a message preview), relative last-active time, message count, and the source channel for non-CLI sessions. Click a row to resume it in place (the terminal respawns with that conversation's history); **New chat** starts fresh, and refresh re-pulls the list. Delete, rename, export, and bulk cleanup remain on the **Sessions** page. The same tray interaction is used on desktop and narrow screens.
 
 **Prerequisites:**
 
@@ -299,7 +303,7 @@ Create and manage [profiles](../profiles.md) — isolated Panergos instances wit
 
 - **Profile cards** — each shows its model/provider, skill count, gateway state, description, and badges (active, default, alias)
 - **Create** — name + optional clone-from-default / clone-everything / no-bundled-skills, description, and model; the dedicated Profile Builder page (`/profiles/new`) offers the full flow (model, MCPs, skills)
-- **Manage skills & tools** — jumps to the Skills page scoped to that profile (sets the sidebar profile switcher)
+- **Manage skills & tools** — jumps to the Skills page scoped to that profile (sets the Command Map profile switcher)
 - **Set as active** — flips the sticky default that **future CLI/gateway runs** pick up (same as `panergos profile use`). This does *not* change what the dashboard manages — that's the profile switcher's job
 - **Edit model / description / SOUL** — inline editors writing into that profile
 - **Rename / Delete** — named profiles only
@@ -809,7 +813,7 @@ panergos dashboard --host 0.0.0.0 --port 9119 --no-open
 above. Binding to `0.0.0.0` (a non-loopback bind) is what
 engages the OAuth gate.
 
-**3. Log in.** Open `http://localhost:9119/`, you'll be bounced to `/login`. Click **Sign in with Self-Hosted OIDC** → authenticate at Keycloak as `testuser` / `testpassword` → land back on the authenticated dashboard. The sidebar shows `Logged in as Test User via self-hosted`, and `GET /api/auth/me` returns the verified session (`provider: self-hosted`, `email: testuser@example.com`).
+**3. Log in.** Open `http://localhost:9119/`, you'll be bounced to `/login`. Click **Sign in with Self-Hosted OIDC** → authenticate at Keycloak as `testuser` / `testpassword` → land back on the authenticated dashboard. The Command Map shows `Logged in as Test User via self-hosted`, and `GET /api/auth/me` returns the verified session (`provider: self-hosted`, `email: testuser@example.com`).
 
 > If you bind or browse on a different host/port, add that origin's
 > `…/auth/callback` to the client's **Valid redirect URIs** in the Keycloak
@@ -969,7 +973,7 @@ curl -s http://127.0.0.1:9119/api/status | jq '.auth_required, .auth_providers'
 # true
 ```
 
-The dashboard's React StatusPage shows the same fields under "Web server". A sidebar AuthWidget surfaces the current identity once you've signed in.
+The dashboard's React StatusPage shows the same fields under "Web server". The Command Map's AuthWidget surfaces the current identity once you've signed in.
 
 ## Connecting Panergos Desktop to a remote backend
 
@@ -1063,7 +1067,7 @@ When you run `panergos update`, the web frontend is automatically rebuilt if `np
 
 The dashboard ships with eight built-in themes and can be extended with user-defined themes, plugin tabs, and backend API routes — all drop-in, no repo clone needed.
 
-**Switch themes live** from the header bar — click the palette icon next to the language switcher. Selection persists to `config.yaml` under `dashboard.theme` and is restored on page load.
+**Switch themes live** from the Navigation panel footer — click the palette control next to the language switcher. Selection persists to `config.yaml` under `dashboard.theme` and is restored on page load.
 
 **Change the font independently** from the same picker — the **Font** section below the theme list overrides the UI font of whatever theme is active. The choice persists across theme switches (`config.yaml` → `dashboard.font`); pick **Theme default** to clear it and return to the active theme's own font.
 

@@ -51,7 +51,7 @@ export const ga: Translations = {
 
   app: {
     brand: "Panergos Agent",
-    brandShort: "HA",
+    brandShort: "PA",
     closeNavigation: "Dún an nascleanúint",
     closeModelTools: "Dún an samhail agus na huirlisí",
     footer: {
@@ -354,7 +354,7 @@ export const ga: Translations = {
     removeConfirm: "Bain an plugin seo ó ~/.panergos/plugins/?",
     removeHint: "Ní féidir ach plugins atá suiteáilte ag an úsáideoir faoi ~/.panergos/plugins a bhaint.",
     rescanHeading: "Clár plugin SPA",
-    rescanHint: "Athscan tar éis comhaid a chur leis an diosca ionas go n-aimseoidh barra taoibh an dashboard manifests nua.",
+    rescanHint: "Athscan tar éis comhaid a chur leis an diosca ionas go n-aimseoidh nascleanúint an dashboard manifests nua.",
     runtimeHeading: "Runtime gateway (plugins YAML)",
     saveProviders: "Sábháil socruithe an tsoláthraí",
     savedProviders: "Socruithe an tsoláthraí sábháilte.",
@@ -363,8 +363,8 @@ export const ga: Translations = {
     authRequiredHint: "Rith an t-ordú seo chun fíordheimhniú a dhéanamh:",
     updateGit: "Git pull",
     versionBadge: "Leagan",
-    showInSidebar: "Taispeáin sa bharra taoibh",
-    hideFromSidebar: "Folaigh ón mbarra taoibh",
+    showInSidebar: "Taispeáin sa nascleanúint",
+    hideFromSidebar: "Folaigh ón nascleanúint",
   },
 
   skills: {
@@ -613,7 +613,7 @@ export const ga: Translations = {
         "Osclaíonn Comhroinn ar X post réamhlíonta i gcluaisín nua. Cliceáil Cóipeáil íomhá ar dtús más mian leat an suaitheantas 1200×630 a bheith ceangailte — ligeann X duit é a ghreamú díreach isteach i scríbhneoir an tweet. Sábhálann Íoslódáil PNG an comhad le húsáid áit ar bith.",
       clipboard_unsupported:
         "Ní thacaítear le cóipeáil íomhá chuig an ngearrthaisce sa bhrabhsálaí seo — úsáid Íoslódáil ina ionad sin.",
-      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ◆",
+      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ▶",
     },
   },
   kanban: {

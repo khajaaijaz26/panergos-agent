@@ -2727,7 +2727,7 @@ def redact_config_value(value: Any, _depth: int = 0) -> Any:
 
 def _section(title: str) -> None:
     print()
-    print(color(f"◆ {title}", Colors.CYAN, Colors.BOLD))
+    print(color(f"▶ {title}", Colors.CYAN, Colors.BOLD))
 
 
 def _show_managed_banner() -> None:
@@ -2884,7 +2884,7 @@ def show_config():
 
     print()
     print(color("┌─────────────────────────────────────────────────────────┐", Colors.CYAN))
-    print(color("│             ◆ Panergos Configuration                   │", Colors.CYAN))
+    print(color("│             ▶ Panergos Configuration                   │", Colors.CYAN))
     print(color("└─────────────────────────────────────────────────────────┘", Colors.CYAN))
     _show_managed_banner()
 

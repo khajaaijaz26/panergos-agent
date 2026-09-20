@@ -2126,13 +2126,13 @@ class GatewayTurnMixin:
             else f"{context_length // 1_000}K" if context_length >= 1_000 else str(context_length)
         )
         lines = [
-            f"◆ Model: `{resolved.model}`",
-            f"◆ Provider: {resolved.provider or 'openrouter'}",
-            f"◆ Context: {ctx_display} tokens ({ctx_source})",
+            f"▶ Model: `{resolved.model}`",
+            f"▶ Provider: {resolved.provider or 'openrouter'}",
+            f"▶ Context: {ctx_display} tokens ({ctx_source})",
         ]
         base_url = resolved.base_url
         if base_url and base_url_hostname(base_url) in ("localhost", "127.0.0.1", "0.0.0.0"):
-            lines.append(f"◆ Endpoint: {base_url}")
+            lines.append(f"▶ Endpoint: {base_url}")
         return "\n".join(lines)
 
     async def _run_background_task(

@@ -12,14 +12,14 @@ import { ProfileContext } from "@/contexts/profile-context";
 /**
  * Machine-level management-profile scope.
  *
- * One switcher (rendered in the sidebar) decides which profile every
+ * One switcher (rendered in Navigation) decides which profile every
  * management page reads/writes. React STATE is the source of truth; the
  * URL (`?profile=<name>`) is a synchronized projection of it so deep links
  * land scoped and refresh survives. The selection is mirrored into the api
  * module so `fetchJSON` transparently appends it to the profile-scoped
  * endpoint families. "" = the dashboard's own profile.
  *
- * Why state-first instead of URL-first: sidebar nav links are bare paths
+ * Why state-first instead of URL-first: Navigation links are bare paths
  * (`/config`, `/skills`). A URL-derived scope would silently reset to the
  * dashboard's own profile on every nav click — the switcher would LOOK
  * global while normal navigation dropped the write target. With state as

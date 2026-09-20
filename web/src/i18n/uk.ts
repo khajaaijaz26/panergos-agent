@@ -51,7 +51,7 @@ export const uk: Translations = {
 
   app: {
     brand: "Panergos Agent",
-    brandShort: "HA",
+    brandShort: "PA",
     closeNavigation: "Закрити навігацію",
     closeModelTools: "Закрити модель та інструменти",
     footer: {
@@ -347,7 +347,7 @@ export const uk: Translations = {
     removeConfirm: "Видалити цей плагін з ~/.panergos/plugins/?",
     removeHint: "Видаляти можна лише плагіни, встановлені користувачем у ~/.panergos/plugins.",
     rescanHeading: "Реєстр SPA-плагінів",
-    rescanHint: "Скануйте після додавання файлів на диск, щоб бічна панель підхопила нові маніфести.",
+    rescanHint: "Скануйте після додавання файлів на диск, щоб навігація підхопила нові маніфести.",
     runtimeHeading: "Час виконання шлюзу (YAML-плагіни)",
     saveProviders: "Зберегти налаштування постачальників",
     savedProviders: "Налаштування постачальників збережено.",
@@ -356,8 +356,8 @@ export const uk: Translations = {
     authRequiredHint: "Виконайте цю команду, щоб автентифікуватися:",
     updateGit: "Git pull",
     versionBadge: "Версія",
-    showInSidebar: "Показати у бічній панелі",
-    hideFromSidebar: "Сховати з бічної панелі",
+    showInSidebar: "Показати у навігації",
+    hideFromSidebar: "Сховати з навігації",
   },
 
   skills: {
@@ -606,7 +606,7 @@ export const uk: Translations = {
         "«Поділитися в X» відкриває попередньо заповнений допис у новій вкладці. Якщо хочете прикріпити значок 1200×630 — спочатку натисніть «Копіювати зображення»: X дозволить вставити його прямо в редактор твіта. «Завантажити PNG» збереже файл для використання будь-де.",
       clipboard_unsupported:
         "Цей браузер не підтримує копіювання зображень у буфер обміну — використайте «Завантажити».",
-      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ◆",
+      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ▶",
     },
   },
   kanban: {

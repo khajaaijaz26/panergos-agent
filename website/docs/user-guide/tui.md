@@ -53,28 +53,27 @@ The classic CLI remains the shipped default. Anything documented in [CLI Interfa
 
 ## Why the TUI
 
-- **Instant first frame** — the banner paints before the app finishes loading, so the terminal never feels frozen while Panergos is starting.
+- **Instant first frame** — the compact cockpit paints before the app finishes loading, so the terminal never feels frozen while Panergos is starting.
 - **Non-blocking input** — type and queue messages before the session is ready. Your first prompt sends the moment the agent comes online.
 - **Rich overlays** — model picker, session picker, approval and clarification prompts all render as modal panels rather than inline flows.
-- **Live session panel** — tools and skills fill in progressively as they initialize.
+- **Live work cockpit** — model, route, workspace, memory/cache, latency, throughput, and real commands stay visible while capabilities initialize behind compact drawers.
 - **Mouse-friendly selection** — drag to highlight with a uniform background instead of SGR inverse. Copy with your terminal's normal copy gesture.
 - **Alternate-screen rendering** — differential updates mean no flicker when streaming, no scrollback clutter after you quit.
 - **Composer affordances** — inline paste-collapse for long snippets, `Cmd+V` / `Ctrl+V` text paste with clipboard-image fallback, bracketed-paste safety, and image/file-path attachment normalization.
 
 Same [skins](features/skins.md) and [personalities](features/personality.md) apply. Switch mid-session with `/skin crimson`, `/personality pirate`, and the UI repaints live. See [Skins & Themes](features/skins.md) for the full list of customizable keys and which ones apply to classic vs TUI — the TUI honors the banner palette, UI colors, prompt glyph/color, session display, completion menu, selection bg, `tool_prefix`, and `help_header`.
 
-### Collapsible banner sections
+### Work cockpit and capability drawers
 
-The TUI startup banner groups runtime info into four collapsible sections, each rendered with a `▸` / `▾` chevron next to the section title:
+The TUI opens with model, route, workspace, and memory signals plus the real `Ctrl+O`, `Ctrl+X`, `?`, and `/` actions. Detailed inventories stay in collapsible sections rendered with a `▸` / `▾` chevron:
 
 | Section | Default state |
 |---------|---------------|
-| Tools | Open |
-| Skills | Collapsed |
+| Capability map (tools and skills) | Collapsed |
 | System Prompt | Collapsed |
-| MCP Servers | Collapsed |
+| Connections (MCP servers) | Collapsed |
 
-Click anywhere on a section header (or its chevron) to toggle it. The Tools list opens by default because it's the most-checked section at session start; Skills, System Prompt, and MCP Servers collapse by default so the banner stays compact even when you've installed dozens of skills or wired up many MCP servers. State is local to the banner instance, so the next launch resets to the defaults.
+Click a section header (or its chevron) to toggle it. Counts remain visible while long inventories stay out of the startup path. State is local to the cockpit instance, so the next launch resets to the compact defaults.
 
 ## Requirements
 
@@ -211,6 +210,8 @@ The per-skin status-bar colors and thresholds are shared with the classic CLI �
 
 The status line also shows:
 
+- **Observed route performance** — `cache 87%`, `lat 3.2s`, and `50 tok/s` use rolling data from completed model calls; absent data stays hidden rather than becoming a guessed value.
+- **`⚡ fast`** — the supported provider priority tier is explicitly active for this session. Fast mode is never enabled silently and may cost more; use `/fast` to inspect or change it.
 - **Working directory with git branch** — `~/projects/panergos-agent (docs/two-week-gap-sweep)`. The branch suffix updates when you `git checkout` in a side terminal (mtime-cached) so the TUI reflects your actual active branch, not whatever it was at launch.
 - **Per-prompt elapsed time** — `⏱ 12s/3m 45s` while the turn is running (live), frozen to `⏲ 32s / 3m 45s` after the turn completes. First number is time since last user message; second is total session duration. Resets on every new prompt.
 - **`🗜️ N`** — number of times the running session has been auto-compressed. Appears once the first compression fires.

@@ -912,7 +912,7 @@ class TestPromptCacheKeyCapability:
         every API call. Use getattr with a False default so it degrades to
         "no prompt cache key" instead of crashing.
 
-        Regression: 'NousProfile' object has no attribute
+        Regression: a stale ProviderProfile object had no
         'supports_prompt_cache_key' (Aug 2026, after partial update).
         """
         from providers.base import ProviderProfile

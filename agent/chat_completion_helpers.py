@@ -1282,10 +1282,11 @@ def _build_chat_completions_kwargs(agent, api_messages, tools_for_api, reasoning
     tools_for_api = _alias_tool_search_bridge_for_xai(agent, transport, tools_for_api)
 
     _is_qwen = agent._is_qwen_portal()
-    _is_or = agent._is_openrouter_url()
+    _provider = (agent.provider or "").strip().lower()
+    _is_or = _provider == "openrouter" or agent._is_openrouter_url()
     _host = agent._base_url_lower
     _is_gh = base_url_host_matches(_host, "models.github.ai") or base_url_host_matches(_host, "githubcopilot.com")
-    _is_lmstudio = (agent.provider or "").strip().lower() == "lmstudio"
+    _is_lmstudio = _provider == "lmstudio"
 
     # _fixed_temperature_for_model may return the OMIT_TEMPERATURE sentinel
     # (temperature omitted entirely), a numeric override, or None.
@@ -1296,7 +1297,9 @@ def _build_chat_completions_kwargs(agent, api_messages, tools_for_api, reasoning
         _omit_temp = _ft is OMIT_TEMPERATURE
         _fixed_temp = None if _omit_temp else _ft
 
-    _prefs = _provider_preferences_for_agent(agent)
+    # Provider routing is an OpenRouter wire field. Avoid the cached config
+    # signature check + per-model overlay work on every direct/local request.
+    _prefs = _provider_preferences_for_agent(agent) if _is_or else {}
 
     _qwen_meta = {"sessionId": agent.session_id or "panergos", "promptId": str(uuid.uuid4())} if _is_qwen else None
     _profile = None

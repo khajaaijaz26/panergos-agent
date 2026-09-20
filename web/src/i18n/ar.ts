@@ -51,7 +51,7 @@ export const ar = defineLocale({
 
   app: {
     brand: "Panergos Agent",
-    brandShort: "HA",
+    brandShort: "PA",
     closeNavigation: "إغلاق التنقل",
     closeModelTools: "إغلاق النموذج والأدوات",
     footer: {
@@ -291,7 +291,7 @@ export const ar = defineLocale({
     removeConfirm: "إزالة هذا المكوِّن الإضافي من ~/.panergos/plugins/؟",
     removeHint: "يمكن إزالة المكوِّنات المثبتة من المستخدم تحت ~/.panergos/plugins فقط.",
     rescanHeading: "سجل مكوِّنات SPA",
-    rescanHint: "أعد الفحص بعد إضافة ملفات على القرص لتمكن الشريط الجانبي من التقاط المخطوطات الجديدة.",
+    rescanHint: "أعد الفحص بعد إضافة ملفات على القرص لتمكن لوحة التنقل من التقاط المخطوطات الجديدة.",
     runtimeHeading: "وقت تشغيل البوابة (مكوِّنات YAML)",
     saveProviders: "حفظ إعدادات مزوِّد الذاكرة",
     savedProviders: "تم حفظ إعدادات مزوِّد الذاكرة.",
@@ -300,8 +300,8 @@ export const ar = defineLocale({
     authRequiredHint: "شغِّل هذا الأمر للمصادقة:",
     updateGit: "سحب من Git",
     versionBadge: "الإصدار",
-    showInSidebar: "إظهار في الشريط الجانبي",
-    hideFromSidebar: "إخفاء من الشريط الجانبي",
+    showInSidebar: "إظهار في التنقل",
+    hideFromSidebar: "إخفاء من التنقل",
   },
 
   skills: {
@@ -537,7 +537,7 @@ export const ar = defineLocale({
         "المشاركة على X تفتح منشورًا معدَّلاً مسبقًا في تبويب جديد. انقر نسخ الصورة أولاً إذا أردت شارة الإنجاز 1200×630 مرفقة — يسمح X باللصق مباشرة في مؤلف التغريد. تنزيل PNG يحفظ الملف للاستخدام anywhere.",
       clipboard_unsupported:
         "نسخ صورة الحافظة غير مدعوم في هذا المتصفح — استخدم التنزيل بدلاً من ذلك.",
-      tweet_text: "فتحت للتو {tier_part}\"{name}\" في Panergos Agent ◆"
+      tweet_text: "فتحت للتو {tier_part}\"{name}\" في Panergos Agent ▶"
     },
   },
 

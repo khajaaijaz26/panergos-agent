@@ -243,7 +243,7 @@ class CLIChatTurnMixin:
             def display_callback(sentence: str):
                 if not turn.box_opened:
                     turn.box_opened = True
-                    label = " ◆ Panergos "
+                    label = " ▶ Panergos "
                     if self.show_timestamps:
                         label = f"{label}{datetime.now().strftime(self.timestamp_format)} "
                     w = self._scrollback_box_width(getattr(self.console, "width", 80))
@@ -605,11 +605,11 @@ class CLIChatTurnMixin:
             try:
                 from panergos_cli.skin_engine import get_active_skin
                 _skin = get_active_skin()
-                label = _skin.get_branding("response_label", "◆ Panergos")
+                label = _skin.get_branding("response_label", "▶ Panergos")
                 _resp_color = _maybe_remap_for_light_mode(_skin.get_color("response_border", "#FF6B5E"))
                 _resp_text = _maybe_remap_for_light_mode(_skin.get_color("banner_text", "#F7F2FF"))
             except Exception:
-                label = "◆ Panergos"
+                label = "▶ Panergos"
                 _resp_color = _maybe_remap_for_light_mode("#FF6B5E")
                 _resp_text = _maybe_remap_for_light_mode("#F7F2FF")
 

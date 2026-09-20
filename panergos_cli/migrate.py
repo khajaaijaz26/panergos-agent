@@ -37,7 +37,7 @@ def cmd_migrate_xai(args: Any) -> int:
     issues = find_retired_xai_refs(load_config())
 
     print()
-    print(color(f"◆ xAI Model Retirement Migration ({RETIREMENT_DATE})", Colors.CYAN, Colors.BOLD))
+    print(color(f"▶ xAI Model Retirement Migration ({RETIREMENT_DATE})", Colors.CYAN, Colors.BOLD))
     print()
 
     if not issues:

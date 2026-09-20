@@ -51,7 +51,7 @@ export const tr: Translations = {
 
   app: {
     brand: "Panergos Agent",
-    brandShort: "HA",
+    brandShort: "PA",
     closeNavigation: "Gezintiyi kapat",
     closeModelTools: "Modeli ve araçları kapat",
     footer: {
@@ -346,7 +346,7 @@ export const tr: Translations = {
     removeConfirm: "Bu eklenti ~/.panergos/plugins/ içinden kaldırılsın mı?",
     removeHint: "Yalnızca ~/.panergos/plugins altındaki kullanıcı tarafından yüklenmiş eklentiler kaldırılabilir.",
     rescanHeading: "SPA eklenti kayıt defteri",
-    rescanHint: "Diske dosya ekledikten sonra yeniden tarayın, böylece pano kenar çubuğu yeni manifestleri algılar.",
+    rescanHint: "Diske dosya ekledikten sonra yeniden tarayın, böylece pano gezintisi yeni manifestleri algılar.",
     runtimeHeading: "Ağ geçidi çalışma zamanı (YAML eklentileri)",
     saveProviders: "Sağlayıcı ayarlarını kaydet",
     savedProviders: "Sağlayıcı ayarları kaydedildi.",
@@ -355,8 +355,8 @@ export const tr: Translations = {
     authRequiredHint: "Kimlik doğrulamak için bu komutu çalıştırın:",
     updateGit: "Git pull",
     versionBadge: "Sürüm",
-    showInSidebar: "Kenar çubuğunda göster",
-    hideFromSidebar: "Kenar çubuğundan gizle",
+    showInSidebar: "Gezintide göster",
+    hideFromSidebar: "Gezintiden gizle",
   },
 
   skills: {
@@ -605,7 +605,7 @@ export const tr: Translations = {
         "X'te paylaş, yeni sekmede önceden doldurulmuş bir gönderi açar. 1200×630 rozetin eklenmesini istiyorsan önce Görseli kopyala'ya tıkla — X, görseli doğrudan tweet düzenleyiciye yapıştırmana izin verir. PNG indir, dosyayı her yerde kullanmak üzere kaydeder.",
       clipboard_unsupported:
         "Bu tarayıcıda panoya görsel kopyalama desteklenmiyor — bunun yerine İndir'i kullanın.",
-      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ◆",
+      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ▶",
     },
   },
   kanban: {

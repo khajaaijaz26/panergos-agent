@@ -17,7 +17,7 @@ __distribution_user_agent__ = f"PanergosAgent/{__distribution_version__}"
 def _ensure_utf8():
     """Force UTF-8 stdout/stderr to prevent UnicodeEncodeError crashes.
 
-    The CLI prints box-drawing characters and the ◆ sigil in the setup wizard, doctor, and status
+    The CLI prints box-drawing characters and the Relay sigil in the setup wizard, doctor, and status
     banners; under a non-UTF-8 codec that raises before the command can even start (e.g.
     `panergos setup` on a fresh Pi).
     """

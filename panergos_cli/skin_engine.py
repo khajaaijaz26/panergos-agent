@@ -57,7 +57,7 @@ def _wings(*glyphs) -> List[List[str]]:
 
 # Branding shared by the neutral built-ins (mono/daylight override help_header).
 _PANERGOS_BRANDING: Dict[str, str] = _branding(
-    "Panergos", "◆", "Goodbye! ◆", prompt="❯", help_header="(◆) Available Commands")
+    "Panergos", "▶", "Goodbye! ▶", prompt="❯", help_header="(▶) Available Commands")
 
 _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
     "default": {
@@ -106,12 +106,12 @@ _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
             "completion_menu_current_bg": "#5C221D", "selection_bg": "#692620",
             "shell_dollar": "#DD4A3A", "voice_status_bg": "#2A1212"},
         "spinner": {
-            "waiting_faces": ["(◆)", "(■)", "(▲)", "(<>)", "(/)"],
-            "thinking_faces": ["(◆)", "(■)", "(▲)", "(⌁)", "(<>)"],
+            "waiting_faces": ["(▶)", "(■)", "(▲)", "(<>)", "(/)"],
+            "thinking_faces": ["(▶)", "(■)", "(▲)", "(⌁)", "(<>)"],
             "thinking_verbs": [
                 "refining", "sequencing work", "sizing the task", "holding context",
                 "shaping plans", "testing assumptions", "plotting impact", "preparing output"],
-            "wings": _wings("◆", "▲", ("╸", "╺"), "■")},
+            "wings": _wings("▶", "▲", ("╸", "╺"), "■")},
         "branding": _PANERGOS_BRANDING,
         "tool_prefix": "╎",
     },
@@ -429,7 +429,7 @@ def get_active_help_header(fallback: str = "(^_^)? Available Commands") -> str:
     return _active_branding("help_header", fallback)
 
 
-def get_active_goodbye(fallback: str = "Goodbye! ◆") -> str:
+def get_active_goodbye(fallback: str = "Goodbye! ▶") -> str:
     return _active_branding("goodbye", fallback)
 
 

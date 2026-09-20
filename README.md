@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/panergos-banner.png" alt="Panergos Agent — the open agent for any work" width="100%">
+  <img src="assets/panergos-banner.svg" alt="Panergos Agent — work without losing the thread" width="100%">
 </p>
 
 <h1 align="center">Panergos Agent</h1>
@@ -38,6 +38,7 @@
 | **Resume, do not restart**             | Sessions, compact project memory, checkpoints, and durable handoffs let work continue from verified evidence instead of repeatedly loading an entire repository.      |
 | **Coordinate real work**               | Durable Missions combine multi-agent task graphs, dependencies, leases, retries, review stages, shared state, messages, and an auditable event stream.                |
 | **Use your model**                     | Connect a ready local runtime, Anthropic, or any OpenAI-compatible endpoint. Provider routing, fallback chains, credential pools, and Mixture of Agents are built in. |
+| **Keep the route visible**             | The TUI reports cache hit rate, rolling latency, output tokens per second, and explicit `/fast` state; OpenRouter latency/throughput routing remains opt-in.           |
 | **Work where you already are**         | Use the CLI, modern TUI, native desktop app, web dashboard, headless API, ACP clients, MCP clients, or more than 30 messaging and automation adapters.                |
 | **Extend without rebuilding the core** | Skills, plugins, toolsets, MCP servers, shell hooks, and platform adapters use discoverable registries with explicit enablement and trust boundaries.                 |
 | **Keep claims testable**               | Implemented, experimental, and planned capabilities are labeled separately. Comparative superiority is not claimed without reproducible benchmarks.                   |
@@ -270,21 +271,29 @@ Skills provide on-demand instructions and workflows; plugins can add tools, comm
 
 Sessions are shared through the configured profile, so the same durable work can move between supported surfaces without starting from zero.
 
-`panergos dashboard` opens the local React workspace at `http://127.0.0.1:9119` by default. It combines sessions, files, models, analytics, memory, jobs, skills, plugins, MCP, channels, credentials, configuration, and the real Panergos TUI in an embedded terminal on supported PTY/ConPTY installations. The default Panergos Eclipse interface uses the Panergos Knot with eclipse plum, electric jade, signal coral, and orbit amber; light, alternate, and user-defined themes remain available.
+`panergos dashboard` opens the local React workspace at `http://127.0.0.1:9119` by default. Select **Navigation** or press `Ctrl/Cmd+K` to open its searchable Command Map, which reaches sessions, files, models, automation, connections, configuration, and installed plugin pages without a permanent admin sidebar. Chat keeps the real Panergos TUI in a full-width Focus Stage; select **Model & tools** to raise its model, tool, and session controls in the bottom Launch Bay. The terminal starts with a compact Continuity Lane for model, route, workspace, memory, real throughput signals, and commands. The default Panergos Eclipse interface uses the Panergos Relay with eclipse plum, signal coral, relay amber, and electric jade; light, alternate, and user-defined themes remain available.
+
+Panergos reduces the latency it controls through stable prompt prefixes and provider caching, bounded memory retrieval instead of full-project rereads, parallel independent tools, cached catalogs, and route-aware model selection. `/fast` can request supported provider priority tiers and may cost more; OpenRouter can explicitly sort by latency or throughput. Panergos does not claim it can make a remote provider's hardware itself run faster.
 
 ## Architecture
 
-```mermaid
-flowchart TD
-    team["You and your team"] --> surfaces["Interfaces: CLI, TUI, Desktop, Web, API, ACP, Messaging"]
-    surfaces --> runtime["Panergos Agent runtime"]
-    runtime --> models["Models: local and cloud routing, fallback, MoA"]
-    runtime --> capabilities["Capabilities: code, security, media, office, browser"]
-    runtime --> work["Work: missions, Kanban, cron, delegation, peer agents"]
-    runtime --> memory["Continuity: sessions, project memory, handoffs, checkpoints"]
-    runtime --> control["Control: profiles, approvals, secrets, egress, monitoring"]
-    capabilities --> systems["Connected platforms and company systems"]
-    work --> systems
+```text
+You + your team
+       │
+       ▼
+CLI · TUI · Desktop · Web · API · ACP · Messaging
+       │
+       ▼
+╭──────────────────── Panergos Agent runtime ────────────────────╮
+│ Models       local/cloud routing · fallback · Mixture of Agents │
+│ Capabilities code · security · media · office · browser         │
+│ Work         missions · Kanban · cron · delegation · peers      │
+│ Continuity   sessions · project memory · handoffs · checkpoints │
+│ Control      profiles · approvals · secrets · egress · monitors │
+╰─────────────────────────────────────────────────────────────────╯
+       │
+       ▼
+Connected platforms and company systems
 ```
 
 | Path                          | Responsibility                                                                   |
@@ -337,7 +346,7 @@ Future work is tracked in the public [Post-v0.1 roadmap](https://github.com/khaj
 - **[Messaging platforms](website/docs/user-guide/messaging/index.md)** — connector-specific guides
 - **[MCP](website/docs/user-guide/features/mcp.md)** — external tool servers
 - **[Contributing](CONTRIBUTING.md)** — development setup and contribution workflow
-- **[Visual identity](BRAND.md)** — Panergos Knot and brand palette
+- **[Visual identity](BRAND.md)** — Panergos Relay and brand palette
 
 Translations: [Español](README.es.md) · [简体中文](README.zh-CN.md) · [اردو](README.ur-pk.md)
 

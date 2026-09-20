@@ -18,31 +18,35 @@ import { cn } from "@/lib/utils";
  * themes from `~/.panergos/dashboard-themes/*.yaml` use their API-provided
  * definitions so they show real palette swatches just like built-ins.
  *
- * When placed at the bottom of a container (e.g. the sidebar rail), pass
+ * When placed at the bottom of a container (e.g. the Navigation footer), pass
  * `dropUp` so the menu opens above the trigger instead of clipping below
  * the viewport. On viewports below the `sm` breakpoint, `dropUp` uses a
  * bottom sheet portaled to `document.body` so the picker is not clipped by
- * the sidebar (same idea as a responsive Drawer).
+ * surrounding chrome (same idea as a responsive Drawer).
  */
-export function ThemeSwitcher({ collapsed = false, dropUp = false }: ThemeSwitcherProps) {
+export function ThemeSwitcher({ collapsed = false, dropUp = false, modalOwnerId }: ThemeSwitcherProps) {
   const { themeName, availableThemes, setTheme, fontId, fontChoices, setFont } = useTheme();
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const narrowViewport = useBelowBreakpoint(640);
-  const useMobileSheet = Boolean(dropUp && narrowViewport);
+  const useMobileSheet = Boolean(dropUp && narrowViewport && !modalOwnerId);
 
   const close = useCallback(() => setOpen(false), []);
+  const closeAndRestore = useCallback(() => {
+    setOpen(false);
+    queueMicrotask(() => wrapperRef.current?.querySelector<HTMLButtonElement>("button")?.focus());
+  }, []);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape") closeAndRestore();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, close]);
+  }, [open, closeAndRestore]);
 
   useEffect(() => {
     if (!open || useMobileSheet) return;
@@ -56,12 +60,21 @@ export function ThemeSwitcher({ collapsed = false, dropUp = false }: ThemeSwitch
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [open, close, useMobileSheet]);
 
+  useEffect(() => {
+    if (!open || useMobileSheet || !modalOwnerId) return;
+    dropdownRef.current?.querySelector<HTMLElement>('[role="option"]')?.focus();
+  }, [modalOwnerId, open, useMobileSheet]);
+
   const current = availableThemes.find((th) => th.name === themeName);
   const label = current?.label ?? themeName;
   const sheetTitle = t.theme?.title ?? "Theme";
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div
+      ref={wrapperRef}
+      className="relative"
+      data-modal-child-open={open ? "true" : undefined}
+    >
       <Button
         ghost
         size={collapsed ? "icon" : undefined}
@@ -92,14 +105,14 @@ export function ThemeSwitcher({ collapsed = false, dropUp = false }: ThemeSwitch
       {useMobileSheet && (
         <BottomSheet
           backdropDismissLabel={t.common.close}
-          onClose={close}
+          onClose={closeAndRestore}
           open={open}
           title={sheetTitle}
         >
           <div aria-label={sheetTitle} role="listbox">
             <ThemeSwitcherOptions
               availableThemes={availableThemes}
-              close={close}
+              close={closeAndRestore}
               setTheme={setTheme}
               themeName={themeName}
             />
@@ -114,6 +127,7 @@ export function ThemeSwitcher({ collapsed = false, dropUp = false }: ThemeSwitch
 
       {open && !useMobileSheet && (() => {
         const rect = wrapperRef.current?.getBoundingClientRect();
+        const containedByModal = Boolean(modalOwnerId);
         const dropdown = (
           <div
             ref={dropdownRef}
@@ -122,11 +136,15 @@ export function ThemeSwitcher({ collapsed = false, dropUp = false }: ThemeSwitch
               "min-w-[240px] max-h-[70dvh] overflow-y-auto",
               "border border-current/20 bg-background-base/95",
               "shadow-[0_12px_32px_-8px_rgba(0,0,0,0.6)]",
-              dropUp ? "fixed z-[100]" : "absolute z-50 right-0 top-full mt-1",
+              dropUp
+                ? containedByModal
+                  ? "absolute bottom-full right-0 z-[100] mb-1"
+                  : "fixed z-[100]"
+                : "absolute z-50 right-0 top-full mt-1",
             )}
             role="listbox"
             style={
-              dropUp && rect
+              dropUp && !containedByModal && rect
                 ? { bottom: window.innerHeight - rect.top + 4, left: rect.left }
                 : undefined
             }
@@ -141,7 +159,7 @@ export function ThemeSwitcher({ collapsed = false, dropUp = false }: ThemeSwitch
 
             <ThemeSwitcherOptions
               availableThemes={availableThemes}
-              close={close}
+              close={closeAndRestore}
               setTheme={setTheme}
               themeName={themeName}
             />
@@ -152,7 +170,7 @@ export function ThemeSwitcher({ collapsed = false, dropUp = false }: ThemeSwitch
             />
           </div>
         );
-        return dropUp ? createPortal(dropdown, document.body) : dropdown;
+        return dropUp && !containedByModal ? createPortal(dropdown, document.body) : dropdown;
       })()}
     </div>
   );
@@ -355,4 +373,5 @@ interface FontSectionProps {
 interface ThemeSwitcherProps {
   collapsed?: boolean;
   dropUp?: boolean;
+  modalOwnerId?: string;
 }

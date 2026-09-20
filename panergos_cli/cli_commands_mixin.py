@@ -379,11 +379,11 @@ def _print_side_result_panel(cli, *, header_lines, body, title_suffix, empty_not
     try:
         from panergos_cli.skin_engine import get_active_skin
         _skin = get_active_skin()
-        label = _skin.get_branding("response_label", "◆ Panergos")
+        label = _skin.get_branding("response_label", "▶ Panergos")
         _resp_color = _maybe_remap_for_light_mode(_skin.get_color("response_border", "#FF6B5E"))
         _resp_text = _maybe_remap_for_light_mode(_skin.get_color("banner_text", "#F7F2FF"))
     except Exception:
-        label, _resp_color, _resp_text = "◆ Panergos", "#FF6B5E", "#F7F2FF"
+        label, _resp_color, _resp_text = "▶ Panergos", "#FF6B5E", "#F7F2FF"
     rich_console.print(Panel(
         _render_final_assistant_content(body, mode=cli.final_response_markdown),
         title=f"[{_resp_color} bold]{label} {title_suffix}[/]", title_align="left",
@@ -2618,12 +2618,12 @@ class CLICommandsMixin:
         choices = [("once", "Update Now", "exit the current session and update Panergos Agent"),
                    ("cancel", "Cancel", "keep the current session")]
         raw = self._prompt_text_input_modal(
-            title="◆  Update Panergos Agent",
+            title="▶  Update Panergos Agent",
             detail="This will exit the current session and run `panergos update`.", choices=choices)
         if raw is None or self._normalize_slash_confirm_choice(raw, choices) != "once":
             print("  🟡 /update cancelled.")
             return False
-        _say_block("  ◆ Launching update...")
+        _say_block("  ▶ Launching update...")
         # run() execs this on the main thread after prompt_toolkit restores terminal modes;
         # relaunching from this daemon thread would skip cleanup (POSIX) / only end the thread (Windows).
         self._pending_relaunch = ["update"]

@@ -51,7 +51,7 @@ export const es: Translations = {
 
   app: {
     brand: "Panergos Agent",
-    brandShort: "HA",
+    brandShort: "PA",
     closeNavigation: "Cerrar navegación",
     closeModelTools: "Cerrar modelo y herramientas",
     footer: {
@@ -347,7 +347,7 @@ export const es: Translations = {
     removeConfirm: "¿Eliminar este complemento de ~/.panergos/plugins/?",
     removeHint: "Solo se pueden eliminar complementos instalados por el usuario en ~/.panergos/plugins.",
     rescanHeading: "Registro de complementos SPA",
-    rescanHint: "Vuelve a escanear tras añadir archivos en disco para que la barra lateral del panel detecte nuevos manifiestos.",
+    rescanHint: "Vuelve a escanear tras añadir archivos en disco para que la navegación del panel detecte nuevos manifiestos.",
     runtimeHeading: "Tiempo de ejecución del Gateway (complementos YAML)",
     saveProviders: "Guardar configuración del proveedor",
     savedProviders: "Configuración del proveedor guardada.",
@@ -356,8 +356,8 @@ export const es: Translations = {
     authRequiredHint: "Ejecuta este comando para autenticarte:",
     updateGit: "Git pull",
     versionBadge: "Versión",
-    showInSidebar: "Mostrar en barra lateral",
-    hideFromSidebar: "Ocultar de la barra lateral",
+    showInSidebar: "Mostrar en navegación",
+    hideFromSidebar: "Ocultar de la navegación",
   },
 
   skills: {
@@ -605,7 +605,7 @@ export const es: Translations = {
         "Compartir en X abre una publicación predefinida en una nueva pestaña. Haz clic primero en Copiar imagen si quieres adjuntar la insignia 1200×630: X te permite pegarla directamente en el redactor del tuit. Descargar PNG guarda el archivo para usarlo en cualquier lugar.",
       clipboard_unsupported:
         "Este navegador no admite copiar imágenes al portapapeles: usa Descargar en su lugar.",
-      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ◆",
+      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ▶",
     },
   },
   kanban: {

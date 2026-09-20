@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 /**
  * The machine dashboard's single write-target selector.
  *
- * Rendered in the sidebar above the nav. Every management page (Config,
+ * Rendered in the Navigation panel. Every management page (Config,
  * Keys, Skills, MCP, Models) reads/writes the selected profile via the
  * fetchJSON ?profile= injection. Hidden when only one profile exists.
  */

@@ -201,7 +201,7 @@ def _print_fts_optimize_available_notice() -> None:
 
     if interrupted:
         print()
-        print("◆ Session database optimization incomplete")
+        print("▶ Session database optimization incomplete")
         print(
             "  A previous `panergos sessions optimize-storage` run was "
             "interrupted. Search still works; re-run the command to resume "
@@ -213,7 +213,7 @@ def _print_fts_optimize_available_notice() -> None:
     est_reclaim = size_gb * 0.6
     print()
     if mode == "require":
-        print("◆ Session database upgrade required")
+        print("▶ Session database upgrade required")
         print(
             f"  Your search index uses the OLD storage layout and should be "
             f"upgraded. The new layout typically frees ~60% of state.db "
@@ -221,7 +221,7 @@ def _print_fts_optimize_available_notice() -> None:
             f"required for continued optimal operation."
         )
     else:
-        print("◆ Reclaim ~60% of your session database disk")
+        print("▶ Reclaim ~60% of your session database disk")
         print(
             f"  Your search index uses the old storage layout. Upgrading it "
             f"typically frees ~60% of state.db — about {est_reclaim:.1f} GB "
@@ -750,7 +750,7 @@ def _run_quick_snapshots() -> Optional[str]:
     )
     if snapshot_id:
         _verify_state_db_after_snapshot(snapshot_id)
-        print(f"◆ Pre-update snapshot: {snapshot_id}")
+        print(f"▶ Pre-update snapshot: {snapshot_id}")
 
     # The code swap + fleet restart touch EVERY profile, so each gets the same snapshot
     # under its own state-snapshots/. Best-effort per profile.
@@ -760,7 +760,7 @@ def _run_quick_snapshots() -> Optional[str]:
             keep=_PRE_UPDATE_SNAPSHOT_KEEP, max_file_size=_PRE_UPDATE_SNAPSHOT_MAX_FILE_SIZE,
         )
         if _sibling_snaps:
-            print(f"◆ Sibling profile snapshot(s): " + ", ".join(sorted(_sibling_snaps)))
+            print(f"▶ Sibling profile snapshot(s): " + ", ".join(sorted(_sibling_snaps)))
             _record_update_step(
                 "sibling_profile_snapshots",
                 True,
@@ -786,7 +786,7 @@ def _run_full_backup() -> None:
     except Exception:
         _keep = 5
 
-    print("◆ Creating pre-update backup...")
+    print("▶ Creating pre-update backup...")
     t0 = _time.monotonic()
     try:
         out_path = create_pre_update_backup(keep=int(_keep))
@@ -834,7 +834,7 @@ def _run_pre_update_backup(args) -> Optional[str]:
 
     if mode == "off":
         if getattr(args, "no_backup", False):
-            print("◆ Pre-update backup: skipped (--no-backup)")
+            print("▶ Pre-update backup: skipped (--no-backup)")
             print()
         # Config-level off is silent: the user opted out.
         return None

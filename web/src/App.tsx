@@ -4,22 +4,11 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ComponentType,
-  type FocusEvent,
-  type MouseEvent,
   type ReactNode,
 } from "react";
-import { createPortal } from "react-dom";
-import {
-  Routes,
-  Route,
-  NavLink,
-  Navigate,
-  useLocation,
-  useNavigate,
-} from "react-router";
+import { Routes, Route, Link, NavLink, Navigate, useLocation, useNavigate } from "react-router";
 import {
   Activity,
   BarChart3,
@@ -35,14 +24,14 @@ import {
   Globe,
   Heart,
   KeyRound,
-  Menu,
+  LayoutGrid,
   MessageSquare,
   Package,
-  PanelLeftClose,
   Plug,
   Puzzle,
   Radio,
   RotateCw,
+  Search,
   Settings,
   Shield,
   ShieldCheck,
@@ -58,13 +47,11 @@ import {
 import { Button } from "@panergos/ui/ui/components/button";
 import { SelectionSwitcher } from "@panergos/ui/ui/components/selection-switcher";
 import { Spinner } from "@panergos/ui/ui/components/spinner";
-import { Typography } from "@panergos/ui/ui/components/typography/index";
 import { ConfirmDialog } from "@panergos/ui/ui/components/confirm-dialog";
 import { cn } from "@/lib/utils";
-import { SidebarFooter } from "@/components/SidebarFooter";
-import { SidebarStatusStrip, gatewayLine } from "@/components/SidebarStatusStrip";
-import { useBelowBreakpoint } from "@panergos/ui/hooks/use-below-breakpoint";
+import { gatewayLine } from "@/components/SidebarStatusStrip";
 import { useSidebarStatus } from "@/hooks/useSidebarStatus";
+import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { AuthWidget } from "@/components/AuthWidget";
 import { PageHeaderProvider } from "@/contexts/PageHeaderProvider";
 import { ProfileProvider } from "@/contexts/ProfileProvider";
@@ -105,8 +92,18 @@ import { useTheme } from "@/themes";
 import { isDashboardEmbeddedChatEnabled } from "@/lib/dashboard-flags";
 import { latchChatActivation } from "@/lib/chat-activation";
 import { sharedGatewayProfiles, sharedGatewayRestartDescription } from "@/lib/shared-gateway";
-import { api } from "@/lib/api";
+import { api, PANERGOS_BASE_PATH } from "@/lib/api";
 import type { StatusResponse, UpdateCheckResponse } from "@/lib/api";
+import {
+  CLOSE_WORK_DOCK_EVENT,
+  filterCommandDeckItems,
+  groupCommandDeckItems,
+  isBlockingCommandDeckModal,
+  isCommandDeckShortcut,
+  PRIMARY_COMMAND_PATHS,
+} from "@/lib/command-deck";
+
+const PANERGOS_MARK_SRC = `${PANERGOS_BASE_PATH}/panergos-mark.svg`;
 
 function RouteFallback({ label = "Loading…" }: { label?: string }) {
   return (
@@ -253,10 +250,7 @@ function resolveIcon(name: string): ComponentType<{ className?: string }> {
   return ICON_MAP[name] ?? Puzzle;
 }
 
-function buildNavItems(
-  builtIn: NavItem[],
-  manifests: PluginManifest[],
-): NavItem[] {
+function buildNavItems(builtIn: NavItem[], manifests: PluginManifest[]): NavItem[] {
   const items = [...builtIn];
 
   for (const manifest of manifests) {
@@ -288,8 +282,8 @@ function buildNavItems(
   return items;
 }
 
-/** Split merged nav into built-in sidebar entries vs plugin tabs, preserving plugin order hints. */
-function partitionSidebarNav(
+/** Split built-in commands from plugin commands while preserving plugin order hints. */
+function partitionCommandNav(
   builtIn: NavItem[],
   manifests: PluginManifest[],
 ): { coreItems: NavItem[]; pluginItems: NavItem[] } {
@@ -367,35 +361,26 @@ function buildRoutes(
   return routes;
 }
 
-const SIDEBAR_COLLAPSED_KEY = "panergos-sidebar-collapsed";
-
 export default function App() {
   const { t } = useI18n();
   const { pathname } = useLocation();
   const { manifests, loading: pluginsLoading } = usePlugins();
   const { theme } = useTheme();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const closeMobile = useCallback(() => setMobileOpen(false), []);
-
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
-    } catch {
-      return false;
-    }
-  });
-  const toggleCollapsed = useCallback(() => {
-    setCollapsed((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
-      } catch { /* localStorage may be unavailable in private browsing */ }
-      return next;
-    });
+  const [commandDeckOpen, setCommandDeckOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
+  const closeCommandDeck = useCallback(() => {
+    setCommandDeckOpen(false);
+    setCommandQuery("");
   }, []);
-  const isMobile = useBelowBreakpoint(1024);
-  const isDesktopCollapsed = collapsed && !isMobile;
-  const tooltipWarmRef = useRef(0);
+  const openCommandDeck = useCallback(() => {
+    window.dispatchEvent(new Event(CLOSE_WORK_DOCK_EVENT));
+    setCommandDeckOpen(true);
+  }, []);
+  const commandPanelRef = useModalBehavior({
+    initialFocus: "input[type='search']",
+    open: commandDeckOpen,
+    onClose: closeCommandDeck,
+  });
   const sidebarStatus = useSidebarStatus();
   const isDocsRoute = pathname === "/docs" || pathname === "/docs/";
   const normalizedPath = pathname.replace(/\/$/, "") || "/";
@@ -412,7 +397,7 @@ export default function App() {
   // `dashboard.show_token_analytics` gates the Analytics nav item.  The
   // page itself remains reachable by URL (it renders an explanation when
   // the flag is off — see AnalyticsPage), but hiding the nav entry avoids
-  // surfacing misleading token/cost numbers in the sidebar.  Default off.
+  // surfacing misleading token/cost numbers in Navigation. Default off.
   const [showTokenAnalytics, setShowTokenAnalytics] = useState(false);
   useEffect(() => {
     api
@@ -457,22 +442,37 @@ export default function App() {
   );
 
   const builtinNav = useMemo(() => {
-    const base = embeddedChat
-      ? [CHAT_NAV_ITEM, ...BUILTIN_NAV_REST]
-      : BUILTIN_NAV_REST;
-    return showTokenAnalytics
-      ? base
-      : base.filter((n) => n.path !== "/analytics");
+    const base = embeddedChat ? [CHAT_NAV_ITEM, ...BUILTIN_NAV_REST] : BUILTIN_NAV_REST;
+    return showTokenAnalytics ? base : base.filter((n) => n.path !== "/analytics");
   }, [embeddedChat, showTokenAnalytics]);
 
-  const sidebarNav = useMemo(
-    () => partitionSidebarNav(builtinNav, manifests),
+  const commandNav = useMemo(
+    () => partitionCommandNav(builtinNav, manifests),
     [builtinNav, manifests],
   );
-  const routes = useMemo(
-    () => buildRoutes(builtinRoutes, manifests),
-    [builtinRoutes, manifests],
+  const primaryCommands = useMemo(
+    () => commandNav.coreItems.filter((item) => PRIMARY_COMMAND_PATHS.has(item.path)),
+    [commandNav.coreItems],
   );
+  const filteredCoreCommands = useMemo(
+    () =>
+      filterCommandDeckItems(commandNav.coreItems, commandQuery, (item) =>
+        resolveNavLabel(item, t),
+      ),
+    [commandNav.coreItems, commandQuery, t],
+  );
+  const filteredPluginCommands = useMemo(
+    () =>
+      filterCommandDeckItems(commandNav.pluginItems, commandQuery, (item) =>
+        resolveNavLabel(item, t),
+      ),
+    [commandNav.pluginItems, commandQuery, t],
+  );
+  const commandGroups = useMemo(
+    () => groupCommandDeckItems(filteredCoreCommands),
+    [filteredCoreCommands],
+  );
+  const routes = useMemo(() => buildRoutes(builtinRoutes, manifests), [builtinRoutes, manifests]);
   const pluginTabMeta = useMemo(
     () =>
       manifests
@@ -487,357 +487,357 @@ export default function App() {
   const layoutVariant = theme.layoutVariant ?? "standard";
 
   useEffect(() => {
-    if (!mobileOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMobileOpen(false);
+    const onShortcut = (event: KeyboardEvent) => {
+      if (isCommandDeckShortcut(event)) {
+        const blocked = Array.from(
+          document.querySelectorAll<HTMLElement>(
+            '[aria-modal="true"], [role="dialog"], [role="alertdialog"]',
+          ),
+        ).some(isBlockingCommandDeckModal);
+        if (blocked) return;
+        event.preventDefault();
+        openCommandDeck();
+      }
     };
-    document.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [mobileOpen]);
+    document.addEventListener("keydown", onShortcut);
+    return () => document.removeEventListener("keydown", onShortcut);
+  }, [openCommandDeck]);
 
-  useEffect(() => {
-    const mql = window.matchMedia("(min-width: 1024px)");
-    const onChange = (e: MediaQueryListEvent) => {
-      if (e.matches) setMobileOpen(false);
-    };
-    mql.addEventListener("change", onChange);
-    return () => mql.removeEventListener("change", onChange);
-  }, []);
+  const gateway = sidebarStatus ? gatewayLine(sidebarStatus, t) : null;
 
   return (
     <ProfileProvider>
-    <div
-      data-layout-variant={layoutVariant}
-      className="flex h-dvh max-h-dvh min-h-0 flex-col overflow-hidden bg-background-base text-text-primary antialiased"
-    >
-      <SelectionSwitcher />
-
       <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 z-0"
+        data-layout-variant={layoutVariant}
+        data-panergos-shell="signal"
+        className="panergos-shell flex h-dvh max-h-dvh min-h-0 flex-col overflow-hidden bg-background-base text-text-primary antialiased"
       >
-        <PluginSlot name="backdrop" />
-      </div>
+        <SelectionSwitcher />
 
-      <header
-        className={cn(
-          "lg:hidden fixed top-0 left-0 right-0 z-40 min-h-14",
-          "flex items-center gap-2 px-4 py-2",
-          "border-b border-current/20",
-          "bg-background-base",
-        )}
-        style={{
-          background:
-            "var(--component-header-background, var(--background-base))",
-          borderImage: "var(--component-header-border-image)",
-          clipPath: "var(--component-header-clip-path)",
-        }}
-      >
-        <Button
-          ghost
-          size="icon"
-          onClick={() => setMobileOpen(true)}
-          aria-label={t.app.openNavigation}
-          aria-expanded={mobileOpen}
-          aria-controls="app-sidebar"
-          className="text-text-secondary hover:text-midground"
-        >
-          <Menu />
-        </Button>
+        <div aria-hidden className="pointer-events-none fixed inset-0 z-0">
+          <PluginSlot name="backdrop" />
+        </div>
 
-        <img
-          src="/panergos-knot.svg"
-          alt=""
-          className="h-8 w-8 shrink-0 drop-shadow-[0_0_10px_rgba(46,230,166,0.22)]"
-        />
-        <Typography className="font-bold text-[0.95rem] leading-[0.95] tracking-[0.05em] text-midground">
-          {t.app.brand}
-        </Typography>
-      </header>
-
-      {mobileOpen && (
-        <Button
-          ghost
-          aria-label={t.app.closeNavigation}
-          onClick={closeMobile}
-          className={cn(
-            "lg:hidden fixed inset-0 z-40 p-0 block",
-            "bg-black/70",
-          )}
-        />
-      )}
-
-      {/* Single mobile header clearance for the banner stack + content. The
-          fixed lg:hidden header is h-14/z-40; previously each banner carried
-          its own mt-14 AND the content kept pt-14, so two visible banners
-          stacked three offsets (NS-656 review P3). One spacer, applied once. */}
-      <div aria-hidden className="h-14 shrink-0 lg:hidden" />
-      <PluginSlot name="header-banner" />
-      <ProfileScopeBanner />
-      <MemoryPressureBanner status={sidebarStatus} />
-
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="flex min-h-0 min-w-0 flex-1">
-          <aside
-            id="app-sidebar"
-            aria-label={t.app.navigation}
-            className={cn(
-              "fixed top-0 left-0 z-50 flex h-dvh max-h-dvh w-64 min-h-0 flex-col font-sans",
-              "border-r border-current/20",
-              "bg-background-base",
-              "transition-[transform] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]",
-              mobileOpen ? "translate-x-0" : "-translate-x-full",
-              "lg:sticky lg:top-0 lg:translate-x-0 lg:shrink-0 lg:overflow-hidden",
-              "lg:transition-[width] lg:duration-300 lg:ease-[cubic-bezier(0.23,1,0.32,1)]",
-              collapsed && "lg:w-14",
-            )}
-            style={{
-              background:
-                "var(--component-sidebar-background, var(--background-base))",
-              clipPath: "var(--component-sidebar-clip-path)",
-              borderImage: "var(--component-sidebar-border-image)",
-            }}
-          >
-            <div
-              className={cn(
-                "flex h-14 shrink-0 items-center gap-2",
-                "border-b border-current/20",
-                collapsed ? "lg:justify-center lg:px-0" : "px-4 justify-between",
-              )}
-            >
-              <div
-                className={cn(
-                  "flex items-center gap-2",
-                  collapsed && "lg:hidden",
-                )}
+        <header className="panergos-command-deck relative z-50 shrink-0 px-2 pb-1 pt-2 sm:px-3 sm:pt-3">
+          <div className="mx-auto grid h-14 w-full max-w-[1680px] grid-cols-[auto_1fr_auto] items-center gap-2 sm:h-[4.25rem] sm:gap-3">
+            <div className="col-start-1 row-start-1 flex h-full min-w-0 items-center">
+              <PluginSlot name="header-left" />
+              <Link
+                aria-label={t.app.brand}
+                className="panergos-brand-node group flex h-full shrink-0 items-center gap-2.5 px-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-midground/70 sm:px-3"
+                onClick={closeCommandDeck}
+                to="/sessions"
               >
-                <PluginSlot name="header-left" />
-
-                <img
-                  src="/panergos-knot.svg"
-                  alt=""
-                  className="h-8 w-8 shrink-0 drop-shadow-[0_0_10px_rgba(46,230,166,0.22)]"
-                />
-
-                <Typography className="font-bold text-[1.125rem] leading-[0.95] tracking-[0.0525rem] text-midground uppercase">
-                  Panergos
-                  <br />
-                  Agent
-                </Typography>
-              </div>
-
-              <Button
-                ghost
-                size="icon"
-                onClick={closeMobile}
-                aria-label={t.app.closeNavigation}
-                className="lg:hidden text-text-secondary hover:text-midground"
-              >
-                <X />
-              </Button>
-
-              <Button
-                ghost
-                size="icon"
-                onClick={toggleCollapsed}
-                aria-label={
-                  collapsed ? t.common.expand : t.common.collapse
-                }
-                className="hidden lg:flex text-text-secondary hover:text-midground"
-              >
-                {collapsed ? (
-                  <img src="/panergos-knot.svg" alt="" className="h-7 w-7" />
-                ) : (
-                  <PanelLeftClose className="h-4 w-4" />
-                )}
-              </Button>
+                <span className="panergos-mark-frame relative grid h-10 w-10 place-items-center overflow-hidden">
+                  <img
+                    src={PANERGOS_MARK_SRC}
+                    alt=""
+                    className="h-8 w-8 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-105"
+                  />
+                </span>
+                <span className="hidden min-w-0 sm:block">
+                  <span className="block font-expanded text-[0.82rem] font-bold tracking-[0.18em] text-foreground">
+                    PANERGOS
+                  </span>
+                  <span className="block text-[0.6rem] font-medium uppercase tracking-[0.22em] text-text-tertiary">
+                    {t.app.webUi}
+                  </span>
+                </span>
+              </Link>
             </div>
-
-            <ProfileSwitcher collapsed={isDesktopCollapsed} />
 
             <nav
-              className="min-h-0 w-full flex-1 overflow-y-auto overflow-x-hidden border-t border-current/10 py-2"
               aria-label={t.app.navigation}
+              className="panergos-command-track scrollbar-none col-start-2 hidden h-11 min-w-0 items-center justify-center gap-1 overflow-x-auto px-2 lg:flex"
             >
-              <ul className="flex flex-col">
-                {sidebarNav.coreItems.map((item) => (
-                  <SidebarNavLink
-                    closeMobile={closeMobile}
-                    collapsed={isDesktopCollapsed}
-                    item={item}
-                    key={item.path}
-                    t={t}
-                    tooltipWarmRef={tooltipWarmRef}
-                  />
-                ))}
-              </ul>
-
-              {sidebarNav.pluginItems.length > 0 && (
-                <div
-                  aria-labelledby="panergos-sidebar-plugin-nav-heading"
-                  className="flex flex-col border-t border-current/10 pb-2"
-                  role="group"
-                >
-                  <span
-                    className={cn(
-                      "px-5 pt-2.5 pb-1",
-                      "font-sans text-display text-xs tracking-[0.12em] text-text-tertiary",
-                      isDesktopCollapsed && "lg:hidden",
-                    )}
-                    id="panergos-sidebar-plugin-nav-heading"
-                  >
-                    {t.app.pluginNavSection}
-                  </span>
-
-                  <ul className="flex flex-col">
-                    {sidebarNav.pluginItems.map((item) => (
-                      <SidebarNavLink
-                        closeMobile={closeMobile}
-                        collapsed={isDesktopCollapsed}
-                        item={item}
-                        key={item.path}
-                        t={t}
-                        tooltipWarmRef={tooltipWarmRef}
-                      />
-                    ))}
-                  </ul>
-                </div>
-              )}
+              {primaryCommands.map((item) => (
+                <CommandNavLink
+                  compact
+                  item={item}
+                  key={item.path}
+                  onNavigate={closeCommandDeck}
+                  t={t}
+                />
+              ))}
             </nav>
 
-            <SidebarSystemActions
-              collapsed={isDesktopCollapsed}
-              onNavigate={closeMobile}
-              status={sidebarStatus}
-              tooltipWarmRef={tooltipWarmRef}
+            <div className="panergos-control-node col-start-3 flex h-full items-center gap-1.5 px-1.5 sm:px-2">
+              <Link
+                className="hidden shrink-0 items-center gap-2 px-2.5 py-1.5 text-xs text-text-secondary transition-colors hover:text-foreground md:flex"
+                onClick={closeCommandDeck}
+                title={t.app.statusOverview}
+                to="/sessions"
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    "h-2 w-2 rotate-45 shadow-[0_0_10px_currentColor]",
+                    gateway?.tone ?? "text-text-tertiary",
+                    gateway?.tone === "text-success"
+                      ? "bg-success"
+                      : gateway?.tone === "text-warning"
+                        ? "bg-warning"
+                        : gateway?.tone === "text-destructive"
+                          ? "bg-destructive"
+                          : "bg-muted-foreground",
+                  )}
+                />
+                <span>{gateway?.label ?? t.common.loading}</span>
+                {sidebarStatus && (
+                  <span className="font-mono-ui tabular-nums text-text-tertiary">
+                    {sidebarStatus.active_sessions}
+                  </span>
+                )}
+              </Link>
+
+              <PluginSlot name="header-right" />
+
+              <Button
+                ghost
+                onClick={() => (commandDeckOpen ? closeCommandDeck() : openCommandDeck())}
+                aria-label={commandDeckOpen ? t.app.closeNavigation : t.app.openNavigation}
+                aria-expanded={commandDeckOpen}
+                aria-controls="command-deck-panel"
+                className="panergos-map-trigger shrink-0 gap-2 px-3 text-text-secondary hover:text-foreground"
+              >
+                {commandDeckOpen ? <X className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+                <span className="hidden text-xs font-medium uppercase tracking-[0.12em] sm:inline">
+                  {t.app.navigation}
+                </span>
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        {commandDeckOpen && (
+          <>
+            <button
+              aria-label={t.app.closeNavigation}
+              className="fixed inset-0 z-[55] cursor-default bg-black/70 backdrop-blur-md"
+              onClick={closeCommandDeck}
+              type="button"
             />
-
-            <div
-              className={cn(
-                "flex shrink-0 items-center gap-2",
-                "px-3 py-2",
-                "border-t border-current/20",
-                isDesktopCollapsed
-                  ? "lg:flex-col lg:items-start lg:gap-3 lg:py-3"
-                  : "justify-between",
-              )}
+            <section
+              aria-modal="true"
+              aria-label={t.app.navigation}
+              className="panergos-command-panel fixed left-1/2 top-1/2 z-[60] max-h-[calc(100dvh-1.5rem)] w-[calc(100vw-1.5rem)] max-w-[78rem] -translate-x-1/2 -translate-y-1/2 overflow-y-auto border border-current/20"
+              id="command-deck-panel"
+              ref={commandPanelRef}
+              role="dialog"
+              tabIndex={-1}
             >
-              <div
-                className={cn(
-                  "flex min-w-0 items-center gap-2",
-                  isDesktopCollapsed && "lg:flex-col lg:items-start",
-                )}
+              <Button
+                ghost
+                size="icon"
+                aria-label={t.app.closeNavigation}
+                className="absolute right-4 top-4 z-10 border border-current/15 bg-background-base/35 text-text-secondary hover:text-midground"
+                onClick={closeCommandDeck}
               >
-                <PluginSlot name="header-right" />
-
-                <SidebarIconWithTooltip
-                  collapsed={isDesktopCollapsed}
-                  label={t.theme?.switchTheme ?? "Switch theme"}
-                  tooltipWarmRef={tooltipWarmRef}
-                >
-                  <ThemeSwitcher collapsed={isDesktopCollapsed} dropUp />
-                </SidebarIconWithTooltip>
-
-                <SidebarIconWithTooltip
-                  collapsed={isDesktopCollapsed}
-                  label={t.language.switchTo}
-                  tooltipWarmRef={tooltipWarmRef}
-                >
-                  <LanguageSwitcher collapsed={isDesktopCollapsed} dropUp />
-                </SidebarIconWithTooltip>
-              </div>
-            </div>
-
-            <div
-              className={cn(
-                "flex shrink-0 flex-col",
-                isDesktopCollapsed && "lg:hidden",
-              )}
-            >
-              <AuthWidget />
-              <SidebarFooter status={sidebarStatus} />
-            </div>
-          </aside>
-
-          <PageHeaderProvider pluginTabs={pluginTabMeta}>
-            <div
-              className={cn(
-                "relative z-2 flex min-w-0 min-h-0 flex-1 flex-col",
-                "px-3 sm:px-6",
-                isChatRoute
-                  ? "pb-0 pt-1 sm:pt-2 lg:pt-4"
-                  : "pt-2 sm:pt-4 lg:pt-6",
-                isDocsRoute && "min-h-0 flex-1",
-              )}
-            >
-              <PluginSlot name="pre-main" />
-              <div
-                className={cn(
-                  "w-full min-w-0",
-                  !isChatRoute &&
-                    "pb-[calc(2rem+env(safe-area-inset-bottom,0px))] lg:pb-8",
-                  (isDocsRoute || isChatRoute) &&
-                    "min-h-0 flex flex-1 flex-col",
-                )}
-              >
-                <ProfileKeyedRoutes>
-                  <Suspense fallback={<RouteFallback />}>
-                    <Routes>
-                      {routes.map(({ key, path, element }) => (
-                        <Route key={key} path={path} element={element} />
-                      ))}
-                      <Route
-                        path="*"
-                        element={
-                          <UnknownRouteFallback pluginsLoading={pluginsLoading} />
-                        }
-                      />
-                    </Routes>
-                  </Suspense>
-                </ProfileKeyedRoutes>
-
-                {embeddedChat &&
-                  !chatOverriddenByPlugin &&
-                  (pluginsLoading ? (
-                    isChatRoute ? (
-                      <RouteFallback label="Loading chat…" />
-                    ) : null
-                  ) : chatHostMounted ? (
-                    <div
-                      data-chat-active={isChatRoute ? "true" : "false"}
-                      className={cn(
-                        "min-h-0 min-w-0",
-                        isChatRoute ? "flex flex-1 flex-col" : "hidden",
-                      )}
-                      aria-hidden={!isChatRoute}
-                    >
-                      <Suspense
-                        fallback={
-                          isChatRoute ? (
-                            <RouteFallback label="Loading chat…" />
-                          ) : null
-                        }
-                      >
-                        <ChatPage isActive={isChatRoute} />
-                      </Suspense>
+                <X className="h-4 w-4" />
+              </Button>
+              <div className="grid min-h-[min(42rem,calc(100dvh-1.5rem))] lg:grid-cols-[17rem_minmax(0,1fr)]">
+                <aside className="panergos-command-console flex min-w-0 flex-col border-b border-current/15 p-4 lg:border-b-0 lg:border-r lg:p-5">
+                  <div className="flex items-start justify-between gap-3 lg:block">
+                    <div>
+                      <p className="text-[0.62rem] font-semibold uppercase tracking-[0.3em] text-midground">
+                        Panergos / {t.app.navigation}
+                      </p>
+                      <h2 className="mt-2 font-expanded text-2xl font-bold leading-none tracking-[0.02em] text-foreground">
+                        {t.app.navigation}
+                      </h2>
                     </div>
-                  ) : isChatRoute ? (
-                    <RouteFallback label="Loading chat…" />
-                  ) : null)}
-              </div>
-              <PluginSlot name="post-main" />
-            </div>
-          </PageHeaderProvider>
-        </div>
-      </div>
+                    <span
+                      aria-hidden
+                      className="panergos-relay-glyph mr-11 mt-1 grid h-12 w-12 shrink-0 place-items-center lg:mr-0 lg:mt-6 lg:h-28 lg:w-28 lg:self-center"
+                    >
+                      <img src={PANERGOS_MARK_SRC} alt="" className="h-8 w-8 lg:h-14 lg:w-14" />
+                    </span>
+                  </div>
 
-      <PluginSlot name="overlay" />
-    </div>
+                  <div className="mt-auto hidden space-y-3 pt-5 lg:block">
+                    <div className="min-w-0 overflow-hidden border border-current/15 bg-background-base/25">
+                      <ProfileSwitcher />
+                      <CommandSystemActions onNavigate={closeCommandDeck} status={sidebarStatus} />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1 border border-current/15 bg-background-base/25 p-2">
+                      <ThemeSwitcher dropUp modalOwnerId="command-deck-panel" />
+                      <LanguageSwitcher dropUp modalOwnerId="command-deck-panel" />
+                    </div>
+
+                    <AuthWidget className="border border-current/15 bg-background-base/25" />
+                  </div>
+                </aside>
+
+                <div className="flex min-w-0 flex-col p-4 sm:p-5 lg:p-6">
+                  <label className="group flex w-full items-center gap-3 border-b border-current/25 bg-background-base/20 py-3 pl-1 pr-12 focus-within:border-midground/70">
+                    <Search className="h-4 w-4 shrink-0 text-text-tertiary group-focus-within:text-midground" />
+                    <span className="sr-only">{t.common.search}</span>
+                    <input
+                      aria-label={t.common.search}
+                      autoComplete="off"
+                      className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-text-tertiary"
+                      onChange={(event) => setCommandQuery(event.target.value)}
+                      placeholder={t.common.search}
+                      type="search"
+                      value={commandQuery}
+                    />
+                    <kbd className="hidden rounded border border-current/15 px-1.5 py-0.5 font-mono-ui text-[0.65rem] text-text-tertiary sm:inline">
+                      ESC
+                    </kbd>
+                  </label>
+
+                  {commandGroups.length === 0 && filteredPluginCommands.length === 0 ? (
+                    <div className="grid min-h-52 flex-1 place-items-center border border-dashed border-current/20 bg-background-base/15 text-center">
+                      <div>
+                        <Search className="mx-auto mb-3 h-6 w-6 text-text-tertiary" />
+                        <p className="text-sm font-medium text-foreground">{t.common.noResults}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <nav
+                      aria-label={t.app.navigation}
+                      className="mt-5 grid content-start gap-2 sm:grid-cols-2 xl:grid-cols-3"
+                    >
+                      {commandGroups.map((group) => (
+                        <section
+                          className={cn(
+                            "panergos-command-lane border border-current/15 p-2.5",
+                            group.id === "operate" && "sm:col-span-2 xl:col-span-3",
+                          )}
+                          key={group.id}
+                        >
+                          <h3 className="px-2 pb-2 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-text-tertiary">
+                            {
+                              {
+                                create: t.common.create,
+                                intelligence: t.app.nav.models,
+                                connect: t.common.messaging,
+                                operate: t.app.system,
+                                more: t.common.other,
+                              }[group.id]
+                            }
+                          </h3>
+                          <ul
+                            className={cn(
+                              "grid gap-1",
+                              group.id === "operate" && "sm:grid-cols-2 xl:grid-cols-3",
+                            )}
+                          >
+                            {group.items.map((item) => (
+                              <li key={item.path}>
+                                <CommandNavLink item={item} onNavigate={closeCommandDeck} t={t} />
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      ))}
+
+                      {filteredPluginCommands.length > 0 && (
+                        <section className="panergos-command-lane border border-current/15 p-2.5">
+                          <h3 className="px-2 pb-2 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-text-tertiary">
+                            {t.app.pluginNavSection}
+                          </h3>
+                          <ul className="grid gap-1">
+                            {filteredPluginCommands.map((item) => (
+                              <li key={item.path}>
+                                <CommandNavLink item={item} onNavigate={closeCommandDeck} t={t} />
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      )}
+                    </nav>
+                  )}
+
+                  <div className="mt-auto grid gap-3 pt-5 lg:hidden">
+                    <div className="min-w-0 overflow-hidden border border-current/15 bg-background-base/25">
+                      <ProfileSwitcher />
+                      <CommandSystemActions onNavigate={closeCommandDeck} status={sidebarStatus} />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1 border border-current/15 bg-background-base/25 p-2">
+                      <ThemeSwitcher dropUp modalOwnerId="command-deck-panel" />
+                      <LanguageSwitcher dropUp modalOwnerId="command-deck-panel" />
+                    </div>
+
+                    <AuthWidget className="border border-current/15 bg-background-base/25" />
+                  </div>
+                </div>
+              </div>
+            </section>
+          </>
+        )}
+        <PluginSlot name="header-banner" />
+        <ProfileScopeBanner />
+        <MemoryPressureBanner status={sidebarStatus} />
+
+        <div className="relative z-1 flex min-h-0 min-w-0 flex-1 overflow-hidden px-2 pb-2 pt-1 sm:px-3 sm:pb-3">
+          <div className="panergos-workspace-shell flex min-h-0 min-w-0 flex-1 overflow-hidden border border-current/15 shadow-[0_28px_90px_-46px_rgba(0,0,0,0.95)]">
+            <PageHeaderProvider pluginTabs={pluginTabMeta}>
+              <div
+                className={cn(
+                  "relative z-2 flex min-w-0 min-h-0 flex-1 flex-col",
+                  "px-3 sm:px-6",
+                  isChatRoute ? "pb-0 pt-1 sm:pt-2 lg:pt-4" : "pt-2 sm:pt-4 lg:pt-6",
+                  isDocsRoute && "min-h-0 flex-1",
+                )}
+              >
+                <PluginSlot name="pre-main" />
+                <div
+                  className={cn(
+                    "w-full min-w-0",
+                    !isChatRoute && "pb-[calc(2rem+env(safe-area-inset-bottom,0px))] lg:pb-8",
+                    (isDocsRoute || isChatRoute) && "min-h-0 flex flex-1 flex-col",
+                  )}
+                >
+                  <ProfileKeyedRoutes>
+                    <Suspense fallback={<RouteFallback />}>
+                      <Routes>
+                        {routes.map(({ key, path, element }) => (
+                          <Route key={key} path={path} element={element} />
+                        ))}
+                        <Route
+                          path="*"
+                          element={<UnknownRouteFallback pluginsLoading={pluginsLoading} />}
+                        />
+                      </Routes>
+                    </Suspense>
+                  </ProfileKeyedRoutes>
+
+                  {embeddedChat &&
+                    !chatOverriddenByPlugin &&
+                    (pluginsLoading ? (
+                      isChatRoute ? (
+                        <RouteFallback label="Loading chat…" />
+                      ) : null
+                    ) : chatHostMounted ? (
+                      <div
+                        data-chat-active={isChatRoute ? "true" : "false"}
+                        className={cn(
+                          "min-h-0 min-w-0",
+                          isChatRoute ? "flex flex-1 flex-col" : "hidden",
+                        )}
+                        aria-hidden={!isChatRoute}
+                      >
+                        <Suspense
+                          fallback={isChatRoute ? <RouteFallback label="Loading chat…" /> : null}
+                        >
+                          <ChatPage isActive={isChatRoute} />
+                        </Suspense>
+                      </div>
+                    ) : isChatRoute ? (
+                      <RouteFallback label="Loading chat…" />
+                    ) : null)}
+                </div>
+                <PluginSlot name="post-main" />
+              </div>
+            </PageHeaderProvider>
+          </div>
+        </div>
+
+        <PluginSlot name="overlay" />
+      </div>
     </ProfileProvider>
   );
 }
@@ -854,112 +854,80 @@ export default function App() {
  */
 function ProfileKeyedRoutes({ children }: { children: ReactNode }) {
   const { profile } = useProfileScope();
-  return <div key={profile || "__own__"} className="contents">{children}</div>;
-}
-
-function SidebarNavLink({
-  closeMobile,
-  collapsed,
-  item,
-  tooltipWarmRef,
-  t,
-}: SidebarNavLinkProps) {
-  const { path, label, labelKey, icon: Icon } = item;
-  const [hovered, setHovered] = useState(false);
-  const [tooltipAnchor, setTooltipAnchor] = useState<HTMLElement | null>(null);
-
-  const navLabel = labelKey
-    ? ((t.app.nav as Record<string, string>)[labelKey] ?? label)
-    : label;
-  const showTooltip = (event: MouseEvent<HTMLElement> | FocusEvent<HTMLElement>) => {
-    setHovered(true);
-    setTooltipAnchor(event.currentTarget);
-  };
-  const hideTooltip = () => {
-    setHovered(false);
-    setTooltipAnchor(null);
-  };
-
   return (
-    <li
-      onMouseEnter={collapsed ? showTooltip : undefined}
-      onMouseLeave={collapsed ? hideTooltip : undefined}
-    >
-      <NavLink
-        to={path}
-        end={path === "/sessions"}
-        onClick={closeMobile}
-        aria-label={collapsed ? navLabel : undefined}
-        onFocus={collapsed ? showTooltip : undefined}
-        onBlur={collapsed ? hideTooltip : undefined}
-        className={({ isActive }) =>
-          cn(
-            "group/nav relative flex items-center gap-3",
-            "px-5 py-2.5",
-            "font-sans text-display uppercase text-sm tracking-[0.12em]",
-            "whitespace-nowrap transition-colors cursor-pointer",
-            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-midground",
-            isActive
-              ? "text-midground"
-              : "text-text-secondary hover:text-midground",
-          )
-        }
-        style={{
-          clipPath: "var(--component-tab-clip-path)",
-        }}
-      >
-        {({ isActive }) => (
-          <>
-            <Icon className="h-3.5 w-3.5 shrink-0" />
-
-            <span
-              className={cn(
-                "truncate transition-opacity duration-300",
-                collapsed ? "lg:opacity-0" : "lg:opacity-100",
-              )}
-            >
-              {navLabel}
-            </span>
-
-            <span
-              aria-hidden
-              className="absolute inset-y-0.5 left-1.5 right-1.5 bg-midground opacity-0 pointer-events-none transition-opacity duration-200 group-hover/nav:opacity-5"
-            />
-
-            {isActive && (
-              <span
-                aria-hidden
-                className="absolute left-0 top-0 bottom-0 w-px bg-midground"
-              />
-            )}
-          </>
-        )}
-      </NavLink>
-
-      {collapsed && hovered && tooltipAnchor && (
-        <SidebarTooltip anchor={tooltipAnchor} label={navLabel} warmRef={tooltipWarmRef} />
-      )}
-    </li>
+    <div key={profile || "__own__"} className="contents">
+      {children}
+    </div>
   );
 }
 
-function SidebarSystemActions({
-  collapsed,
-  onNavigate,
-  status,
-  tooltipWarmRef,
-}: SidebarSystemActionsProps) {
+function resolveNavLabel(item: NavItem, t: Translations): string {
+  return item.labelKey
+    ? ((t.app.nav as Record<string, string>)[item.labelKey] ?? item.label)
+    : item.label;
+}
+
+export function CommandNavLink({ compact = false, item, onNavigate, t }: CommandNavLinkProps) {
+  const { path, icon: Icon } = item;
+  const label = resolveNavLabel(item, t);
+
+  return (
+    <NavLink
+      className={({ isActive }) =>
+        cn(
+          "group/command relative flex min-w-0 items-center transition-colors",
+          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-midground/70",
+          compact
+            ? "shrink-0 gap-2 rounded-lg px-3 py-2 text-xs font-medium"
+            : "gap-3 rounded-xl px-3 py-2.5 text-sm",
+          isActive
+            ? "bg-midground/12 text-midground"
+            : "text-text-secondary hover:bg-foreground/5 hover:text-foreground",
+        )
+      }
+      end={path === "/sessions"}
+      onClick={onNavigate}
+      to={path}
+    >
+      {({ isActive }) => (
+        <>
+          <span
+            className={cn(
+              "grid shrink-0 place-items-center rounded-lg border border-current/10",
+              compact ? "h-7 w-7" : "h-8 w-8",
+              isActive ? "bg-midground/10" : "bg-background-base/30",
+            )}
+          >
+            <Icon className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
+          </span>
+          <span className="truncate">{label}</span>
+          {!compact && (
+            <span className="ml-auto font-mono-ui text-[0.62rem] text-text-tertiary opacity-0 transition-opacity group-hover/command:opacity-100 group-focus-visible/command:opacity-100">
+              {path}
+            </span>
+          )}
+          {isActive && (
+            <span
+              aria-hidden
+              className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-midground"
+            />
+          )}
+        </>
+      )}
+    </NavLink>
+  );
+}
+
+function CommandSystemActions({ onNavigate, status }: CommandSystemActionsProps) {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const { activeAction, isBusy, isRunning, pendingAction, runAction } =
-    useSystemActions();
+  const { activeAction, isBusy, isRunning, pendingAction, runAction } = useSystemActions();
   const canUpdatePanergos = status?.can_update_panergos === true;
   // Served by the shared multiplexer: a restart blips every bot on this device — say which.
   const sharedGateway = sharedGatewayProfiles(status);
   const [restartConfirmOpen, setRestartConfirmOpen] = useState(false);
   const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false);
-  const [updateConfirmInfo, setUpdateConfirmInfo] =
-    useState<UpdateCheckResponse | null>(null);
+  const [updateConfirmInfo, setUpdateConfirmInfo] = useState<UpdateCheckResponse | null>(null);
   const [updateConfirmChecking, setUpdateConfirmChecking] = useState(false);
 
   useEffect(() => {
@@ -1046,318 +1014,124 @@ function SidebarSystemActions({
     onNavigate();
   };
 
+  const gateway = status ? gatewayLine(status, t) : null;
+
   return (
     <>
-    <div
-      className={cn(
-        "shrink-0 flex flex-col",
-        "border-t border-current/10",
-        "py-1",
-      )}
-    >
-      <span
-        className={cn(
-          "px-5 pt-0.5 pb-0.5",
-          "font-sans text-display text-xs tracking-[0.12em] text-text-tertiary",
-          collapsed && "lg:hidden",
-        )}
-      >
-        {t.app.system}
-      </span>
+      <div className="flex flex-col gap-3 border-t border-current/10 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <Link
+          className="flex min-w-0 items-center gap-3 rounded-lg px-2 py-1.5 text-xs text-text-secondary hover:bg-foreground/5 hover:text-foreground"
+          onClick={onNavigate}
+          to="/sessions"
+        >
+          <span
+            aria-hidden
+            className={cn(
+              "h-2 w-2 shrink-0 rounded-full",
+              gateway?.tone === "text-success"
+                ? "bg-success"
+                : gateway?.tone === "text-warning"
+                  ? "bg-warning"
+                  : gateway?.tone === "text-destructive"
+                    ? "bg-destructive"
+                    : "bg-muted-foreground",
+            )}
+          />
+          <span className="truncate">
+            {t.app.gatewayStatusLabel} {gateway?.label ?? t.common.loading}
+          </span>
+          {status && (
+            <span className="font-mono-ui tabular-nums text-text-tertiary">
+              {t.app.sessionsActiveCount.replace("{count}", String(status.active_sessions))}
+            </span>
+          )}
+        </Link>
 
-      <div className={cn(collapsed && "lg:hidden")}>
-        <SidebarStatusStrip status={status} />
+        <div className="flex flex-wrap items-center gap-2">
+          {items.map((item) => (
+            <SystemActionButton
+              key={item.action}
+              disabled={
+                isBusy &&
+                !(pendingAction === item.action || (activeAction === item.action && isRunning))
+              }
+              isPending={pendingAction === item.action}
+              isRunning={activeAction === item.action && isRunning && pendingAction !== item.action}
+              item={item}
+              onClick={() => handleClick(item.action)}
+            />
+          ))}
+        </div>
       </div>
 
-      <GatewayDot collapsed={collapsed} status={status} tooltipWarmRef={tooltipWarmRef} />
+      <ConfirmDialog
+        cancelLabel={t.common.cancel}
+        confirmLabel={sharedGateway ? "Restart all" : t.status.restartGateway}
+        description={
+          sharedGateway
+            ? sharedGatewayRestartDescription(sharedGateway)
+            : (t.status.restartGatewayConfirmMessage ??
+              "This restarts the Panergos gateway process. Connected channels and active sessions will reconnect afterward.")
+        }
+        loading={pendingAction === "restart"}
+        onCancel={() => setRestartConfirmOpen(false)}
+        onConfirm={confirmRestart}
+        open={restartConfirmOpen}
+        title={
+          sharedGateway
+            ? "Restart the shared gateway?"
+            : (t.status.restartGatewayConfirmTitle ?? `${t.status.restartGateway}?`)
+        }
+      />
 
-      <ul className="flex flex-col">
-        {items.map((item) => (
-          <SystemActionButton
-            key={item.action}
-            collapsed={collapsed}
-            disabled={isBusy && !(pendingAction === item.action || (activeAction === item.action && isRunning))}
-            tooltipWarmRef={tooltipWarmRef}
-            isPending={pendingAction === item.action}
-            isRunning={activeAction === item.action && isRunning && pendingAction !== item.action}
-            item={item}
-            onClick={() => handleClick(item.action)}
-          />
-        ))}
-      </ul>
-    </div>
-
-    <ConfirmDialog
-      cancelLabel={t.common.cancel}
-      confirmLabel={sharedGateway ? "Restart all" : t.status.restartGateway}
-      description={
-        sharedGateway
-          ? sharedGatewayRestartDescription(sharedGateway)
-          : (t.status.restartGatewayConfirmMessage ??
-            "This restarts the Panergos gateway process. Connected channels and active sessions will reconnect afterward.")
-      }
-      loading={pendingAction === "restart"}
-      onCancel={() => setRestartConfirmOpen(false)}
-      onConfirm={confirmRestart}
-      open={restartConfirmOpen}
-      title={
-        sharedGateway
-          ? "Restart the shared gateway?"
-          : (t.status.restartGatewayConfirmTitle ?? `${t.status.restartGateway}?`)
-      }
-    />
-
-    <ConfirmDialog
-      cancelLabel={t.common.cancel}
-      confirmLabel={t.status.updatePanergosConfirmNow ?? "Update now"}
-      description={
-        updateConfirmChecking ? t.common.loading : updateConfirmDescription
-      }
-      loading={pendingAction === "update" || updateConfirmChecking}
-      onCancel={() => setUpdateConfirmOpen(false)}
-      onConfirm={confirmUpdate}
-      open={updateConfirmOpen}
-      title={t.status.updatePanergosConfirmTitle ?? `${t.status.updatePanergos}?`}
-    />
+      <ConfirmDialog
+        cancelLabel={t.common.cancel}
+        confirmLabel={t.status.updatePanergosConfirmNow ?? "Update now"}
+        description={updateConfirmChecking ? t.common.loading : updateConfirmDescription}
+        loading={pendingAction === "update" || updateConfirmChecking}
+        onCancel={() => setUpdateConfirmOpen(false)}
+        onConfirm={confirmUpdate}
+        open={updateConfirmOpen}
+        title={t.status.updatePanergosConfirmTitle ?? `${t.status.updatePanergos}?`}
+      />
     </>
   );
 }
 
 function SystemActionButton({
-  collapsed,
   disabled,
   isPending,
   isRunning: isActionRunning,
   item,
   onClick,
-  tooltipWarmRef,
 }: SystemActionButtonProps) {
   const { icon: Icon, label, runningLabel, spin } = item;
-  const [hovered, setHovered] = useState(false);
-  const [tooltipAnchor, setTooltipAnchor] = useState<HTMLElement | null>(null);
   const busy = isPending || isActionRunning;
   const displayLabel = isActionRunning ? runningLabel : label;
-  const showTooltip = (event: MouseEvent<HTMLElement> | FocusEvent<HTMLElement>) => {
-    setHovered(true);
-    setTooltipAnchor(event.currentTarget);
-  };
-  const hideTooltip = () => {
-    setHovered(false);
-    setTooltipAnchor(null);
-  };
 
   return (
-    <li
-      onMouseEnter={collapsed ? showTooltip : undefined}
-      onMouseLeave={collapsed ? hideTooltip : undefined}
-    >
-      <button
-        onClick={onClick}
-        disabled={disabled}
-        aria-busy={busy}
-        aria-label={collapsed ? displayLabel : undefined}
-        onFocus={collapsed ? showTooltip : undefined}
-        onBlur={collapsed ? hideTooltip : undefined}
-        type="button"
-        className={cn(
-          "group/action relative flex w-full items-center gap-3",
-          "px-5 py-2.5",
-          "font-sans text-display text-xs tracking-[0.1em]",
-          "whitespace-nowrap transition-colors cursor-pointer",
-          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-midground",
-          busy
-            ? "text-midground"
-            : "text-text-secondary hover:text-midground",
-          "disabled:text-text-disabled disabled:cursor-not-allowed",
-        )}
-      >
-        {isPending ? (
-          <Spinner className="shrink-0 text-[0.875rem]" />
-        ) : isActionRunning && spin ? (
-          <Spinner className="shrink-0 text-[0.875rem]" />
-        ) : (
-          <Icon
-            className={cn(
-              "h-3.5 w-3.5 shrink-0",
-              isActionRunning && !spin && "animate-pulse",
-            )}
-          />
-        )}
-
-        <span className={cn(
-          "truncate transition-opacity duration-300",
-          collapsed ? "lg:opacity-0" : "lg:opacity-100",
-        )}>
-          {displayLabel}
-        </span>
-
-        <span
-          aria-hidden
-          className="absolute inset-y-0.5 left-1.5 right-1.5 bg-midground opacity-0 pointer-events-none transition-opacity duration-200 group-hover/action:opacity-5"
-        />
-
-        {busy && (
-          <span
-            aria-hidden
-            className="absolute left-0 top-0 bottom-0 w-px bg-midground"
-          />
-        )}
-      </button>
-
-      {collapsed && hovered && tooltipAnchor && (
-        <SidebarTooltip anchor={tooltipAnchor} label={displayLabel} warmRef={tooltipWarmRef} />
-      )}
-    </li>
-  );
-}
-
-function SidebarIconWithTooltip({
-  children,
-  collapsed,
-  label,
-  tooltipWarmRef,
-}: SidebarIconWithTooltipProps) {
-  const [hovered, setHovered] = useState(false);
-  const [tooltipAnchor, setTooltipAnchor] = useState<HTMLElement | null>(null);
-  const showTooltip = (event: MouseEvent<HTMLDivElement>) => {
-    setHovered(true);
-    setTooltipAnchor(event.currentTarget);
-  };
-  const hideTooltip = () => {
-    setHovered(false);
-    setTooltipAnchor(null);
-  };
-
-  return (
-    <div
+    <button
+      aria-busy={busy}
       className={cn(
-        "relative w-fit",
-        collapsed && "group/icon",
+        "inline-flex items-center gap-2 rounded-lg border border-current/15 px-3 py-2",
+        "text-xs font-medium text-text-secondary transition-colors",
+        "hover:border-midground/35 hover:bg-midground/8 hover:text-foreground",
+        "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-midground",
+        "disabled:cursor-not-allowed disabled:text-text-disabled",
+        busy && "border-midground/30 text-midground",
       )}
-      onMouseEnter={collapsed ? showTooltip : undefined}
-      onMouseLeave={collapsed ? hideTooltip : undefined}
+      disabled={disabled}
+      onClick={onClick}
+      type="button"
     >
-      {children}
-
-      {collapsed && (
-        <span
-          aria-hidden
-          className="absolute inset-y-0 inset-x-[-0.375rem] bg-midground opacity-0 pointer-events-none transition-opacity duration-200 group-hover/icon:opacity-5 hidden lg:block"
-        />
+      {busy && spin ? (
+        <Spinner className="shrink-0 text-[0.875rem]" />
+      ) : (
+        <Icon className={cn("h-3.5 w-3.5 shrink-0", busy && !spin && "animate-pulse")} />
       )}
-
-      {collapsed && hovered && tooltipAnchor && (
-        <SidebarTooltip anchor={tooltipAnchor} label={label} warmRef={tooltipWarmRef} />
-      )}
-    </div>
+      <span>{displayLabel}</span>
+    </button>
   );
-}
-
-function GatewayDot({ collapsed, status, tooltipWarmRef }: GatewayDotProps) {
-  const { t } = useI18n();
-  const [hovered, setHovered] = useState(false);
-  const [tooltipAnchor, setTooltipAnchor] = useState<HTMLElement | null>(null);
-
-  const toneToColor: Record<string, string> = {
-    "text-success": "bg-success",
-    "text-warning": "bg-warning",
-    "text-destructive": "bg-destructive",
-    "text-muted-foreground": "bg-muted-foreground",
-  };
-
-  let color: string;
-  let label: string;
-
-  if (!status) {
-    color = "bg-midground/20";
-    label = t.status.gateway;
-  } else {
-    const gw = gatewayLine(status, t);
-    color = toneToColor[gw.tone] ?? "bg-muted-foreground";
-    label = `${t.status.gateway} ${gw.label}`;
-  }
-  const showTooltip = (event: MouseEvent<HTMLDivElement> | FocusEvent<HTMLDivElement>) => {
-    setHovered(true);
-    setTooltipAnchor(event.currentTarget);
-  };
-  const hideTooltip = () => {
-    setHovered(false);
-    setTooltipAnchor(null);
-  };
-
-  return (
-    <div
-      className={cn(
-        "hidden lg:flex py-3 pl-[1.625rem] transition-opacity duration-300",
-        collapsed ? "lg:opacity-100" : "lg:opacity-0 lg:h-0 lg:py-0 lg:overflow-hidden",
-      )}
-      role="status"
-      aria-label={label}
-      tabIndex={collapsed ? 0 : -1}
-      onMouseEnter={collapsed ? showTooltip : undefined}
-      onMouseLeave={collapsed ? hideTooltip : undefined}
-      onFocus={collapsed ? showTooltip : undefined}
-      onBlur={collapsed ? hideTooltip : undefined}
-    >
-      <span
-        aria-hidden
-        className={cn("h-1.5 w-1.5 rounded-full", color)}
-      />
-
-      {hovered && tooltipAnchor && (
-        <SidebarTooltip anchor={tooltipAnchor} label={label} warmRef={tooltipWarmRef} />
-      )}
-    </div>
-  );
-}
-
-function SidebarTooltip({ anchor, label, warmRef }: SidebarTooltipProps) {
-  const rect = anchor.getBoundingClientRect();
-  const sidebar = document.getElementById("app-sidebar");
-  const sidebarRight = sidebar?.getBoundingClientRect().right ?? rect.right;
-  const [isWarm, setIsWarm] = useState(false);
-
-  useEffect(() => {
-    if (!warmRef) {
-      setIsWarm(false);
-      return;
-    }
-    const now = Date.now();
-    setIsWarm(now - warmRef.current < 300);
-    warmRef.current = now;
-    return () => {
-      if (warmRef) warmRef.current = Date.now();
-    };
-  }, [warmRef]);
-
-  return createPortal(
-    <span
-      className={cn(
-        "fixed z-[100] pointer-events-none",
-        "px-2 py-1",
-        "bg-background-base border border-current/20 shadow-lg",
-        "font-sans text-display text-xs tracking-[0.1em] text-midground uppercase",
-      )}
-      style={{
-        top: rect.top + rect.height / 2,
-        left: sidebarRight + 8,
-        transform: "translateY(-50%)",
-        opacity: isWarm ? 1 : undefined,
-        animation: isWarm ? "none" : "sidebar-tooltip-in 120ms ease-out",
-      }}
-    >
-      {label}
-    </span>,
-    document.body,
-  );
-}
-
-type TooltipWarmRef = React.RefObject<number>;
-
-interface GatewayDotProps {
-  collapsed: boolean;
-  status: StatusResponse | null;
-  tooltipWarmRef: TooltipWarmRef;
 }
 
 interface NavItem {
@@ -1367,42 +1141,24 @@ interface NavItem {
   path: string;
 }
 
-interface SidebarIconWithTooltipProps {
-  children: ReactNode;
-  collapsed: boolean;
-  label: string;
-  tooltipWarmRef: TooltipWarmRef;
-}
-
-interface SidebarNavLinkProps {
-  closeMobile: () => void;
-  collapsed: boolean;
+interface CommandNavLinkProps {
+  compact?: boolean;
   item: NavItem;
+  onNavigate?: () => void;
   t: Translations;
-  tooltipWarmRef: TooltipWarmRef;
 }
 
-interface SidebarSystemActionsProps {
-  collapsed: boolean;
+interface CommandSystemActionsProps {
   onNavigate: () => void;
   status: StatusResponse | null;
-  tooltipWarmRef: TooltipWarmRef;
-}
-
-interface SidebarTooltipProps {
-  anchor: HTMLElement;
-  label: string;
-  warmRef?: TooltipWarmRef;
 }
 
 interface SystemActionButtonProps {
-  collapsed: boolean;
   disabled: boolean;
   isPending: boolean;
   isRunning: boolean;
   item: SystemActionItem;
   onClick: () => void;
-  tooltipWarmRef: TooltipWarmRef;
 }
 
 interface SystemActionItem {

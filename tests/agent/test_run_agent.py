@@ -1404,6 +1404,32 @@ class TestBuildApiKwargs:
         assert kwargs["extra_body"]["provider"]["only"] == ["Anthropic"]
 
 
+    def test_non_openrouter_request_skips_provider_routing_lookup(self, agent, monkeypatch):
+        """Direct providers must not pay OpenRouter-only config work per request."""
+        from agent import chat_completion_helpers as helpers
+
+        agent.provider = "openai"
+        agent.base_url = "https://api.openai.com/v1"
+        agent._base_url_lower = agent.base_url.lower()
+        lookup = MagicMock()
+        monkeypatch.setattr(helpers, "_provider_preferences_for_agent", lookup)
+
+        agent._build_api_kwargs([{"role": "user", "content": "hi"}])
+
+        lookup.assert_not_called()
+
+    def test_openrouter_custom_base_url_keeps_provider_routing(self, agent):
+        """OpenRouter proxies still need OpenRouter provider preferences."""
+        agent.provider = "openrouter"
+        agent.base_url = "https://router.example.test/v1"
+        agent._base_url_lower = agent.base_url.lower()
+        agent.providers_allowed = ["Anthropic"]
+
+        kwargs = agent._build_api_kwargs([{"role": "user", "content": "hi"}])
+
+        assert kwargs["extra_body"]["provider"]["only"] == ["Anthropic"]
+
+
     def test_reasoning_config_default_openrouter(self, agent):
         """Default reasoning config for OpenRouter should be medium."""
         agent.provider = "openrouter"

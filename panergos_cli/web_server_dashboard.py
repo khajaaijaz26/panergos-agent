@@ -162,8 +162,9 @@ def mount_spa(application: FastAPI):
         )
         if prefix:
             # Rewrite absolute asset URLs baked into the Vite build to go through the proxy.
-            for attr in ('href="/assets/', 'src="/assets/', 'href="/favicon.ico"', 'href="/fonts/',
-                         'href="/ds-assets/', 'src="/ds-assets/'):
+            for attr in ('href="/assets/', 'src="/assets/', 'href="/favicon.ico"',
+                         'href="/panergos-mark.svg"', 'href="/fonts/', 'href="/ds-assets/',
+                         'src="/ds-assets/'):
                 html = html.replace(attr, attr.replace('"/', f'"{prefix}/', 1))
         theme_bootstrap = _render_active_theme_bootstrap_css()
         if theme_bootstrap:
@@ -228,8 +229,9 @@ def mount_spa(application: FastAPI):
 
 # Built-in themes — label + description only; colors live in web/src/themes/presets.ts.
 _BUILTIN_DASHBOARD_THEMES = [
-    {"name": "default",       "label": "Panergos Jade",         "description": "Deep ink with the canonical jade-and-coral Panergos palette"},
-    {"name": "default-large", "label": "Panergos Jade (Large)", "description": "Panergos Jade with bigger fonts and roomier spacing"},
+    {"name": "default",       "label": "Panergos Eclipse",         "description": "Eclipse plum with coral, jade, and gold signals"},
+    {"name": "default-large", "label": "Panergos Eclipse (Large)", "description": "Panergos Eclipse with bigger fonts and roomier spacing"},
+    {"name": "porcelain",     "label": "Panergos Porcelain",       "description": "Light mode — deep coral on warm porcelain"},
     {"name": "midnight",      "label": "Midnight",            "description": "Deep blue-violet with cool accents"},
     {"name": "ember",     "label": "Ember",          "description": "Warm crimson and bronze — forge vibes"},
     {"name": "mono",      "label": "Mono",           "description": "Clean grayscale — minimal and focused"},

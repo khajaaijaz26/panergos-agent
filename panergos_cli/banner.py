@@ -1,4 +1,4 @@
-"""Welcome banner, ASCII art, skills summary, and update check for the CLI."""
+"""Compact startup workstream, capability summary, and update check for the CLI."""
 import json
 import logging
 import os
@@ -65,27 +65,15 @@ from panergos_cli import (
     __version__ as VERSION,
 )
 
-PANERGOS_AGENT_LOGO = """[bold #FF6B5E]██████╗  █████╗ ███╗   ██╗███████╗██████╗  ██████╗  ██████╗ ███████╗[/]
-[bold #FF6B5E]██╔══██╗██╔══██╗████╗  ██║██╔════╝██╔══██╗██╔════╝ ██╔═══██╗██╔════╝[/]
-[bold #2EE6A6]██████╔╝███████║██╔██╗ ██║█████╗  ██████╔╝██║  ███╗██║   ██║███████╗[/]
-[bold #2EE6A6]██╔═══╝ ██╔══██║██║╚██╗██║██╔══╝  ██╔══██╗██║   ██║██║   ██║╚════██║[/]
-[bold #F7C453]██║     ██║  ██║██║ ╚████║███████╗██║  ██║╚██████╔╝╚██████╔╝███████║[/]
-[bold #F7C453]╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚══════╝[/]"""
+PANERGOS_MARK = (
+    "[bold #FF6B5E]━━━╲[/]\n"
+    "[bold #F7C453]━━━━▶[/]\n"
+    "[bold #2EE6A6]━━━╱[/]"
+)
 
-PANERGOS_MARK = """[bold #FF6B5E]⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣶⣿⣿⣿⣿⣿⣿⣿⣿⣶⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[bold #FF6B5E]⠀⠀⠀⠀⠀⠀⠀⣠⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[bold #FF6B5E]⠀⠀⠀⠀⠀⠠⠚⠉⠉⠉⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[bold #2EE6A6]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[bold #2EE6A6]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣿⣿⣿⣿⡿⠋⠀⠀⠀⠀⠀⡄⠀⠀⠀[/]
-[bold #2EE6A6]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠀⠀⠈⠻⡿⠋⠀⠀⠀⠀⠀⣠⣾⡇⠀⠀⠀[/]
-[bold #2EE6A6]⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣾⣿⣿⡇⠀⠀⠀[/]
-[bold #2EE6A6]⠀⠀⠀⠀⠀⠀⠀⠀⢠⣿⣿⣿⠀⠀⠀⣷⣤⣀⣀⣠⣴⣾⣿⣿⣿⣿⡇⠀⠀⠀[/]
-[bold #2EE6A6]⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣄⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠏⠀⠀⠀⠀[/]
-[bold #2EE6A6]⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣷⣄⣿⣿⣿⣿⣿⣿⣿⣿⠟⠁⠀⠀⠀⠀⠀[/]
-[bold #2EE6A6]⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⠉⠙⠛⠛⠛⠛⠉⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[bold #2EE6A6]⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[bold #F7C453]⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⡿⠟⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[bold #F7C453]⠀⠀⠀⠀⠀⠀⠀⠀⢸⠿⠛⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]"""
+# Public compatibility name retained for skins/plugins. The old billboard-sized
+# wordmark is intentionally gone; startup uses the same compact flow mark everywhere.
+PANERGOS_AGENT_LOGO = PANERGOS_MARK
 
 # === Skills scanning ===
 
@@ -656,18 +644,13 @@ def _format_context_length(tokens: int) -> str:
     return str(tokens)
 
 
-def _display_toolset_name(toolset_name: str) -> str:
-    """Normalize internal/legacy toolset identifiers for banner display."""
-    return toolset_name.removesuffix("_tools") if toolset_name else "unknown"
-
-
 def _short_label(name: str) -> str:
-    """Truncate a model/preset slug to fit the banner's left column."""
+    """Truncate a model/preset slug to fit the compact workstream."""
     return name[:25] + "..." if len(name) > 28 else name
 
 
 # === Banner snapshot — warm-launch fast path ===
-# The tool panel needs the full tool registry (~0.5-0.9s cold, the largest chunk of time-to-
+# The capability summary needs the tool registry (~0.5-0.9s cold, the largest chunk of time-to-
 # banner). The list is a pure function of (config.yaml, .env, code checkout, enabled toolsets),
 # so the rendered inputs are snapshotted to disk and replayed when the fingerprint matches. The
 # agent's REAL tool list is still computed fresh at first message; the snapshot only feeds the
@@ -766,50 +749,6 @@ def compute_toolset_availability(enabled_toolsets: List[str] = None) -> Dict[str
             "disabled_tools": sorted(disabled_tools)}
 
 
-def _mcp_server_line(srv: dict, *, dim: str, text: str) -> str:
-    """One banner line for an MCP server status entry."""
-    name, transport = srv["name"], srv["transport"]
-    if srv["connected"]:
-        return f"[dim {dim}]{name}[/] [{text}]({transport})[/] [dim {dim}]—[/] [{text}]{srv['tools']} tool(s)[/]"
-    status = "disabled" if srv.get("disabled") else srv.get("status")
-    suffix = {"disabled": f"[dim {dim}]— disabled[/]", "connecting": "[yellow]— connecting[/]",
-              "configured": f"[dim {dim}]— configured[/]"}.get(status)
-    if suffix is not None:
-        return f"[dim {dim}]{name}[/] [dim]({transport})[/] {suffix}"
-    return f"[red]{name}[/] [dim]({transport})[/] [red]— failed[/]"
-
-
-def _truncate_tool_names(tool_names: List[str]) -> List[Optional[str]]:
-    """Cut a toolset's tool list to ~42 columns; ``None`` marks the elided tail."""
-    if len(", ".join(tool_names)) <= 45:
-        return list(tool_names)
-    short_names: List[Optional[str]] = []
-    length = 0
-    for name in tool_names:
-        if length + len(name) + 2 > 42:
-            short_names.append(None)
-            break
-        short_names.append(name)
-        length += len(name) + 2
-    return short_names
-
-
-def _pack_skill_names(skill_names: List[str], avail: int) -> str:
-    """Join skill names into ``avail`` columns, ending with ``+N more`` when they don't all fit."""
-    parts: List[str] = []
-    length = 0
-    for i, name in enumerate(skill_names):
-        needed = (2 if parts else 0) + len(name)
-        after = len(skill_names) - (i + 1)  # indicator size IF we add this skill then stop
-        ind_len = len(f", +{after} more") if after > 0 else 0
-        if parts and length + needed + ind_len > avail:
-            parts.append(f"+{len(skill_names) - len(parts)} more")
-            break
-        parts.append(name)
-        length += needed
-    return ", ".join(parts)
-
-
 def _moa_aggregator_label(preset_name: str) -> str:
     """Short aggregator-model label for a MoA preset ("" when the preset has none)."""
     from panergos_cli.config import load_config
@@ -854,78 +793,48 @@ def _active_profile_name() -> Optional[str]:
 
 
 
-def _banner_left_lines(model: str, cwd: str, session_id, context_length, provider, *, accent: str, dim: str) -> list:
-    """Model / cwd / session lines under the hero art."""
-    def _dim_sep(label: str) -> str:
-        return f" [dim {dim}]·[/] [dim {dim}]{label}[/]"
-    lines = []
-    ctx_str = _dim_sep(f"{_format_context_length(context_length)} context") if context_length else ""
-    brand_str = _dim_sep("Panergos Agent")
+def _banner_row(code: str, label: str, value: str, *, color: str, dim: str) -> str:
+    """One numbered workstream signal."""
+    return f"[bold {color}]{code:>2}[/] [dim {dim}]/[/] [bold {dim}]{label:<11}[/] {value}"
+
+
+def _banner_signal_lines(
+    model: str, cwd: str, session_id, context_length, provider, *,
+    coral: str, gold: str, jade: str, dim: str, text: str,
+) -> list:
+    """Core model, route, workspace, and resumable-session signals."""
     if not (model or "").strip():
-        # Credentials resolve lazily on the first message; the banner prints first. Ask the route
-        # the same question so a fresh free-tier install shows its model, not a red "unconfigured".
+        # Credentials resolve lazily on the first message; ask the route the same question so a
+        # fresh free-tier install shows its model instead of an incorrect "unconfigured" state.
         model = _quiet(lambda: _route_model_for_banner(provider), "") or model
-    if (provider or "").strip().lower() == "moa":
-        # MoA virtual provider: ``model`` is a preset name; show it with its aggregator.
+
+    context = f" [dim {dim}]· {_format_context_length(context_length)} context[/]" if context_length else ""
+    provider_name = (provider or "").strip()
+    if provider_name.lower() == "moa":
         agg_label = _quiet(lambda: _moa_aggregator_label(model), "")
-        agg_str = _dim_sep(f"agg {agg_label}") if agg_label else ""
-        lines.append(f"[{accent}]MoA: {_short_label(model)}[/]{agg_str}{ctx_str}{brand_str}")
+        aggregator = f" [dim {dim}]· aggregator {agg_label}[/]" if agg_label else ""
+        model_value = f"[{text}]MoA: {_short_label(model)}[/]{aggregator}{context}"
+        route_value = f"[{text}]mixture of agents[/]"
     elif not (model or "").strip() or (model or "").strip().lower() == "unknown":
-        # Unconfigured install: the clearest place to say what is wrong and how to fix it.
-        lines.append(f"[bold red]no model configured[/] [dim {dim}]— run /model or panergos setup[/]")
+        model_value = f"[bold red]not configured[/] [dim {dim}]· run /model[/]"
+        route_value = f"[dim {dim}]setup required[/]"
     else:
         model_short = model.split("/")[-1].removesuffix(".gguf")
-        lines.append(f"[{accent}]{_short_label(model_short)}[/]{ctx_str}{brand_str}")
+        model_value = f"[{text}]{_short_label(model_short)}[/]{context}"
+        route_value = f"[{text}]{provider_name or 'automatic'}[/]"
+
+    memory_value = (
+        f"[{text}]resumable[/] [dim {dim}]· session {session_id}[/]"
+        if session_id else f"[dim {dim}]new session[/]"
+    )
+    lines = [
+        _banner_row("01", "MODEL", model_value, color=coral, dim=dim),
+        _banner_row("02", "ROUTE", route_value, color=jade, dim=dim),
+        _banner_row("03", "WORKSPACE", f"[dim {dim}]{cwd}[/]", color=gold, dim=dim),
+        _banner_row("04", "MEMORY", memory_value, color=jade, dim=dim),
+    ]
     if os.getenv("PANERGOS_YOLO_MODE"):
-        lines.append(f"[bold red]⚠ YOLO mode[/] [dim {dim}]— all approval prompts bypassed[/]")
-    lines.append(f"[dim {dim}]{cwd}[/]")
-    if session_id:
-        lines.append(f"[dim {_skin_color('session_border', '#8B8682')}]Session: {session_id}[/]")
-    return lines
-
-
-def _banner_tool_lines(
-    tools: list, unavailable_toolsets: list, get_toolset_for_tool, *,
-    lazy_tools: set, disabled_tools: set, accent: str, dim: str, text: str) -> list:
-    """"Available Tools" section: up to 8 toolsets, each truncated to ~42 columns."""
-    lines = [f"[bold {accent}]Available Tools[/]"]
-    toolsets_dict: Dict[str, list] = {}
-    for tool in tools:
-        tool_name = tool["function"]["name"]
-        toolset = _display_toolset_name(get_toolset_for_tool(tool_name) or "other")
-        toolsets_dict.setdefault(toolset, []).append(tool_name)
-    for item in unavailable_toolsets:
-        names = toolsets_dict.setdefault(_display_toolset_name(item.get("id", item.get("name", "unknown"))), [])
-        for tool_name in item.get("tools", []):
-            if tool_name not in names:
-                names.append(tool_name)
-
-    def _color_tool(name: Optional[str]) -> str:
-        if name is None:  # truncation marker
-            return "[dim]...[/]"
-        color = "red" if name in disabled_tools else "yellow" if name in lazy_tools else text
-        return f"[{color}]{name}[/]"
-    sorted_toolsets = sorted(toolsets_dict.keys())
-    for toolset in sorted_toolsets[:8]:
-        tool_names = _truncate_tool_names(sorted(toolsets_dict[toolset]))
-        lines.append(f"[dim {dim}]{toolset}:[/] {', '.join(_color_tool(n) for n in tool_names)}")
-    if len(sorted_toolsets) > 8:
-        lines.append(f"[dim {dim}](and {len(sorted_toolsets) - 8} more toolsets...)[/]")
-    return lines
-
-
-def _banner_skill_lines(skills_by_category: Dict[str, List[str]], skills_enabled: bool, *, dim: str, text: str) -> list:
-    """"Available Skills" body, sized to ~60% of the terminal width (the right grid column)."""
-    if not skills_enabled:
-        return [f"[dim {dim}]Skills toolset disabled[/]"]
-    if not skills_by_category:
-        return [f"[dim {dim}]No skills installed[/]"]
-    right_col_width = max(int(shutil.get_terminal_size().columns * 0.6) - 10, 30)
-    lines = []
-    for category in sorted(skills_by_category.keys()):
-        # Account for the "category: " prefix.
-        skills_str = _pack_skill_names(sorted(skills_by_category[category]), max(right_col_width - len(category) - 2, 20))
-        lines.append(f"[dim {dim}]{category}:[/] [{text}]{skills_str}[/]")
+        lines.append(f"[bold red]⚠ YOLO mode[/] [dim {dim}]· all approval prompts bypassed[/]")
     return lines
 
 
@@ -934,65 +843,77 @@ def build_welcome_banner(
     session_id: str = None, get_toolset_for_tool=None, context_length: int = None, provider: str = None,
     availability: Dict[str, Any] = None, skills_by_category: Dict[str, List[str]] = None,
 ):
-    """Build and print a welcome banner with the Panergos mark on the left.
+    """Build and print the compact Panergos continuity lane.
 
     When ``provider == "moa"``, ``model`` is a MoA preset name and the aggregator is rendered.
-    Passing a precomputed ``availability`` together with ``get_toolset_for_tool`` avoids any
-    ``model_tools`` import (banner snapshot replay).
+    The legacy ``availability`` and ``get_toolset_for_tool`` inputs remain accepted so saved banner
+    snapshots and third-party callers keep working; detailed inventory lives behind /tools.
     """
-    from rich.panel import Panel
-    from rich.table import Table
-    if get_toolset_for_tool is None:
-        from model_tools import get_toolset_for_tool
     tools = tools or []
     enabled_toolsets = enabled_toolsets or []
-    if availability is None:
-        availability = compute_toolset_availability(enabled_toolsets)
     _enabled_ts = {str(t) for t in enabled_toolsets}
-    # Resolve skin colors once for the entire banner
-    accent = _skin_color("banner_accent", "#2EE6A6")
+    # Resolve skin colors once for the entire banner. The default palette maps these to the
+    # three-colour Panergos identity: coral, gold, and jade.
+    coral = _skin_color("banner_title", "#FF6B5E")
+    gold = _skin_color("ui_label", "#F7C453")
+    jade = _skin_color("banner_accent", "#2EE6A6")
     dim = _skin_color("banner_dim", "#B9A9C8")
     text = _skin_color("banner_text", "#F7F2FF")
-    # Use the skin's custom hero art when provided.
     _bskin = _quiet(_active_skin)
-    left_lines = ["", getattr(_bskin, "banner_hero", None) or PANERGOS_MARK, ""]
-    left_lines += _banner_left_lines(model, cwd, session_id, context_length, provider, accent=accent, dim=dim)
-    right_lines = _banner_tool_lines(
-        tools, availability.get("unavailable_toolsets", []), get_toolset_for_tool,
-        lazy_tools=set(availability.get("lazy_tools", [])), disabled_tools=set(availability.get("disabled_tools", [])),
-        accent=accent, dim=dim, text=text)
-    # MCP Servers section (only if configured) — see ``_mcp_configured`` for why the cheap probe.
+    custom_hero = getattr(_bskin, "banner_hero", None)
+    if custom_hero:
+        lines = [custom_hero, f"[bold {text}]PANERGOS[/] [dim {dim}]/ WORK CONTINUITY[/]",
+                 f"[dim {dim}]context stays · work moves[/]"]
+    else:
+        mark_lines = [
+            f"[bold {coral}]━━━╲[/]",
+            f"[bold {gold}]━━━━▶[/]",
+            f"[bold {jade}]━━━╱[/]",
+        ]
+        lines = [
+            f"{mark_lines[0]}    [dim {dim}]WORK CONTINUITY[/]",
+            f"{mark_lines[1]}  [bold {text}]PANERGOS[/]",
+            f"{mark_lines[2]}    [dim {dim}]context stays · work moves[/]",
+        ]
+    lines += ["", f"[bold {coral}]LIVE WORKSTREAM[/]"]
+    workstream_line = len(lines) - 1
+    lines += _banner_signal_lines(
+        model, cwd, session_id, context_length, provider,
+        coral=coral, gold=gold, jade=jade, dim=dim, text=text)
+
+    # MCP is represented as a live count here; /tools owns the detailed server inventory.
     mcp_status = _quiet(_probe_mcp_status, []) if _mcp_configured() else []
-    if mcp_status:
-        right_lines += ["", f"[bold {accent}]MCP Servers[/]"]
-        right_lines.extend(_mcp_server_line(srv, dim=dim, text=text) for srv in mcp_status)
-    right_lines += ["", f"[bold {accent}]Available Skills[/]"]
-    # The skills catalog is only reachable when the `skills` toolset is enabled (skill_view /
-    # skill_manage). When disabled (Blank Slate) the agent cannot load any skill, so advertising
-    # the on-disk catalog would be misleading — reflect the real state.
     _skills_enabled = (not _enabled_ts) or ("skills" in _enabled_ts)
     if not _skills_enabled:
         skills_by_category = {}
     elif skills_by_category is None:
         skills_by_category = get_available_skills()
-    total_skills = sum(len(s) for s in skills_by_category.values())
-    right_lines += _banner_skill_lines(skills_by_category, _skills_enabled, dim=dim, text=text)
-    right_lines.append("")
-    mcp_connected = sum(1 for s in mcp_status if s["connected"])
-    summary_parts = [f"{len(tools)} tools", f"{total_skills} skills"]
-    if mcp_connected:
-        summary_parts.append(f"{mcp_connected} MCP servers")
-    summary_parts.append("/help for commands")
+    total_skills = sum(len(s) for s in (skills_by_category or {}).values())
+    mcp_connected = sum(1 for s in mcp_status if s.get("connected"))
+
+    lines.append("")
     # Flag the codex_app_server runtime so users understand why tool counts may not match what's
     # reachable (codex builds its own tool list inside the spawned subprocess).
     if _quiet(_codex_runtime_active, False):
-        right_lines.append(f"[bold {accent}]Runtime:[/] [{text}]codex app-server[/] "
-                           f"[dim {dim}](terminal/file ops/MCP run inside codex)[/]")
+        lines.append(_banner_row(
+            "RT", "RUNTIME", f"[{text}]codex app-server[/] [dim {dim}]· delegated tools[/]",
+            color=jade, dim=dim))
     # Show active profile name when not 'default'. Never break the banner over a profiles.py bug.
     _profile_name = _quiet(_active_profile_name)
     if _profile_name and _profile_name != "default":
-        right_lines.append(f"[bold {accent}]Profile:[/] [{text}]{_profile_name}[/]")
-    right_lines.append(f"[dim {dim}]{' · '.join(summary_parts)}[/]")
+        lines.append(_banner_row("PF", "PROFILE", f"[{text}]{_profile_name}[/]", color=coral, dim=dim))
+    summary = (
+        f"[{text}]{len(tools)} {_plural(len(tools), 'tool')} · "
+        f"{total_skills} {_plural(total_skills, 'skill')} · {mcp_connected} MCP live[/]"
+    )
+    lines.append(_banner_row("Σ", "CAPACITY", summary, color=jade, dim=dim))
+    commands = (
+        f"[bold {coral}]/model[/] [dim {dim}]·[/] [bold {gold}]/resume[/] [dim {dim}]·[/] "
+        f"[bold {jade}]/tools[/] [dim {dim}]·[/] [bold {gold}]/skills[/] [dim {dim}]·[/] "
+        f"[bold {text}]/help[/]"
+    )
+    lines.append(_banner_row("▶", "COMMAND LANE", commands, color=coral, dim=dim))
+
     # Update check — NEVER block the banner on it: the prefetch does git/network work that rarely
     # finishes before render, so a blocking wait adds its full timeout to every startup. If not
     # ready, a daemon thread prints the same notice above the prompt when it lands.
@@ -1001,21 +922,16 @@ def build_welcome_banner(
         if behind is None and not _update_check_done.is_set():
             _defer_update_notice()
         elif behind is not None and behind != 0:
-            right_lines.append(_format_update_notice(behind))
+            lines.extend(["", _format_update_notice(behind)])
     _quiet(_update_line)  # Never break the banner over an update check
-    layout_table = Table.grid(padding=(0, 2))
-    layout_table.add_column("left", justify="left")
-    layout_table.add_column("right", justify="left")
-    layout_table.add_row("\n".join(left_lines), "\n".join(right_lines))
     version_label = format_banner_version_label()
     release_info = get_latest_release_tag()
     if release_info:
         version_label = f"[link={release_info[1]}]{version_label}[/link]"
-    outer_panel = Panel(
-        layout_table, title=f"[bold {_skin_color('banner_title', '#FF6B5E')}]{version_label}[/]",
-        border_style=_skin_color("banner_border", "#FF6B5E"), padding=(0, 2))
+    lines[workstream_line] += f" [dim {dim}]· {version_label}[/]"
     console.print()
-    if shutil.get_terminal_size().columns >= 95:
-        console.print(getattr(_bskin, "banner_logo", None) or PANERGOS_AGENT_LOGO)
+    custom_logo = getattr(_bskin, "banner_logo", None)
+    if custom_logo and shutil.get_terminal_size().columns >= 95:
+        console.print(custom_logo)
         console.print()
-    console.print(outer_panel)
+    console.print("\n".join(lines))

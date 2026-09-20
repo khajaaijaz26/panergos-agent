@@ -51,7 +51,7 @@ export const af: Translations = {
 
   app: {
     brand: "Panergos Agent",
-    brandShort: "HA",
+    brandShort: "PA",
     closeNavigation: "Maak navigasie toe",
     closeModelTools: "Maak model en gereedskap toe",
     footer: {
@@ -346,7 +346,7 @@ export const af: Translations = {
     removeConfirm: "Verwyder hierdie inprop uit ~/.panergos/plugins/?",
     removeHint: "Slegs gebruiker-geïnstalleerde inproppe onder ~/.panergos/plugins kan verwyder word.",
     rescanHeading: "SPA-inprop-register",
-    rescanHint: "Herskandeer ná die byvoeg van lêers op skyf sodat die dashboard-sybalk nuwe manifeste optel.",
+    rescanHint: "Herskandeer ná die byvoeg van lêers op skyf sodat die dashboard-navigasie nuwe manifeste optel.",
     runtimeHeading: "Gateway-looptyd (YAML-inproppe)",
     saveProviders: "Stoor verskaffer-instellings",
     savedProviders: "Verskaffer-instellings gestoor.",
@@ -355,8 +355,8 @@ export const af: Translations = {
     authRequiredHint: "Voer hierdie opdrag uit om te verifieer:",
     updateGit: "Git pull",
     versionBadge: "Weergawe",
-    showInSidebar: "Wys in sybalk",
-    hideFromSidebar: "Versteek van sybalk",
+    showInSidebar: "Wys in navigasie",
+    hideFromSidebar: "Versteek van navigasie",
   },
 
   skills: {
@@ -605,7 +605,7 @@ export const af: Translations = {
         "Deel op X maak 'n vooraf-ingevulde plasing in 'n nuwe oortjie oop. Klik eers op Kopieer beeld as jy die 1200×630-kenteken aangeheg wil hê — X laat jou dit direk in die tweet-skrywer plak. Laai PNG af stoor die lêer om enige plek te gebruik.",
       clipboard_unsupported:
         "Beeldkopiëring na knipbord word nie in hierdie blaaier ondersteun nie — gebruik eerder Aflaai.",
-      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ◆",
+      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ▶",
     },
   },
   kanban: {

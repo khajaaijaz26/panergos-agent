@@ -31,7 +31,7 @@ export const padVerb = (verb: string) => `${verb}…`.padEnd(VERB_PAD_LEN, ' ')
 
 // Compact alternates for the `emoji` and `ascii` indicator styles.
 // Each entry is a fixed-width (display-width) glyph.
-const EMOJI_FRAMES = ['◆ ', '🌀', '🤔', '✨', '🍵', '🔮']
+const EMOJI_FRAMES = ['▶ ', '🌀', '🤔', '✨', '🍵', '🔮']
 const ASCII_FRAMES = ['|', '/', '-', '\\']
 
 // Faster tick for spinner-style indicators — they read as motion only
@@ -55,7 +55,7 @@ const renderIndicator = (style: IndicatorStyle, tick: number): IndicatorRender =
 
   if (style === 'emoji') {
     return {
-      frame: EMOJI_FRAMES[tick % EMOJI_FRAMES.length] ?? '◆ ',
+      frame: EMOJI_FRAMES[tick % EMOJI_FRAMES.length] ?? '▶ ',
       intervalMs: SPINNER_TICK_MS * 6,
       showVerb: true
     }
@@ -456,8 +456,8 @@ const shortModelLabel = (model: string) =>
     .replace(/\b(\d+)\s+(\d+)\b/g, '$1.$2')
     .trim()
 
-const modelLabel = (model: string, effort?: string, fast?: boolean) =>
-  [shortModelLabel(model), effortLabel(effort), fast ? 'fast' : ''].filter(Boolean).join(' ')
+const modelLabel = (model: string, effort?: string) =>
+  [shortModelLabel(model), effortLabel(effort)].filter(Boolean).join(' ')
 
 export function GoodVibesHeart({ tick, t }: { tick: number; t: Theme }) {
   const [active, setActive] = useState(false)
@@ -533,7 +533,9 @@ export function StatusRule({
       : ''
 
   const bar = !segs.compactCtx && usage.context_max && ok('context_pct') ? ctxBar(pct) : ''
-  const modelText = modelLabel(model, modelReasoningEffort, modelFast)
+  const modelBaseText = modelLabel(model, modelReasoningEffort)
+  const fastModeText = modelFast ? ' ⚡ fast' : ''
+  const modelText = `${modelBaseText}${fastModeText}`
 
   // Battery read-out — the first (pinned) status-bar element when enabled.
   const showBattery = !!battery && battery.available && battery.percent != null && ok('battery')
@@ -617,14 +619,14 @@ export function StatusRule({
   const showCompressions =
     segs.compressions && ok('compressions') && compressions > 0 && fits(SEP + stringWidth(`cmp ${compressions}`))
 
-  // Cache-hit % + rolling latency / tokens-per-sec — mirrored from the classic
-  // CLI bar (PR #98250). The server omits the keys when no data exists (zero
-  // cache reads, Codex app-server with no latency), so these self-hide.
-  const cacheHitText = typeof usage.cache_hit_pct === 'number' ? `◎ ${usage.cache_hit_pct}%` : ''
+  // Provider-reported cache-hit % + rolling latency / output tokens-per-sec.
+  // Spell out the units: these are observed metrics, not speed promises. The
+  // server omits keys when no data exists, so the segments self-hide.
+  const cacheHitText = typeof usage.cache_hit_pct === 'number' ? `cache ${usage.cache_hit_pct}%` : ''
   const showCacheHit = segs.cacheHit && ok('cache_hit') && !!cacheHitText && fits(SEP + stringWidth(cacheHitText))
-  const latencyText = typeof usage.avg_latency_s === 'number' ? `◷ ${usage.avg_latency_s.toFixed(1)}s` : ''
+  const latencyText = typeof usage.avg_latency_s === 'number' ? `lat ${usage.avg_latency_s.toFixed(1)}s` : ''
   const showLatency = segs.latency && ok('latency') && !!latencyText && fits(SEP + stringWidth(latencyText))
-  const tpsText = typeof usage.avg_tps === 'number' ? `↑ ${Math.round(usage.avg_tps)} t/s` : ''
+  const tpsText = typeof usage.avg_tps === 'number' ? `${Math.round(usage.avg_tps)} tok/s` : ''
   const showTps = segs.tps && ok('tps') && !!tpsText && fits(SEP + stringWidth(tpsText))
 
   const showVoice = segs.voice && ok('voice') && !!voiceLabel && fits(SEP + stringWidth(voiceLabel))
@@ -714,8 +716,9 @@ export function StatusRule({
           ) : null}
           <Text color={t.color.muted} wrap="truncate-end">
             {' │ '}
-            {modelText}
+            {modelBaseText}
           </Text>
+          {fastModeText ? <Text color={t.color.statusGood}>{fastModeText}</Text> : null}
           {ctxLabel ? (
             <Text color={t.color.muted} wrap="truncate-end">
               {' │ '}

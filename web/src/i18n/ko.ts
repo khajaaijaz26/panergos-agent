@@ -51,7 +51,7 @@ export const ko: Translations = {
 
   app: {
     brand: "Panergos Agent",
-    brandShort: "HA",
+    brandShort: "PA",
     closeNavigation: "내비게이션 닫기",
     closeModelTools: "모델 및 도구 닫기",
     footer: {
@@ -345,7 +345,7 @@ export const ko: Translations = {
     removeConfirm: "~/.panergos/plugins/에서 이 플러그인을 제거하시겠습니까?",
     removeHint: "~/.panergos/plugins 아래에 사용자가 설치한 플러그인만 제거할 수 있습니다.",
     rescanHeading: "SPA 플러그인 레지스트리",
-    rescanHint: "디스크에 파일을 추가한 후 재스캔하여 대시보드 사이드바가 새 매니페스트를 인식하도록 합니다.",
+    rescanHint: "디스크에 파일을 추가한 후 재스캔하여 대시보드 내비게이션이 새 매니페스트를 인식하도록 합니다.",
     runtimeHeading: "게이트웨이 런타임 (YAML 플러그인)",
     saveProviders: "제공자 설정 저장",
     savedProviders: "제공자 설정이 저장되었습니다.",
@@ -354,8 +354,8 @@ export const ko: Translations = {
     authRequiredHint: "이 명령을 실행하여 인증하세요:",
     updateGit: "Git pull",
     versionBadge: "버전",
-    showInSidebar: "사이드바에 표시",
-    hideFromSidebar: "사이드바에서 숨기기",
+    showInSidebar: "내비게이션에 표시",
+    hideFromSidebar: "내비게이션에서 숨기기",
   },
 
   skills: {
@@ -604,7 +604,7 @@ export const ko: Translations = {
         "X에 공유를 누르면 새 탭에서 미리 작성된 게시물이 열립니다. 1200×630 배지를 첨부하려면 먼저 이미지 복사를 누르세요 — X 작성기에서 바로 붙여넣을 수 있습니다. PNG 다운로드는 파일을 저장하여 어디서나 사용할 수 있게 합니다.",
       clipboard_unsupported:
         "이 브라우저에서는 클립보드 이미지 복사를 지원하지 않습니다 — 대신 다운로드를 이용하세요.",
-      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ◆",
+      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ▶",
     },
   },
   kanban: {

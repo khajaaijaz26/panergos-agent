@@ -227,7 +227,7 @@ class TestCliBrandingHelpers:
         from panergos_cli.skin_engine import set_active_skin, get_active_goodbye
 
         set_active_skin("crimson")
-        assert get_active_goodbye() == "Goodbye! ◆"
+        assert get_active_goodbye() == "Goodbye! ▶"
 
     def test_prompt_toolkit_style_overrides_cover_tui_classes(self):
         from panergos_cli.skin_engine import set_active_skin, get_prompt_toolkit_style_overrides

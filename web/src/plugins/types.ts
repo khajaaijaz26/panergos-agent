@@ -14,7 +14,7 @@ export interface PluginManifest {
     position?: string;
     /** When set to a built-in route path, this plugin replaces that page instead of adding a new tab. */
     override?: string;
-    /** When true, the plugin may register without a sidebar tab (slot-only, etc.). */
+    /** When true, the plugin may register without a Navigation entry (slot-only, etc.). */
     hidden?: boolean;
   };
   /** Declared for discovery; actual slots use registerSlot in the plugin bundle. */

@@ -51,7 +51,7 @@ export const pt: Translations = {
 
   app: {
     brand: "Panergos Agent",
-    brandShort: "HA",
+    brandShort: "PA",
     closeNavigation: "Fechar navegação",
     closeModelTools: "Fechar modelo e ferramentas",
     footer: {
@@ -347,7 +347,7 @@ export const pt: Translations = {
     removeConfirm: "Remover este plugin de ~/.panergos/plugins/?",
     removeHint: "Apenas plugins instalados pelo utilizador em ~/.panergos/plugins podem ser removidos.",
     rescanHeading: "Registo de plugins SPA",
-    rescanHint: "Re-analise depois de adicionar ficheiros em disco para que a barra lateral detete novos manifestos.",
+    rescanHint: "Re-analise depois de adicionar ficheiros em disco para que a navegação detete novos manifestos.",
     runtimeHeading: "Runtime do gateway (plugins YAML)",
     saveProviders: "Guardar definições do fornecedor",
     savedProviders: "Definições do fornecedor guardadas.",
@@ -356,8 +356,8 @@ export const pt: Translations = {
     authRequiredHint: "Execute este comando para autenticar:",
     updateGit: "Git pull",
     versionBadge: "Versão",
-    showInSidebar: "Mostrar na barra lateral",
-    hideFromSidebar: "Ocultar da barra lateral",
+    showInSidebar: "Mostrar na navegação",
+    hideFromSidebar: "Ocultar da navegação",
   },
 
   skills: {
@@ -606,7 +606,7 @@ export const pt: Translations = {
         "Partilhar no X abre uma publicação pré-preenchida num novo separador. Clique primeiro em Copiar imagem se quiser anexar o distintivo 1200×630 — o X permite colá-lo diretamente no compositor da publicação. Transferir PNG guarda o ficheiro para utilização em qualquer lado.",
       clipboard_unsupported:
         "A cópia de imagens para a área de transferência não é suportada neste navegador — utilize Transferir.",
-      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ◆",
+      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ▶",
     },
   },
   kanban: {

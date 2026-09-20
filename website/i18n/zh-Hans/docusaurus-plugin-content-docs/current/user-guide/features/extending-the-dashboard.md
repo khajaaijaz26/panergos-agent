@@ -151,7 +151,7 @@ layout:
 | 变体 | 行为 |
 |---------|-----------|
 | `standard` | 单列，最大宽度 1600px（默认）。 |
-| `cockpit` | 左侧边栏轨道（260px）+ 主内容区。由插件通过 `sidebar` 插槽填充——参见 [Shell 插槽](#shell-slots)。没有插件时轨道显示占位符。 |
+| `cockpit` | 保留完整工作区画布，并公开 `data-layout-variant="cockpit"` 供主题实现更紧凑的自定义外观。 |
 | `tiled` | 取消最大宽度限制，页面可使用完整视口宽度。 |
 
 ```yaml
@@ -167,10 +167,9 @@ layoutVariant: cockpit
 ```yaml
 assets:
   bg: "https://example.com/hero-bg.jpg"           # auto-wired into <Backdrop />
-  hero: "/my-images/strike-freedom.png"           # for plugin sidebars
+  hero: "/my-images/strike-freedom.png"           # for plugin overlays
   crest: "/my-images/crest.svg"                   # for header-left plugins
   logo: "/my-images/logo.png"
-  sidebar: "/my-images/rail.png"
   header: "/my-images/header-art.png"
   custom:
     scanLines: "/my-images/scanlines.png"         # → --theme-asset-custom-scanLines
@@ -441,7 +440,7 @@ mkdir -p ~/.panergos/plugins/my-plugin/dashboard/dist
     "override": "/",
     "hidden": false
   },
-  "slots": ["sidebar", "header-left"],
+  "slots": ["header-left", "overlay"],
   "entry": "dist/index.js",
   "css": "dist/style.css",
   "api": "plugin_api.py"
@@ -543,12 +542,12 @@ SDK.api.getSessions(10).then((resp) => console.log(resp.sessions.length));
 
 ### Shell 插槽
 
-插槽（slot）允许插件向应用 shell 的命名位置注入组件——cockpit 侧边栏、顶栏、底栏、覆盖层——而无需占用整个标签页。多个插件可以填充同一个插槽；它们按注册顺序堆叠渲染。
+插槽（slot）允许插件向应用 shell 的命名位置注入组件——顶栏、底栏、工作区边缘或覆盖层——而无需占用整个标签页。多个插件可以填充同一个插槽；它们按注册顺序堆叠渲染。
 
 在插件 bundle 内部注册：
 
 ```javascript
-window.__PANERGOS_PLUGINS__.registerSlot("my-plugin", "sidebar", MySidebar);
+window.__PANERGOS_PLUGINS__.registerSlot("my-plugin", "overlay", MyOverlay);
 window.__PANERGOS_PLUGINS__.registerSlot("my-plugin", "header-left", MyCrest);
 ```
 
@@ -562,7 +561,6 @@ window.__PANERGOS_PLUGINS__.registerSlot("my-plugin", "header-left", MyCrest);
 | `header-left` | 顶栏 Panergos 品牌之前。 |
 | `header-right` | 顶栏主题/语言切换器之前。 |
 | `header-banner` | 导航栏下方的全宽条带。 |
-| `sidebar` | Cockpit 侧边栏轨道——**仅在 `layoutVariant === "cockpit"` 时渲染**。 |
 | `pre-main` | 路由出口之上（`<main>` 内部）。 |
 | `post-main` | 路由出口之下（`<main>` 内部）。 |
 | `footer-left` | 底栏单元格内容（替换默认内容）。 |
@@ -596,7 +594,7 @@ function PinnedSessionsBanner() {
 window.__PANERGOS_PLUGINS__.registerSlot("my-plugin", "sessions:top", PinnedSessionsBanner);
 ```
 
-如果插件只增强现有页面而不需要独立的侧边栏标签页，可将页面级插槽与 `tab.hidden: true` 结合使用。
+如果插件只增强现有页面而不需要独立的 Command Map 入口，可将页面级插槽与 `tab.hidden: true` 结合使用。
 
 Shell 只为上述插槽渲染 `<PluginSlot name="..." />`。注册表接受额外的名称用于嵌套插件 UI——插件可通过 `SDK.components.PluginSlot` 暴露自己的插槽。
 
@@ -676,7 +674,7 @@ Shell 只为上述插槽渲染 `<PluginSlot name="..." />`。注册表接受额�
 
 要点：
 
-- `tab.hidden: true` 使插件不出现在侧边栏——它没有独立页面。
+- `tab.hidden: true` 使插件不出现在导航中——它没有独立页面。
 - manifest 中的 `slots` 字段仅作文档说明。实际绑定通过 JS bundle 中的 `registerSlot()` 完成。
 - 多个插件可以声明同一个页面级插槽。它们按注册顺序堆叠渲染。
 - 无插件注册时零开销：内置页面与之前完全相同地渲染。
@@ -685,7 +683,7 @@ Shell 只为上述插槽渲染 `<PluginSlot name="..." />`。注册表接受额�
 
 ### 仅插槽插件（`tab.hidden`）
 
-当 `tab.hidden: true` 时，插件注册其组件（用于直接 URL 访问）和所有插槽，但不向导航添加标签页。适用于仅用于注入插槽的插件——顶栏徽标、侧边栏 HUD、覆盖层。
+当 `tab.hidden: true` 时，插件注册其组件（用于直接 URL 访问）和所有插槽，但不向 Command Map 添加入口。适用于仅用于注入插槽的插件——顶栏徽标、状态覆盖层或工作区横幅。
 
 ```json
 {
@@ -824,7 +822,7 @@ curl http://127.0.0.1:9119/api/dashboard/plugins/rescan
 
 - 完整主题，使用调色板、字体排版、`fontUrl`、`layoutVariant: cockpit`、`assets`、`componentStyles`（切角卡片、渐变背景）、`colorOverrides` 和 `customCSS`（扫描线叠加）。
 - 仅插槽插件（`tab.hidden: true`），注册到三个插槽：
-  - `sidebar` — 带有由 `SDK.api.getStatus()` 驱动的实时遥测条的 MS-STATUS 面板。
+  - `overlay` — 带有由 `SDK.api.getStatus()` 驱动的实时遥测条的按需 MS-STATUS HUD。
   - `header-left` — 从激活主题读取 `--theme-asset-crest` 的派系徽标。
   - `footer-right` — 替换默认组织行的自定义标语。
 - 插件通过 CSS 变量读取主题提供的图片，因此切换主题可在不修改插件代码的情况下更换英雄图/徽标。
@@ -885,7 +883,7 @@ cp -r my-dashboard-extension/plugin ~/.panergos/plugins/my-dashboard-extension
 5. 验证你的 bundle 以与 `manifest.json:name` **相同的名称**调用 `window.__PANERGOS_PLUGINS__.register(...)`。
 
 **插槽注册的组件没有渲染。**
-`sidebar` 插槽仅在激活主题设置了 `layoutVariant: cockpit` 时渲染。其他插槽始终渲染。如果你注册到某个插槽但没有命中，在 `registerSlot` 内添加 `console.log` 以确认插件 bundle 是否已运行。
+确认名称出现在[插槽目录](#slot-catalogue)中，然后在 `registerSlot` 内添加 `console.log`，确认插件 bundle 已运行。自定义名称只有在另一插件实际渲染匹配的 `PluginSlot` 时才会生效。
 
 **插件后端路由返回 404。**
 1. 确认 manifest 中有 `"api": "plugin_api.py"` 且指向 `dashboard/` 内的现有文件。

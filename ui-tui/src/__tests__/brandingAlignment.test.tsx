@@ -5,15 +5,10 @@ import { stripAnsi } from '@panergos/shared/ansi'
 import React, { type ReactElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
-import { logo, LOGO_WIDTH, PANERGOS_KNOT_WIDTH, panergosKnot } from '../banner.js'
+import { logo } from '../banner.js'
 import { Banner, SessionPanel } from '../components/branding.js'
 import { DEFAULT_THEME } from '../theme.js'
 import type { SessionInfo } from '../types.js'
-
-const KNOT_ART = panergosKnot(DEFAULT_THEME.color)
-const KNOT_TOP = KNOT_ART[0]![1]
-const KNOT_TRANSPARENT_PREFIX = [...KNOT_TOP].findIndex(char => char !== '\u2800')
-const KNOT_SENTINEL = KNOT_TOP.slice(KNOT_TRANSPARENT_PREFIX, KNOT_TRANSPARENT_PREFIX + 2)
 
 const render = (node: ReactElement, columns: number) => {
   const stdout = new PassThrough()
@@ -52,62 +47,90 @@ const render = (node: ReactElement, columns: number) => {
   return stripAnsi(output).split('\n')
 }
 
+const info: SessionInfo = {
+  branch: 'main',
+  cwd: 'C:\\work\\atlas',
+  fast: true,
+  model: 'openrouter/fast-model',
+  profile_name: 'work',
+  provider: 'openrouter',
+  service_tier: 'priority',
+  skills: { core: ['planning', 'memory'] },
+  stored_session_id: 'stored-test',
+  tools: { file: ['read_file', 'write_file'] },
+  usage: { avg_latency_s: 0.8, avg_tps: 72, cache_hit_pct: 88, context_percent: 24 },
+  version: '0.1.0'
+}
+
 describe('branding alignment', () => {
-  it('centres the full wordmark as one fixed-width block', () => {
+  it('renders a compact, left-aligned continuity mark instead of the legacy centred wordmark', () => {
     const columns = 132
     const lines = render(<Banner maxWidth={columns} t={DEFAULT_THEME} />, columns)
-    const logoText = logo(DEFAULT_THEME.color).find(([, text]) => text.length === LOGO_WIDTH)![1]
-    const logoLine = lines.find(line => line.includes(logoText))
-    const tagline = '◆ Panergos · Durable intelligence at work'
-    const taglineLine = lines.find(line => line.includes(tagline))
-    const logoLeft = logoLine?.indexOf(logoText) ?? -1
-    const taglineLeft = taglineLine?.indexOf(tagline) ?? -1
+    const giantWordmark = logo(DEFAULT_THEME.color)[0]![1]
 
-    expect(logoLine, lines.join('\n')).toBeDefined()
-    expect(Math.abs(logoLeft - (columns - logoLeft - logoText.length))).toBeLessThanOrEqual(1)
-    expect(Math.abs(taglineLeft - (columns - taglineLeft - tagline.length))).toBeLessThanOrEqual(1)
+    expect(lines.join('\n')).toContain('━━━━▶ PANERGOS')
+    expect(lines.join('\n')).toContain('WORK CONTINUITY')
+    expect(lines.join('\n')).toContain('context stays · work moves')
+    expect(lines.some(line => line.includes(giantWordmark))).toBe(false)
+    expect(lines.find(line => line.includes('━━━━▶'))?.indexOf('━━━━▶')).toBe(0)
   })
 
-  it('switches from the compact banner only when the full wordmark fits', () => {
-    const firstLogoText = logo(DEFAULT_THEME.color)[0]![1]
-    const compactColumns = LOGO_WIDTH + 1
-    const fullColumns = LOGO_WIDTH + 2
-    const compact = render(<Banner maxWidth={compactColumns} t={DEFAULT_THEME} />, compactColumns)
-    const full = render(<Banner maxWidth={fullColumns} t={DEFAULT_THEME} />, fullColumns)
+  it('steps the continuity label down without overflowing', () => {
+    const tiny = render(<Banner maxWidth={34} t={DEFAULT_THEME} />, 34)
+    const mid = render(<Banner maxWidth={50} t={DEFAULT_THEME} />, 50)
+    const wide = render(<Banner maxWidth={70} t={DEFAULT_THEME} />, 70)
 
-    expect(compact.some(line => line.includes(firstLogoText))).toBe(false)
-    expect(full.some(line => line.includes(firstLogoText))).toBe(true)
-    expect(Math.max(...compact.map(line => line.length))).toBeLessThanOrEqual(compactColumns)
-    expect(Math.max(...full.map(line => line.length))).toBeLessThanOrEqual(fullColumns)
+    expect(tiny.join('\n')).toContain('━━━━▶ PANERGOS')
+    expect(tiny.join('\n')).toContain('CONTINUITY')
+    expect(tiny.join('\n')).not.toContain('context stays')
+    expect(mid.join('\n')).toContain('WORK CONTINUITY')
+    expect(wide.join('\n')).toContain('context stays · work moves')
+    expect(Math.max(...tiny.map(line => line.length))).toBeLessThanOrEqual(34)
+    expect(Math.max(...mid.map(line => line.length))).toBeLessThanOrEqual(50)
+    expect(Math.max(...wide.map(line => line.length))).toBeLessThanOrEqual(70)
   })
 
-  it('centres the knot art inside its wide-layout track', () => {
-    const info: SessionInfo = {
-      model: 'test/model',
-      skills: {},
-      tools: { file: ['read_file'] }
+  it('keeps custom skin identity and hero art live', () => {
+    const custom = {
+      ...DEFAULT_THEME,
+      bannerHero: '[#ff0000]CUSTOM HERO[/]',
+      brand: { ...DEFAULT_THEME.brand, icon: 'N', name: 'Nova Ops' }
     }
 
-    const columns = 120
-    const lines = render(<SessionPanel info={info} sid="test" t={DEFAULT_THEME} />, columns)
-    const knotTop = lines.find(line => line.includes(KNOT_SENTINEL))
-    const panelInset = 3 // one border cell + paddingX=2
-    const heroTrackWidth = PANERGOS_KNOT_WIDTH + 4
-    const artInset = Math.floor((heroTrackWidth - PANERGOS_KNOT_WIDTH) / 2)
+    const banner = render(<Banner maxWidth={80} t={custom} />, 80).join('\n')
+    const workstream = render(<SessionPanel info={info} t={custom} />, 100).join('\n')
 
-    expect(PANERGOS_KNOT_WIDTH).toBe(Math.max(...KNOT_ART.map(([, text]) => text.length)))
-    expect(KNOT_TRANSPARENT_PREFIX).toBeGreaterThan(0)
-    expect(knotTop?.indexOf(KNOT_SENTINEL)).toBe(panelInset + artInset + KNOT_TRANSPARENT_PREFIX)
+    expect(banner).toContain('━━━━▶ N NOVA OPS')
+    expect(workstream).toContain('CUSTOM HERO')
   })
 
-  it('shows the knot only when the wide layout fits without overflowing', () => {
-    const info: SessionInfo = { model: 'test/model', skills: {}, tools: {} }
-    const narrow = render(<SessionPanel info={info} t={DEFAULT_THEME} />, 89)
-    const wide = render(<SessionPanel info={info} t={DEFAULT_THEME} />, 90)
+  it('surfaces work, routing, memory and real actions instead of a hero tool list', () => {
+    const lines = render(<SessionPanel info={info} sid="session-test" t={DEFAULT_THEME} />, 120)
+    const frame = lines.join('\n')
 
-    expect(narrow.some(line => line.includes(KNOT_SENTINEL))).toBe(false)
-    expect(wide.some(line => line.includes(KNOT_SENTINEL))).toBe(true)
-    expect(Math.max(...narrow.map(line => line.length))).toBeLessThanOrEqual(89)
-    expect(Math.max(...wide.map(line => line.length))).toBeLessThanOrEqual(90)
+    expect(frame).toContain('LIVE WORKSTREAM')
+    expect(frame).toContain('01 / MODEL')
+    expect(frame).toContain('02 / ROUTE')
+    expect(frame).toContain('03 / WORKSPACE')
+    expect(frame).toContain('04 / MEMORY')
+    expect(frame).toContain('88% cache hit')
+    expect(frame).toContain('72 t/s')
+    expect(frame).toContain('GO / COMMAND LANE')
+    expect(frame).toContain('Ctrl+O model')
+    expect(frame).toContain('Capability map')
+    expect(frame).not.toContain('Available Tools')
+    expect(Math.max(...lines.map(line => line.length))).toBeLessThanOrEqual(120)
+  })
+
+  it('moves workstream signals from two columns to one when space is tight', () => {
+    const narrow = render(<SessionPanel info={info} t={DEFAULT_THEME} />, 58)
+    const wide = render(<SessionPanel info={info} t={DEFAULT_THEME} />, 100)
+    const narrowModelLine = narrow.find(line => line.includes('01 / MODEL'))
+    const wideModelLine = wide.find(line => line.includes('01 / MODEL'))
+
+    expect(narrowModelLine).not.toContain('02 / ROUTE')
+    expect(wideModelLine).toContain('02 / ROUTE')
+    expect(Math.max(...narrow.map(line => line.length))).toBeLessThanOrEqual(58)
+    expect(Math.max(...wide.map(line => line.length))).toBeLessThanOrEqual(100)
   })
 })

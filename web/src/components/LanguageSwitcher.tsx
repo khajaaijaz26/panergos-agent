@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check } from "lucide-react";
+import { Check, Languages } from "lucide-react";
 import { Button } from "@panergos/ui/ui/components/button";
 import { BottomSheet } from "@panergos/ui/ui/components/bottom-sheet";
 import { Typography } from "@panergos/ui/ui/components/typography/index";
@@ -22,27 +22,31 @@ import { cn } from "@/lib/utils";
  * inevitably create political mismappings (e.g. Mandarin variants ≠ any single
  * jurisdiction, English ≠ GB, Portuguese ≠ PT). Endonyms are unambiguous.
  *
- * When placed at the bottom of the sidebar (next to ThemeSwitcher), pass
+ * When placed in a lower control strip (next to ThemeSwitcher), pass
  * `dropUp` so the list opens above the trigger and avoids clipping below the
  * viewport / overflow ancestors. Below the `sm` breakpoint, `dropUp` uses a
  * bottom sheet portaled to `document.body` instead of an anchored dropdown.
  */
-export function LanguageSwitcher({ collapsed = false, dropUp = false }: LanguageSwitcherProps) {
+export function LanguageSwitcher({ collapsed = false, dropUp = false, modalOwnerId }: LanguageSwitcherProps) {
   const { locale, setLocale, t } = useI18n();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const narrowViewport = useBelowBreakpoint(640);
-  const useMobileSheet = Boolean(dropUp && narrowViewport);
+  const useMobileSheet = Boolean(dropUp && narrowViewport && !modalOwnerId);
+  const closeAndRestore = useCallback(() => {
+    setOpen(false);
+    queueMicrotask(() => containerRef.current?.querySelector<HTMLButtonElement>("button")?.focus());
+  }, []);
 
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") closeAndRestore();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [closeAndRestore, open]);
 
   useEffect(() => {
     if (!open || useMobileSheet) return;
@@ -58,12 +62,21 @@ export function LanguageSwitcher({ collapsed = false, dropUp = false }: Language
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open, useMobileSheet]);
 
+  useEffect(() => {
+    if (!open || useMobileSheet || !modalOwnerId) return;
+    dropdownRef.current?.querySelector<HTMLElement>('[role="option"]')?.focus();
+  }, [modalOwnerId, open, useMobileSheet]);
+
   const current = LOCALE_META[locale];
   const allLocales = Object.entries(LOCALE_META) as Array<[Locale, typeof current]>;
   const sheetTitle = t.language.switchTo;
 
   return (
-    <div ref={containerRef} className="relative inline-flex">
+    <div
+      ref={containerRef}
+      className="relative inline-flex"
+      data-modal-child-open={open ? "true" : undefined}
+    >
       <Button
         ghost
         onClick={() => setOpen((v) => !v)}
@@ -77,6 +90,7 @@ export function LanguageSwitcher({ collapsed = false, dropUp = false }: Language
         )}
       >
         <span className="inline-flex items-center gap-1.5">
+          <Languages aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
           <Typography
             className="hidden sm:inline text-display tracking-wide text-xs"
           >
@@ -88,7 +102,7 @@ export function LanguageSwitcher({ collapsed = false, dropUp = false }: Language
       {useMobileSheet && (
         <BottomSheet
           backdropDismissLabel={t.common.close}
-          onClose={() => setOpen(false)}
+          onClose={closeAndRestore}
           open={open}
           title={sheetTitle}
         >
@@ -97,7 +111,7 @@ export function LanguageSwitcher({ collapsed = false, dropUp = false }: Language
               allLocales={allLocales}
               locale={locale}
               setLocale={setLocale}
-              setOpen={setOpen}
+              close={closeAndRestore}
             />
           </div>
         </BottomSheet>
@@ -105,17 +119,22 @@ export function LanguageSwitcher({ collapsed = false, dropUp = false }: Language
 
       {open && !useMobileSheet && (() => {
         const rect = containerRef.current?.getBoundingClientRect();
+        const containedByModal = Boolean(modalOwnerId);
         const dropdown = (
           <div
             ref={dropdownRef}
             aria-label={sheetTitle}
             className={cn(
               "min-w-[10rem] border border-border bg-popover shadow-md py-1 max-h-80 overflow-y-auto",
-              dropUp ? "fixed z-[100]" : "absolute z-50 right-0 top-full mt-1",
+              dropUp
+                ? containedByModal
+                  ? "absolute bottom-full right-0 z-[100] mb-1"
+                  : "fixed z-[100]"
+                : "absolute z-50 right-0 top-full mt-1",
             )}
             role="listbox"
             style={
-              dropUp && rect
+              dropUp && !containedByModal && rect
                 ? { bottom: window.innerHeight - rect.top + 4, left: rect.left }
                 : undefined
             }
@@ -124,11 +143,11 @@ export function LanguageSwitcher({ collapsed = false, dropUp = false }: Language
               allLocales={allLocales}
               locale={locale}
               setLocale={setLocale}
-              setOpen={setOpen}
+              close={closeAndRestore}
             />
           </div>
         );
-        return dropUp ? createPortal(dropdown, document.body) : dropdown;
+        return dropUp && !containedByModal ? createPortal(dropdown, document.body) : dropdown;
       })()}
     </div>
   );
@@ -136,9 +155,9 @@ export function LanguageSwitcher({ collapsed = false, dropUp = false }: Language
 
 function LanguageSwitcherOptions({
   allLocales,
+  close,
   locale,
   setLocale,
-  setOpen,
 }: LanguageSwitcherOptionsProps) {
   return (
     <>
@@ -157,7 +176,7 @@ function LanguageSwitcherOptions({
             key={code}
             onClick={() => {
               setLocale(code);
-              setOpen(false);
+              close();
             }}
             role="option"
             type="button"
@@ -174,12 +193,13 @@ function LanguageSwitcherOptions({
 
 interface LanguageSwitcherOptionsProps {
   allLocales: Array<[Locale, (typeof LOCALE_META)[Locale]]>;
+  close: () => void;
   locale: Locale;
   setLocale: (code: Locale) => void;
-  setOpen: (open: boolean) => void;
 }
 
 interface LanguageSwitcherProps {
   collapsed?: boolean;
   dropUp?: boolean;
+  modalOwnerId?: string;
 }

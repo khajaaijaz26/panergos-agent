@@ -527,18 +527,18 @@ describe('StatusRule perf read-outs (cache hit / latency / tps)', () => {
     const element = StatusRule({ ...baseProps, cols: 160, usage: perfUsage })
     const rendered = textContent(element)
 
-    expect(rendered).toContain('◎ 87%')
-    expect(rendered).toContain('◷ 3.2s')
-    expect(rendered).toContain('↑ 50 t/s')
+    expect(rendered).toContain('cache 87%')
+    expect(rendered).toContain('lat 3.2s')
+    expect(rendered).toContain('50 tok/s')
   })
 
   it('self-hides when the server omits the keys', () => {
     const element = StatusRule({ ...baseProps, cols: 160 })
     const rendered = textContent(element)
 
-    expect(rendered).not.toContain('◎')
-    expect(rendered).not.toContain('◷')
-    expect(rendered).not.toContain('t/s')
+    expect(rendered).not.toContain('cache ')
+    expect(rendered).not.toContain('lat ')
+    expect(rendered).not.toContain('tok/s')
   })
 
   it('honors the display.status_bar.fields visibility filter', () => {
@@ -551,9 +551,9 @@ describe('StatusRule perf read-outs (cache hit / latency / tps)', () => {
 
     const rendered = textContent(element)
 
-    expect(rendered).toContain('◎ 87%')
-    expect(rendered).not.toContain('◷')
-    expect(rendered).not.toContain('t/s')
+    expect(rendered).toContain('cache 87%')
+    expect(rendered).not.toContain('lat ')
+    expect(rendered).not.toContain('tok/s')
   })
 
   it('hides the session title badge when the fields filter omits title', () => {
@@ -565,5 +565,19 @@ describe('StatusRule perf read-outs (cache hit / latency / tps)', () => {
     })
 
     expect(textContent(element)).not.toContain('weekly-digest')
+  })
+})
+
+describe('StatusRule fast-mode badge', () => {
+  it('shows active /fast state as a distinct success-colored badge', () => {
+    const element = StatusRule({ ...baseProps, modelFast: true })
+    const badge = findElementWithText(element, '⚡ fast')
+
+    expect(textContent(element)).toContain('opus 4.8 ⚡ fast')
+    expect(badge?.props.color).toBe(DEFAULT_THEME.color.statusGood)
+  })
+
+  it('does not imply fast mode when /fast is off', () => {
+    expect(textContent(StatusRule({ ...baseProps, modelFast: false }))).not.toContain('⚡ fast')
   })
 })

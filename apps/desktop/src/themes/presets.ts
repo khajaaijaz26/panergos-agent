@@ -96,7 +96,7 @@ export const githubTheme: DesktopTheme = {
 /** Catppuccin — Latte in light, Mocha in dark (Catppuccin.catppuccin-vsc). */
 
 /**
- * Panergos Eclipse — plum canvas, signal coral, electric jade, orbit gold,
+ * Panergos Eclipse — plum canvas, signal coral, electric jade, relay gold,
  * and frost. Light mode deepens coral so text and controls retain AA contrast.
  */
 export const eclipseTheme: DesktopTheme = {

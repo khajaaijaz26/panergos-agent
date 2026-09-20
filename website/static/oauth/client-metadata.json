@@ -2,7 +2,7 @@
   "client_id": "https://khajaaijaz26.github.io/panergos-agent/docs/oauth/client-metadata.json",
   "client_name": "Panergos Agent",
   "client_uri": "https://github.com/khajaaijaz26/panergos-agent",
-  "logo_uri": "https://khajaaijaz26.github.io/panergos-agent/docs/img/panergos-icon.png",
+  "logo_uri": "https://khajaaijaz26.github.io/panergos-agent/docs/img/panergos-mark.svg",
   "application_type": "native",
   "grant_types": ["authorization_code", "refresh_token"],
   "response_types": ["code"],

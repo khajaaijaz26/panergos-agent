@@ -66,7 +66,7 @@ def _run_doctor(fix=False):
 
 
 class TestDoctorCommandInstallation:
-    """Tests for the ◆ Command Installation section."""
+    """Tests for the ▶ Command Installation section."""
 
 
 

@@ -114,7 +114,7 @@ def _profile_list(args):
     print(f"\n {'Profile':<16} {'Model':<28} {'Gateway':<12} {'Alias':<12} {'Distribution'}")
     print(f" {'─' * 15}    {'─' * 27}    {'─' * 11}    {'─' * 11}    {'─' * 20}")
     for p in profiles:
-        marker = " ◆" if _is_active(p, active) else "  "
+        marker = " ▶" if _is_active(p, active) else "  "
         name = format_profile_label(p.name, p.display_name)
         model = (p.model or "—")[:26]
         gw = "running" if p.gateway_running else "stopped"

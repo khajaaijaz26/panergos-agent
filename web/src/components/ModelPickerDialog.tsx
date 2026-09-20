@@ -10,6 +10,7 @@ import type { ModelOptionProvider, ModelOptionsResult } from "@panergos/shared";
 import { Check, RefreshCw, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { cn, themedBody } from "@/lib/utils";
 import { queryMatchesProviderOnly } from "@/lib/model-picker-filter";
 import { fuzzyRank, modelSearchText } from "@panergos/shared";
@@ -102,6 +103,11 @@ export function ModelPickerDialog(props: Props) {
   const [pendingConfirm, setPendingConfirm] =
     useState<PendingExpensiveConfirm | null>(null);
   const closedRef = useRef(false);
+  const dialogRef = useModalBehavior({
+    initialFocus: "[data-model-search]",
+    open: true,
+    onClose,
+  });
 
   const applyOptions = (r: ModelOptionsResult) => {
     const next = r?.providers ?? [];
@@ -175,18 +181,6 @@ export function ModelPickerDialog(props: Props) {
     // Deliberately omit props from deps — stable for the dialog's lifetime.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Esc closes.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   const selectedProvider = useMemo(
     () => providers.find((p) => p.slug === selectedSlug) ?? null,
@@ -329,10 +323,9 @@ export function ModelPickerDialog(props: Props) {
 
   // Portal to document.body: the main dashboard column in App.tsx is
   // `relative z-2`, which creates a stacking context that traps fixed
-  // descendants below the app sidebar (z-50). Without the portal this
-  // modal's z-[100] is scoped to z-2 and the sidebar covers its left
-  // edge — visible especially in the Large theme variants where the
-  // larger root font widens the dialog into the sidebar's column. See
+  // descendants below the app chrome (z-50). Without the portal this
+  // modal's z-[100] is scoped to z-2 and higher shell layers can cover its
+  // edge — visible especially in the Large theme variants. See
   // Toast.tsx for the same pattern.
   return createPortal(
     <div
@@ -341,6 +334,7 @@ export function ModelPickerDialog(props: Props) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="model-picker-title"
+      ref={dialogRef}
     >
       <div className={cn(themedBody, "relative w-full max-w-3xl max-h-[80vh] border border-border bg-card shadow-2xl flex flex-col")}>
         <Button
@@ -370,7 +364,7 @@ export function ModelPickerDialog(props: Props) {
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              autoFocus
+              data-model-search
               placeholder="Filter providers and models…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}

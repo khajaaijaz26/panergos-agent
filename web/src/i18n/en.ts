@@ -54,7 +54,7 @@ export const en: Translations = {
 
   app: {
     brand: "Panergos Agent",
-    brandShort: "HA",
+    brandShort: "PA",
     closeNavigation: "Close navigation",
     closeModelTools: "Close model and tools",
     footer: {
@@ -407,7 +407,7 @@ export const en: Translations = {
     removeConfirm: "Remove this plugin from ~/.panergos/plugins/?",
     removeHint: "Only user-installed plugins under ~/.panergos/plugins can be removed.",
     rescanHeading: "SPA plugin registry",
-    rescanHint: "Rescan after adding files on disk so the dashboard sidebar picks up new manifests.",
+    rescanHint: "Rescan after adding files on disk so Navigation picks up new manifests.",
     runtimeHeading: "Gateway runtime (YAML plugins)",
     saveProviders: "Save provider settings",
     savedProviders: "Provider settings saved.",
@@ -416,8 +416,8 @@ export const en: Translations = {
     authRequiredHint: "Run this command to authenticate:",
     updateGit: "Git pull",
     versionBadge: "Version",
-    showInSidebar: "Show in sidebar",
-    hideFromSidebar: "Hide from sidebar",
+    showInSidebar: "Show in Navigation",
+    hideFromSidebar: "Hide from Navigation",
     catalogHeading: "Plugin catalog",
     catalogHint:
       "Curated plugins pinned to exact commits. Install from here for supply-chain-safe versions.",
@@ -691,7 +691,7 @@ export const en: Translations = {
         "Share on X opens a pre-filled post in a new tab. Click Copy image first if you want the 1200×630 badge attached — X lets you paste it right into the tweet composer. Download PNG saves the file for use anywhere.",
       clipboard_unsupported:
         "Clipboard image copy not supported in this browser — use Download instead.",
-      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ◆",
+      tweet_text: "Just unlocked {tier_part}\"{name}\" in Panergos Agent ▶",
     },
   },
 

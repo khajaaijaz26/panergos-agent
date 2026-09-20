@@ -351,7 +351,7 @@ TIPS = [
     'panergos dashboard embeds the full Panergos TUI in your browser via xterm.js and a WebSocket PTY.',
     'Drop a YAML in ~/.panergos/dashboard-themes/ with two palette colors to reskin the entire dashboard.',
     'Dashboard plugins are drop-in: manifest.json + JS bundle in ~/.panergos/dashboard-plugins/ — no npm build required.',
-    'layoutVariant: cockpit in a dashboard theme adds a 260px left rail that plugins can populate via the sidebar slot.',
+    'layoutVariant: cockpit exposes a dashboard theme hook for denser custom chrome without reserving a permanent sidebar.',
     # --- Env Vars & Config Gates ---
     "display.tool_progress_command: true exposes /verbose on messaging platforms; it's CLI-only by default.",
     'PANERGOS_BACKGROUND_NOTIFICATIONS=result only pings when background tasks finish (vs concise/all/error/off).',
