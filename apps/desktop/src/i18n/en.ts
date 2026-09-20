@@ -875,8 +875,9 @@ export const en: Translations = {
       invalidJson: 'Invalid config JSON',
       toolsetsWipeConfirm:
         'Remove all enabled toolsets? This disables memory, terminal, web search, delegation, and most other tools until you re-enable them.',
-      keepAwakeTitle: 'Keep computer awake',
-      keepAwakeDesc: 'Stop this machine from sleeping so long or overnight runs keep going. The display can still dim.',
+      keepAwakeTitle: 'Keep Panergos working when screen is off',
+      keepAwakeDesc:
+        'Prevent computer sleep so active tasks continue when the display dims, locks, or turns off. Panergos does not keep the display awake.',
       disableF12Title: 'Disable F12 DevTools',
       disableF12Desc: 'Block F12 from opening Developer Tools. Ctrl+Shift+I (or Cmd+Opt+I on Mac) still works.',
       attachmentSizeTitle: 'Max preview / image load size',

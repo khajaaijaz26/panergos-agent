@@ -29,6 +29,20 @@ The preparer drafts, the reviewer checks, the executor performs the approved act
 - **Evidence:** policy version, authorized source records, consent/access boundary, reviewer, effective date.
 - **Gate:** hiring, termination, compensation, promotion, discipline, formal evaluation, and access changes require exact approval and qualified HR/legal review. Minimize employee data.
 
+### Education and academic operations
+
+- **Work:** lesson and unit planning, curriculum mapping, assessment and rubric drafts, accessibility planning, learner-support coordination, attendance/enrollment/timetable analysis, school improvement plans, program review, accreditation evidence, research administration, and leadership reporting.
+- **Route:** documents, PDFs, presentations, spreadsheets, email/calendar, approved shared files, and configured learning-management (LMS), student-information (SIS), research, or institutional analytics tools.
+- **Evidence:** institution and academic period, curriculum/standard or policy version, cohort and metric definition, source freshness, rubric or acceptance criteria, accessibility/privacy classification, reviewer, and decision record.
+- **Gate:** the accountable teacher, principal/school leader, academic leader, or other qualified human owns instructional and institutional judgment. Grading, admissions, discipline, safeguarding, special-education/accommodation, research-ethics, and high-impact learner decisions require the institution's exact review path. Minimize learner data, especially data about minors.
+
+| Operating role | Typical owned work | Human boundary |
+|---|---|---|
+| Teacher or faculty member | Lesson/material drafts, assessment/rubric design, feedback drafts, course analysis, and family/student communication drafts | Owns instruction, grading, feedback, accessibility, and any send or publication |
+| Principal or school leader | Improvement planning, staffing/timetable scenarios, attendance and achievement analysis, policy/SOP drafts, leadership briefs, and community communications | Owns safeguarding, discipline, staffing, resource allocation, school policy, and external communication |
+| University or college leader | Program and accreditation reviews, research/academic operations, retention and capacity analysis, committee packs, and institutional reporting | Owns admissions, awards/degree decisions, research ethics, academic policy, funding, and regulated reporting |
+| Education analyst or data engineer | Metric definitions, validated extracts, privacy-safe models/pipelines, dashboards, data-quality reports, and lineage | Owns no learner outcome; an authorized institutional reviewer approves access, definitions, use, and release |
+
 ### Sales
 
 - **Work:** account research, pipeline hygiene, call preparation, proposal drafts, follow-ups, and forecast rollups.
@@ -73,10 +87,17 @@ The preparer drafts, the reviewer checks, the executor performs the approved act
 
 ### Engineering, IT, and security
 
-- **Work:** requirements and implementation plans, change requests, incident coordination, access reviews, asset records, runbooks, and postmortems.
-- **Route:** repository/file tools, issue/project systems, documents, and configured infrastructure/security MCP/plugin tools.
-- **Evidence:** environment, version/commit, ticket or incident ID, test/scan result, change window, rollback, approver, observed outcome.
+- **Work:** requirements, architecture and implementation plans, coding and refactoring, tests and reviews, CI/CD, change requests, incident coordination, access reviews, asset records, runbooks, and postmortems.
+- **Route:** `read_file`, `search_files`, `patch`, `terminal`, repository/project systems, software-development skills, documents, and configured infrastructure/security MCP/plugin tools.
+- **Evidence:** environment, version/commit, ticket or incident ID, reproducible test/scan result, review, change window, rollback, approver, and observed outcome.
 - **Gate:** production changes, credential/permission changes, destructive actions, disclosure, and incident containment with user impact require the appropriate approval. Preserve evidence and least privilege.
+
+### Data engineering and AI systems
+
+- **Work:** source profiling, data contracts and schemas, ETL/ELT and streaming pipelines, orchestration, transformations, lineage, data-quality controls, warehouse/lakehouse models, feature/model pipelines, evaluation, monitoring, and incident recovery.
+- **Route:** repository/file tools, `terminal`, `jupyter-notebook`, configured database/warehouse/BI MCP or plugin tools, and the organization's approved orchestration and model platforms.
+- **Evidence:** source and schema versions, lineage, environment and commit, query or job ID, row/count reconciliation, quality thresholds, tests, freshness/SLA, model/data version when applicable, access scope, and observed run result.
+- **Gate:** production deployment, destructive migration/backfill, restricted-data access, retention changes, automated high-impact decisions, and externally released metrics/models require the named data owner, security/privacy review, and exact approval required by policy.
 
 ### Product
 
@@ -106,3 +127,13 @@ The preparer drafts, the reviewer checks, the executor performs the approved act
 3. Preserve each department's source and reviewer instead of flattening everything into an unsupported executive summary.
 4. When departments disagree, record both positions and route the decision to the named authority.
 5. Share the minimum data required for the receiving role; a handoff is not permission to broaden access.
+
+## Industry-neutral adaptation
+
+For education, healthcare, manufacturing, retail, logistics, government, nonprofit, professional services, technology, or another sector, keep the same workflow and replace only the domain-specific inputs:
+
+1. Record the sector, jurisdiction, governing standards, data classification, and system of record in the charter.
+2. Select the closest department pack; add the organization's real job title without granting authority from the title alone.
+3. Route domain judgments to the qualified human required by law, policy, contract, or professional standard.
+4. Define evidence and acceptance criteria from authoritative sector sources before drafting or executing.
+5. Use only configured tools and connected accounts, and preserve Draft, Review, Execute, and Evidence for every industry.

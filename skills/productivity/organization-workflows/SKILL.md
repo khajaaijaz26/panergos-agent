@@ -1,14 +1,14 @@
 ---
 name: organization-workflows
 description: "Coordinate reviewable work across roles and departments."
-version: 0.1.0
+version: 0.2.0
 author: Khaja Aijaz (khajaaijaz26), Panergos Agent
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
   panergos:
-    tags: [Organizations, Departments, Approvals, Handoffs, Operations]
-    related_skills: [document-to-action-items, meeting-action-items, weekly-review-planning, xlsx, docx, pdf, powerpoint, email-inbox-triage, himalaya, google-workspace, notion, airtable, box]
+    tags: [Organizations, Departments, Education, Data, Engineering, Approvals, Handoffs, Operations]
+    related_skills: [document-to-action-items, meeting-action-items, weekly-review-planning, xlsx, docx, pdf, powerpoint, email-inbox-triage, himalaya, google-workspace, notion, airtable, box, jupyter-notebook, test-driven-development, systematic-debugging, sdlc-review]
 ---
 
 # Organization Workflows
@@ -20,6 +20,8 @@ It can draft and coordinate work, but it cannot supply an unconfigured account, 
 ## When to Use
 
 - "Run this work across finance, HR, sales, and operations."
+- "Build a school improvement plan with the principal and teachers."
+- "Coordinate a university review or an education data pipeline."
 - "Prepare a department plan and route it for approval."
 - "Coordinate this initiative from individual tasks to an executive brief."
 - "Resume the quarterly process from the last verified handoff."
@@ -49,6 +51,9 @@ Route artifacts through capabilities already available in the session:
 |---|---|
 | Documents, PDFs, presentations | `docx`, `pdf`, `powerpoint`, `document-to-action-items` |
 | Tables, budgets, metrics, reconciliations | `xlsx` or configured Google Sheets access through `google-workspace` |
+| Lessons, assessments, school/university operations | `docx`, `pdf`, `powerpoint`, `xlsx`, calendars, and a configured LMS/SIS route |
+| Data analysis and engineering | `jupyter-notebook`, `xlsx`, repository tools, and configured database/warehouse/BI routes |
+| Software engineering and coding | `read_file`, `search_files`, `patch`, `terminal`, `test-driven-development`, `systematic-debugging`, and `sdlc-review` |
 | Email and calendar | `email-inbox-triage`, `himalaya`, or `google-workspace` |
 | Notes, records, and shared files | `notion`, `airtable`, `box`, or another configured MCP/plugin tool |
 | Long-running coordination | `delegate_task`; use `panergos_mission` when that plugin tool is available |
@@ -98,7 +103,7 @@ Record the objective, scope, department, accountable human, intended audience, d
 
 ### 2. Select the operating role
 
-Read the relevant scope and department rows in [Roles and departments](references/roles-and-departments.md). Name the preparer, reviewer, executor, and decision authority; one person may hold several roles only when policy allows it. For legal/compliance, employment, accounting/tax, or security decisions, name the qualified human reviewer. Done when every required role is named or visibly blocked.
+Read the relevant scope and department rows in [Roles and departments](references/roles-and-departments.md). Name the preparer, reviewer, executor, and decision authority; one person may hold several roles only when policy allows it. For legal/compliance, employment, accounting/tax, education safeguarding or learner-impact decisions, security decisions, and production engineering changes, name the qualified human reviewer. Done when every required role is named or visibly blocked.
 
 ### 3. Create or resume the work package
 
@@ -134,6 +139,7 @@ Compare results with acceptance criteria, reconcile department and executive vie
 - Moving stale handoff data into execution without checking the current system of record.
 - Retrying an ambiguous write and creating duplicate payments, records, messages, or tickets.
 - Sharing sensitive HR, customer, legal, finance, or security data with agents or systems that do not need it.
+- Automating grading, admissions, discipline, safeguarding, accommodations, or learner-support decisions without the accountable educator and required policy review.
 - Claiming end-to-end automation when a required account, provider capability, permission, or human reviewer is missing.
 
 ## Verification
@@ -142,6 +148,7 @@ Compare results with acceptance criteria, reconcile department and executive vie
 - [ ] Draft, Review, Execute, and Evidence remain separate and the current stage is visible.
 - [ ] Money, contract, employment, access, and external-publishing actions have exact recorded approval.
 - [ ] Qualified human review occurred wherever policy or professional judgment requires it.
+- [ ] Learner data and education decisions follow institutional policy, privacy rules, and the accountable educator's review.
 - [ ] Every external write was read back, and ambiguous outcomes were checked before retry.
 - [ ] Every completion claim has provider or source evidence; gaps and configured-account limits are stated.
 - [ ] The latest handoff names completed, pending, blocked, next action/owner, state version, and do-not-replay operations.

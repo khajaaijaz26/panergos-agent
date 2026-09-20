@@ -58,6 +58,7 @@ def test_governance_scope_and_department_coverage():
     departments = (
         "Finance",
         "Human resources (HR)",
+        "Education and academic operations",
         "Sales",
         "Marketing",
         "Customer support",
@@ -65,6 +66,7 @@ def test_governance_scope_and_department_coverage():
         "Procurement",
         "Legal and compliance",
         "Engineering, IT, and security",
+        "Data engineering and AI systems",
         "Product",
         "Analytics",
         "Executive",
@@ -79,6 +81,42 @@ def test_governance_scope_and_department_coverage():
 
     for gate in ("money", "contracts", "employment decisions", "access changes", "external publishing"):
         assert gate in body.lower()
+
+
+def test_education_engineering_and_cross_industry_routes():
+    _, body = _frontmatter_and_body()
+    role_pack = (SKILL_DIR / "references" / "roles-and-departments.md").read_text(
+        encoding="utf-8"
+    )
+    template = (SKILL_DIR / "templates" / "work-package.md").read_text(
+        encoding="utf-8"
+    )
+
+    for role in (
+        "Teacher or faculty member",
+        "Principal or school leader",
+        "University or college leader",
+        "Education analyst or data engineer",
+    ):
+        assert f"| {role} |" in role_pack
+
+    for contract in (
+        "configured LMS/SIS route",
+        "test-driven-development",
+        "Industry-neutral adaptation",
+        "qualified human",
+        "Minimize learner data",
+        "reproducible test/scan result",
+        "lineage",
+    ):
+        assert contract.lower() in (body + role_pack).lower()
+
+    for field in (
+        "industry_or_sector",
+        "institution_or_business_unit",
+        "jurisdiction_and_governing_standards",
+    ):
+        assert f"`{field}`:" in template
 
 
 def test_resume_and_real_world_limits_are_explicit():

@@ -9,6 +9,9 @@ Copy this template into the user's approved system of record. Omit unused fields
 - `status`: active | blocked | accepted | closed
 - `scope`: individual | manager | department | executive
 - `department`:
+- `industry_or_sector`:
+- `institution_or_business_unit`:
+- `jurisdiction_and_governing_standards`:
 - `objective`:
 - `acceptance_criteria`:
 - `accountable_human`:

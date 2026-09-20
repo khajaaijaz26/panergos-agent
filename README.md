@@ -55,6 +55,8 @@
 | **Automatic model recovery** | Ordered fallback can move to another configured route after supported quota, rate-limit, or availability failures without repeated manual switching. | Open **Models → Automatic fallback** or run `panergos fallback`. |
 | **Native desktop launcher** | `panergos desktop` builds only when needed, then opens the native shell directly; later launches use a content stamp to skip unchanged builds. | Run `panergos desktop`. |
 | **Readable desktop scale** | Fresh installs and **Actual Size / Ctrl+0** now use **110%**; Appearance presets and native zoom controls remain available. | Open **Settings → Appearance → UI scale**. |
+| **Native keep-awake** | Electron's native app-suspension blocker can prevent computer sleep so active work continues while the display dims, locks, or turns off; Panergos does not keep the display awake. | Open **Settings → Advanced** and enable **Keep Panergos working when screen is off**. |
+| **Centered terminal startup** | The terminal reveals the large Panergos wordmark one letter at a time in a fixed, centered upper stage, uses responsive fallbacks for narrower terminals, and leaves the completed name visible above the working interface. | Launch `panergos`; use a wide terminal for the full six-row wordmark. |
 | **Native desktop appearance** | Panergos Eclipse uses eclipse plum, signal coral, relay amber, and electric jade instead of a single-color surface. Built-in themes, light/dark/system mode, live theme search, VS Code Marketplace theme installation, terminal font, session density, tab defaults, and supported glass/translucency controls are available. | Open **Settings → Appearance**; use its theme search to filter installed themes or install another one. |
 | **Browser command workspace** | The local dashboard uses a searchable Command Map, full-width Focus Stage, bottom Launch Bay, and compact Continuity Lane instead of a permanent admin sidebar. | Run `panergos dashboard`, then open `http://127.0.0.1:9119`; press `Ctrl/Cmd+K` for Navigation. |
 | **Live browser themes and fonts** | The dashboard palette switcher changes color roles, typography, density, corner radius, terminal colors, and supported custom theme assets immediately. Built-in and user YAML themes persist, while the font override can be changed independently. | Press `Ctrl/Cmd+K`, then use the palette control in Navigation; choose a theme and font. |
@@ -138,6 +140,7 @@ uvx --from uv==0.9.28 uv sync --locked --python 3.11 --extra dev
 | **Authorized cybersecurity**      | Review source and dependencies, investigate incidents and open-source evidence, scan approved targets, validate web vulnerabilities inside a written allowlist, preserve evidence, and produce remediation reports. |
 | **Creative and media production** | Generate or edit images, create text/image/reference-to-video assets, produce presenter and animation projects, add voice, captions, music, and effects, then render, verify, and package the result.               |
 | **Office and company operations** | Coordinate finance, HR, sales, marketing, support, procurement, legal/compliance, operations, product, analytics, engineering, IT, security, management, and executive review through accountable work packages.    |
+| **Education and data work**       | Support school and university planning, teaching and faculty workflows, student services, education data analysis, data engineering, and software engineering through accountable work packages and configured systems. |
 | **Communication**                 | Connect WhatsApp, WhatsApp Cloud, Telegram, Discord, Slack, Signal, Matrix, email, SMS, Teams, Google Chat, LINE, IRC, webhooks, and other installed adapters.                                                      |
 | **Automation**                    | Run one-shot jobs, schedules, webhooks, background processes, Kanban workers, multi-agent missions, peer gateways, and approval-aware external actions.                                                             |
 | **Computer and browser work**     | Use browser automation, a real browser profile, and the cross-platform Computer Use backend when installed and permitted.                                                                                           |
@@ -194,6 +197,12 @@ Every package separates **Draft → Review → Execute → Evidence**. Money mov
 Covered role families include:
 
 `Finance` · `HR` · `Sales` · `Marketing` · `Support` · `Operations` · `Procurement` · `Legal & Compliance` · `Engineering` · `IT` · `Security` · `Product` · `Analytics` · `Management` · `Executive coordination`
+
+### Education and data work
+
+The expanded `organization-workflows` skill covers schools, universities, teachers and faculty, principals and school leaders, student services, education data analysis, data engineering, software engineering, and a generic cross-industry adapter for organizations outside the named role families.
+
+Decisions affecting students or staff require accountable human approval. Privacy, retention, safeguarding, and FERPA-like requirements depend on the institution and jurisdiction, and live work in an LMS, SIS, data platform, code host, or other external system requires the relevant configured connector, account, permissions, and review path.
 
 ### Campaigns that create and publish in one workflow
 

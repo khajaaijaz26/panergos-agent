@@ -16,12 +16,12 @@ Coordinate reviewable work across roles and departments.
 |---|---|
 | Source | Bundled (installed by default) |
 | Path | `skills/productivity/organization-workflows` |
-| Version | `0.1.0` |
+| Version | `0.2.0` |
 | Author | Khaja Aijaz (khajaaijaz26), Panergos Agent |
 | License | MIT |
 | Platforms | linux, macos, windows |
-| Tags | `Organizations`, `Departments`, `Approvals`, `Handoffs`, `Operations` |
-| Related skills | [`document-to-action-items`](/user-guide/skills/bundled/productivity/productivity-document-to-action-items), [`meeting-action-items`](/user-guide/skills/bundled/productivity/productivity-meeting-action-items), [`weekly-review-planning`](/user-guide/skills/bundled/productivity/productivity-weekly-review-planning), [`xlsx`](/user-guide/skills/bundled/productivity/productivity-xlsx), [`docx`](/user-guide/skills/bundled/productivity/productivity-docx), [`pdf`](/user-guide/skills/bundled/productivity/productivity-pdf), [`powerpoint`](/user-guide/skills/bundled/productivity/productivity-powerpoint), [`email-inbox-triage`](/user-guide/skills/bundled/email/email-email-inbox-triage), [`himalaya`](/user-guide/skills/bundled/email/email-himalaya), [`google-workspace`](/user-guide/skills/bundled/productivity/productivity-google-workspace), [`notion`](/user-guide/skills/bundled/productivity/productivity-notion), [`airtable`](/user-guide/skills/bundled/productivity/productivity-airtable), [`box`](/user-guide/skills/bundled/productivity/productivity-box) |
+| Tags | `Organizations`, `Departments`, `Education`, `Data`, `Engineering`, `Approvals`, `Handoffs`, `Operations` |
+| Related skills | [`document-to-action-items`](/user-guide/skills/bundled/productivity/productivity-document-to-action-items), [`meeting-action-items`](/user-guide/skills/bundled/productivity/productivity-meeting-action-items), [`weekly-review-planning`](/user-guide/skills/bundled/productivity/productivity-weekly-review-planning), [`xlsx`](/user-guide/skills/bundled/productivity/productivity-xlsx), [`docx`](/user-guide/skills/bundled/productivity/productivity-docx), [`pdf`](/user-guide/skills/bundled/productivity/productivity-pdf), [`powerpoint`](/user-guide/skills/bundled/productivity/productivity-powerpoint), [`email-inbox-triage`](/user-guide/skills/bundled/email/email-email-inbox-triage), [`himalaya`](/user-guide/skills/bundled/email/email-himalaya), [`google-workspace`](/user-guide/skills/bundled/productivity/productivity-google-workspace), [`notion`](/user-guide/skills/bundled/productivity/productivity-notion), [`airtable`](/user-guide/skills/bundled/productivity/productivity-airtable), [`box`](/user-guide/skills/bundled/productivity/productivity-box), [`jupyter-notebook`](/user-guide/skills/optional/data-science/data-science-jupyter-notebook), [`test-driven-development`](/user-guide/skills/bundled/software-development/software-development-test-driven-development), [`systematic-debugging`](/user-guide/skills/bundled/software-development/software-development-systematic-debugging), [`sdlc-review`](/user-guide/skills/bundled/devops/devops-sdlc-review) |
 
 ## Reference: full SKILL.md
 
@@ -38,6 +38,8 @@ It can draft and coordinate work, but it cannot supply an unconfigured account, 
 ## When to Use
 
 - "Run this work across finance, HR, sales, and operations."
+- "Build a school improvement plan with the principal and teachers."
+- "Coordinate a university review or an education data pipeline."
 - "Prepare a department plan and route it for approval."
 - "Coordinate this initiative from individual tasks to an executive brief."
 - "Resume the quarterly process from the last verified handoff."
@@ -67,6 +69,9 @@ Route artifacts through capabilities already available in the session:
 |---|---|
 | Documents, PDFs, presentations | `docx`, `pdf`, `powerpoint`, `document-to-action-items` |
 | Tables, budgets, metrics, reconciliations | `xlsx` or configured Google Sheets access through `google-workspace` |
+| Lessons, assessments, school/university operations | `docx`, `pdf`, `powerpoint`, `xlsx`, calendars, and a configured LMS/SIS route |
+| Data analysis and engineering | `jupyter-notebook`, `xlsx`, repository tools, and configured database/warehouse/BI routes |
+| Software engineering and coding | `read_file`, `search_files`, `patch`, `terminal`, `test-driven-development`, `systematic-debugging`, and `sdlc-review` |
 | Email and calendar | `email-inbox-triage`, `himalaya`, or `google-workspace` |
 | Notes, records, and shared files | `notion`, `airtable`, `box`, or another configured MCP/plugin tool |
 | Long-running coordination | `delegate_task`; use `panergos_mission` when that plugin tool is available |
@@ -116,7 +121,7 @@ Record the objective, scope, department, accountable human, intended audience, d
 
 ### 2. Select the operating role
 
-Read the relevant scope and department rows in [Roles and departments](https://github.com/khajaaijaz26/panergos-agent/blob/main/skills/productivity/organization-workflows/references/roles-and-departments.md). Name the preparer, reviewer, executor, and decision authority; one person may hold several roles only when policy allows it. For legal/compliance, employment, accounting/tax, or security decisions, name the qualified human reviewer. Done when every required role is named or visibly blocked.
+Read the relevant scope and department rows in [Roles and departments](https://github.com/khajaaijaz26/panergos-agent/blob/main/skills/productivity/organization-workflows/references/roles-and-departments.md). Name the preparer, reviewer, executor, and decision authority; one person may hold several roles only when policy allows it. For legal/compliance, employment, accounting/tax, education safeguarding or learner-impact decisions, security decisions, and production engineering changes, name the qualified human reviewer. Done when every required role is named or visibly blocked.
 
 ### 3. Create or resume the work package
 
@@ -152,6 +157,7 @@ Compare results with acceptance criteria, reconcile department and executive vie
 - Moving stale handoff data into execution without checking the current system of record.
 - Retrying an ambiguous write and creating duplicate payments, records, messages, or tickets.
 - Sharing sensitive HR, customer, legal, finance, or security data with agents or systems that do not need it.
+- Automating grading, admissions, discipline, safeguarding, accommodations, or learner-support decisions without the accountable educator and required policy review.
 - Claiming end-to-end automation when a required account, provider capability, permission, or human reviewer is missing.
 
 ## Verification
@@ -160,6 +166,7 @@ Compare results with acceptance criteria, reconcile department and executive vie
 - [ ] Draft, Review, Execute, and Evidence remain separate and the current stage is visible.
 - [ ] Money, contract, employment, access, and external-publishing actions have exact recorded approval.
 - [ ] Qualified human review occurred wherever policy or professional judgment requires it.
+- [ ] Learner data and education decisions follow institutional policy, privacy rules, and the accountable educator's review.
 - [ ] Every external write was read back, and ambiguous outcomes were checked before retry.
 - [ ] Every completion claim has provider or source evidence; gaps and configured-account limits are stated.
 - [ ] The latest handoff names completed, pending, blocked, next action/owner, state version, and do-not-replay operations.
