@@ -461,6 +461,7 @@ class TestDelegationCleanup:
             reset_panergos_home_override,
             set_panergos_home_override,
         )
+        from tools.daemon_pool import DaemonThreadPoolExecutor
         from tools.delegate_tool import _run_single_child
 
         relay_runtime._reset_for_tests()
@@ -479,6 +480,17 @@ class TestDelegationCleanup:
         parent._active_children.append(child)
         relay_host = MagicMock()
         monkeypatch.setattr(relay_runtime, "get_runtime", lambda **_kwargs: relay_host)
+        # Make the 100ms deadline test cleanup, not fresh-worker scheduling latency on loaded CI hosts.
+        real_submit = DaemonThreadPoolExecutor.submit
+        test_thread = threading.current_thread()
+
+        def submit_after_child_starts(executor, *args, **kwargs):
+            future = real_submit(executor, *args, **kwargs)
+            if threading.current_thread() is test_thread:
+                assert child_started.wait(timeout=5), "Child worker never started"
+            return future
+
+        monkeypatch.setattr(DaemonThreadPoolExecutor, "submit", submit_after_child_starts)
         monkeypatch.setattr("tools.delegate_tool._get_child_timeout", lambda: 0.1)
 
         def run_conversation(**kwargs):
