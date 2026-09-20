@@ -404,14 +404,18 @@ def _append_unconfigured_rows(
     """Empty setup skeletons for canonical providers missing from ``rows`` — except the *current* one:
     if config.yaml still points at it but credentials are gone, keep a row carrying the saved model so
     GUI pickers don't silently snap to another provider."""
-    from panergos_cli.models import CANONICAL_PROVIDERS, _model_requires_account_discovery
+    from panergos_cli.models import (
+        CANONICAL_PROVIDERS, _PROVIDER_ALIASES, _model_requires_account_discovery,
+    )
 
     seen = {r["slug"].lower() for r in rows}
+    excluded = {str(p).strip().lower() for p in (ctx.excluded_providers or []) if p}
+    excluded.update(canonical for alias, canonical in _PROVIDER_ALIASES.items() if alias in excluded)
     cur = (ctx.current_provider or "").lower()
     cur_model = str(ctx.current_model or "").strip()
     extras: list[dict] = []
     for entry in CANONICAL_PROVIDERS:
-        if entry.slug.lower() in seen:
+        if entry.slug.lower() in seen or entry.slug.lower() in excluded:
             continue
         if current_only and entry.slug.lower() != cur:
             continue

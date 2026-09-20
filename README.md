@@ -19,6 +19,8 @@
 
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
+  <a href="#current-build-interface-and-model-highlights">What's new</a> ·
+  <a href="#open-the-native-desktop-app">Desktop app</a> ·
   <a href="#what-panergos-can-do">Capabilities</a> ·
   <a href="#memory-that-does-not-reread-everything">Memory</a> ·
   <a href="#security-and-media-production">Security & media</a> ·
@@ -29,19 +31,36 @@
 
 ---
 
-## Why Panergos
+## Product highlights
 
-**Panergos** (`pan-ER-gos`, from _pan_ + Greek _ergon_, “all work”) is a model-agnostic agent distribution built for work that lasts longer than one prompt.
+**Panergos** (`pan-ER-gos`, from _pan_ + Greek _ergon_, “all work”) is a model-agnostic agent distribution built for work that lasts longer than one prompt. These are working product paths, not future-feature claims; experimental surfaces are labeled.
 
-|                                        | What is different                                                                                                                                                     |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Resume, do not restart**             | Sessions, compact project memory, checkpoints, and durable handoffs let work continue from verified evidence instead of repeatedly loading an entire repository.      |
-| **Coordinate real work**               | Durable Missions combine multi-agent task graphs, dependencies, leases, retries, review stages, shared state, messages, and an auditable event stream.                |
-| **Use your model**                     | Connect a ready local runtime, Anthropic, or any OpenAI-compatible endpoint. Provider routing, fallback chains, credential pools, and Mixture of Agents are built in. |
-| **Keep the route visible**             | The TUI reports cache hit rate, rolling latency, output tokens per second, and explicit `/fast` state; OpenRouter latency/throughput routing remains opt-in.           |
-| **Work where you already are**         | Use the CLI, modern TUI, native desktop app, web dashboard, headless API, ACP clients, MCP clients, or more than 30 messaging and automation adapters.                |
-| **Extend without rebuilding the core** | Skills, plugins, toolsets, MCP servers, shell hooks, and platform adapters use discoverable registries with explicit enablement and trust boundaries.                 |
-| **Keep claims testable**               | Implemented, experimental, and planned capabilities are labeled separately. Comparative superiority is not claimed without reproducible benchmarks.                   |
+| Highlight | Why it matters | Delivery |
+| --- | --- | --- |
+| **[Memory-first continuity](#memory-that-does-not-reread-everything)** | Incremental Project Memory, checkpoints, compact retrieval, and durable handoffs continue from verified evidence instead of repeatedly loading an entire repository. | **Experimental** |
+| **[Durable multi-agent missions](#durable-multi-agent-missions)** | Persistent task graphs add dependencies, leases, retries, review stages, typed shared state, peer messages, restart recovery, and an auditable event stream. | **Experimental** |
+| **[Model choice with automatic recovery](#connect-models-tools-and-platforms)** | Use a ready local runtime, Anthropic, or an OpenAI-compatible endpoint, then combine fallback chains, credential pools, and Mixture of Agents without manually switching every failed route. | **Implemented** |
+| **One runtime across every surface** | Use the same configured Panergos runtime from the CLI, modern TUI, native desktop app, web dashboard, headless API, ACP/MCP clients, and more than 30 messaging and automation adapters. | **Implemented** |
+| **[Create, approve, publish, and verify](#professional-organization-workflows)** | Governed marketing and media workflows can produce assets, request exact approval, publish through a configured write route, and retain the returned platform ID, URL, or delivery record. | **Implemented** |
+| **[Professional work with explicit boundaries](#security-and-trust)** | Organization workflows, authorized-security scope locks, secret controls, approval gates, and evidence requirements keep consequential actions attributable. | **Implemented** |
+| **Visible speed and cost controls** | The TUI reports cache hit rate, rolling latency, output tokens per second, and `/fast` state; route selection can optimize latency or throughput when the provider supports it. | **Implemented** |
+| **Extensible without rebuilding the core** | Skills, plugins, toolsets, MCP servers, shell hooks, and platform adapters use discoverable registries with explicit enablement and trust boundaries. | **Implemented** |
+
+## Current build: interface and model highlights
+
+| New or improved path | Highlight | How to use it |
+| --- | --- | --- |
+| **Full terminal provider catalog** | `/model` now exposes all **53 canonical provider routes in this build** (plus installed extensions), keeps ready routes selectable, labels unconfigured routes as **Connect**, and never attempts to run an unconfigured provider. | Enter `/model`, then type any part of a provider name to filter the list. |
+| **Simple provider connection** | API-key, account-sign-in, local-runtime, and custom OpenAI-compatible paths reuse the canonical setup flow; secrets stay out of `config.yaml` and are redacted after storage. | Run `panergos model`, or open **Models → Connect a model** in the browser/desktop interface. |
+| **Automatic model recovery** | Ordered fallback can move to another configured route after supported quota, rate-limit, or availability failures without repeated manual switching. | Open **Models → Automatic fallback** or run `panergos fallback`. |
+| **Native desktop launcher** | `panergos desktop` builds only when needed, then opens the native shell directly; later launches use a content stamp to skip unchanged builds. | Run `panergos desktop`. |
+| **Readable desktop scale** | Fresh installs and **Actual Size / Ctrl+0** now use **110%**; Appearance presets and native zoom controls remain available. | Open **Settings → Appearance → UI scale**. |
+| **Native desktop appearance** | Panergos Eclipse uses eclipse plum, signal coral, relay amber, and electric jade instead of a single-color surface. Built-in themes, light/dark/system mode, live theme search, VS Code Marketplace theme installation, terminal font, session density, tab defaults, and supported glass/translucency controls are available. | Open **Settings → Appearance**; use its theme search to filter installed themes or install another one. |
+| **Browser command workspace** | The local dashboard uses a searchable Command Map, full-width Focus Stage, bottom Launch Bay, and compact Continuity Lane instead of a permanent admin sidebar. | Run `panergos dashboard`, then open `http://127.0.0.1:9119`; press `Ctrl/Cmd+K` for Navigation. |
+| **Live browser themes and fonts** | The dashboard palette switcher changes color roles, typography, density, corner radius, terminal colors, and supported custom theme assets immediately. Built-in and user YAML themes persist, while the font override can be changed independently. | Press `Ctrl/Cmd+K`, then use the palette control in Navigation; choose a theme and font. |
+| **Terminal command discovery** | Slash completion and a searchable command palette expose the available commands without memorizing them. | Type `/` then Tab, or press `Ctrl+P`; choose a command, then press Enter to run it. |
+
+The capability, memory, media, security, organization, connector, and delivery sections below describe the rest of the implemented and experimental feature set; status labels are kept visible so roadmap work is not presented as shipped.
 
 > [!IMPORTANT]
 > Panergos has no fixed task taxonomy, but it does not bypass operating-system permissions, provider limits, budgets, laws, safety controls, or human approval gates. Capability depends on the model, tools, accounts, and permissions you configure.
@@ -67,6 +86,29 @@ panergos
 ```
 
 `panergos model --quick` detects a ready local runtime first. It can also guide you through Anthropic or an OpenAI-compatible endpoint while keeping secret values out of `config.yaml` and shell history.
+
+### Open the native desktop app
+
+After the platform-specific installation above, run:
+
+```text
+panergos desktop
+```
+
+For a fresh Windows installation, the complete PowerShell flow is:
+
+```powershell
+# Install Panergos once
+iex (irm https://raw.githubusercontent.com/khajaaijaz26/panergos-agent/main/scripts/install.ps1)
+
+# Build if needed, then open the native app
+panergos desktop
+```
+
+The first desktop launch may install its dependencies and build the packaged app. Later launches compare a content stamp and, when the app is current, skip the build and open it directly. No browser URL is required.
+
+> [!NOTE]
+> The v0.1 source release does not yet publish a prebuilt GUI installer. The working cross-platform launcher is `panergos desktop`; packaged installer downloads and automatic shortcuts will be documented when those release artifacts are published.
 
 <details>
 <summary><strong>Install from source</strong></summary>
@@ -203,21 +245,28 @@ Local renderers and open models can avoid API fees when installed on suitable ha
 
 In the browser dashboard, open **Models → Connect a model**, choose a provider, paste its API key, and select **Connect**. Panergos validates the key, discovers the provider's models, and selects a sensible default for new sessions; keys are redacted after saving and never copied into `config.yaml`. Self-hosted and OpenAI-compatible servers remain available under **Advanced: custom endpoint**.
 
-### Free and included model access
+### Verified free model access with automatic fallback
 
-Verified against provider documentation on **2026-09-19**. Connect more than one route, then set the order once under **Models → Automatic fallback** (or with `panergos fallback`). After that, Panergos moves to the next configured model after a supported quota, rate-limit, or availability failure—no manual switching. It does not combine balances or bypass provider limits.
+<h3 align="center">1B+ CUMULATIVE LOCAL TOKENS</h3>
+<p align="center"><strong>No Panergos-imposed per-token usage cap for self-hosted inference.</strong><br />This is cumulative usage over time—not one context window or a free cloud-provider grant—and remains limited by the selected model, runtime, hardware, storage, electricity, and time.</p>
+
+> [!IMPORTANT]
+> **There is no verified “billions of free tokens” pool to advertise, and not every model has a free allowance.** Providers publish different request limits, per-model rate ceilings, temporary offers, credits, and account-specific quotas. Panergos can connect those routes and switch automatically, but it cannot merge them into one guaranteed token balance.
+
+Verified against provider documentation on **2026-09-21**. Connect more than one route, then set the order once under **Models → Automatic fallback** (or with `panergos fallback`). After that, Panergos moves to the next configured model after a supported quota, rate-limit, or availability failure—no manual switching. It does not combine balances or bypass provider limits.
 
 | Provider route | Official free or included allowance | Honest token reading |
 | --- | --- | --- |
 | **OpenRouter** — built-in sign-in or API key | [25+ free models and 50 requests/day](https://openrouter.ai/pricing) | Requests are not tokens; OpenRouter publishes no fixed free-token total. |
+| **OpenCode Zen** — built-in API key | The [live pricing page](https://opencode.ai/docs/zen/) lists several limited-time models with free input and output. | The free catalog can change and no fixed token quota is published; use the live model list shown by Panergos. |
 | **Google Gemini API** — built-in API key | Selected models have [free input and output tokens](https://ai.google.dev/gemini-api/docs/pricing); [limits vary by project and model](https://ai.google.dev/gemini-api/docs/rate-limits). | No universal token total; AI Studio shows the active RPM, TPM, and daily limits for the account. |
 | **Groq** — custom OpenAI-compatible endpoint | The [Free Plan table](https://console.groq.com/docs/rate-limits) lists 200K tokens/day, 8K tokens/minute, and 1,000 requests/day for each of `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, and `qwen/qwen3.8-27b`. | **200K tokens/day per listed model** is a rate ceiling, not a promised grant; organization limits and whichever limit is reached first apply. |
-| **Cerebras** — custom OpenAI-compatible endpoint | The [Free Trial](https://inference-docs.cerebras.ai/support/rate-limits) gives $5 credit after payment-method verification, expires after 30 days, and currently lists 1M tokens/day for each of `gpt-oss-120b` and `qwen-3.8-27b`. | **1M tokens/day per named model while trial credit remains**; the credit can run out first, and there is no recurring free tier. |
+| **Cerebras** — custom OpenAI-compatible endpoint | The [Free Trial limits](https://inference-docs.cerebras.ai/support/rate-limits) currently list 1M tokens/day for each of `gpt-oss-120b` and `qwen-3.8-27b`. | **1M tokens/day per named trial model** is a rate ceiling, not a guaranteed recurring allowance. |
 | **Hugging Face** — built-in token | [Monthly credits](https://huggingface.co/docs/inference-providers/pricing): $0.10 for Free, $2 for PRO, and $2 per Team/Enterprise seat. | Dollar credits cannot be converted to one token number because model and provider prices differ. |
 | **Mistral Studio** — custom OpenAI-compatible endpoint | [Free mode needs no credit card](https://docs.mistral.ai/getting-started/quickstarts/studio/activate-and-generate-api-key), but its [RPS, tokens/minute, and tokens/month limits](https://help.mistral.ai/en/articles/698531-why-am-i-hitting-api-rate-limits-and-how-do-i-increase-them) are shown in the signed-in Limits page. | No fixed public token amount. |
 | **GitHub Copilot** — built-in account sign-in | [Copilot Free includes an unspecified AI-credit allowance and automatic model selection](https://docs.github.com/en/copilot/get-started/plans); paid individual plans include 1,500, 7,000, or 20,000 monthly AI credits. | AI credits are not API tokens; the separate 2,000 IDE-completion allowance is not Panergos model usage, and access depends on the account entitlement. |
 
-**Published token-denominated ceilings, not a guaranteed combined allowance:** 200K/day on each cited Groq model, and 1M/day on each cited Cerebras trial model while its credit lasts. There is no defensible universal subtotal across these providers, so Panergos does not advertise “billions of free tokens.” Provider catalogs, limits, eligibility, geography, and terms can change; check the linked source and the account's live limits before relying on a number.
+**Largest verified figures above:** 200K tokens/day on each cited Groq model and 1M tokens/day on each cited Cerebras trial model. These are separate per-model rate ceilings—not a guaranteed combined allowance. There is no defensible universal subtotal across providers, so Panergos does not advertise “billions of free tokens.” Provider catalogs, limits, eligibility, geography, and terms can change; check the linked source and the account's live limits before relying on a number.
 
 Local inference has no Panergos usage fee and can run CPU-only when the selected model fits memory; a compatible GPU is optional and usually much faster. Panergos can also connect to a remote OpenAI-compatible GPU endpoint, but it is a client and orchestrator—not a free cloud-GPU provider. Local hardware still consumes RAM, storage, CPU/GPU time, and electricity, while hosted compute may charge separately.
 

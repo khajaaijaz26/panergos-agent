@@ -624,18 +624,30 @@ class CLITuiMixin:
             return []
         if state.get("stage", "provider") == "provider":
             title = "⚙ Model Picker — Select Provider"
-            choices = []
+            labels = []
             _providers = state.get("providers")
             for p in _providers if isinstance(_providers, list) else []:
-                count = p.get("total_models", len(p.get("models", [])))
-                label = f"{p['name']} ({count} model{'s' if count != 1 else ''})"
-                if p.get("is_current"):
-                    label += "  ← current"
-                choices.append(label)
-            choices.append("Cancel")
-            hint = (
-                f"Current: {state.get('current_model', 'unknown')} "
-                f"on {state.get('current_provider', 'unknown')}")
+                if p.get("authenticated") is False:
+                    auth = "API key" if p.get("auth_type") == "api_key" else "setup"
+                    label = f"Connect — {p['name']} ({auth})"
+                else:
+                    count = p.get("total_models", len(p.get("models", [])))
+                    label = f"{p['name']} ({count} model{'s' if count != 1 else ''})"
+                    if p.get("is_current"):
+                        label += "  ← current"
+                labels.append(label)
+            _query = state.get("filter", "") or ""
+            filtered_pairs = self._filter_model_picker_entries(labels, _query)
+            state["_filtered_pairs"] = filtered_pairs
+            choices = [label for _idx, label in filtered_pairs] + ["Cancel"]
+            if _query:
+                hint = (
+                    f"Filter: {_query}▏  ({len(filtered_pairs)}/{len(labels)} providers — "
+                    "type to narrow, Backspace to clear)")
+            else:
+                hint = (
+                    f"Current: {state.get('current_model', 'unknown')} on "
+                    f"{state.get('current_provider', 'unknown')} — type to filter {len(labels)} providers")
         elif state.get("stage") == "reasoning":
             from panergos_cli.cli_model_switch_mixin import _picker_reasoning_rows
             result = state.get("switch_result")
@@ -1177,7 +1189,8 @@ class CLITuiMixin:
         if not state:
             return
         if state.get("stage") == "provider":
-            max_idx = len(state.get("providers") or [])
+            _fp = state.get("_filtered_pairs")
+            max_idx = len(_fp) if _fp is not None else len(state.get("providers") or [])
         elif state.get("stage") == "reasoning":
             from panergos_cli.cli_model_switch_mixin import _picker_reasoning_rows
             max_idx = len(_picker_reasoning_rows()) + 1  # + Back + Cancel
@@ -1203,7 +1216,7 @@ class CLITuiMixin:
     def _tui_model_picker_escape(self, event):
         """ESC clears an active filter first, else steps back from the effort stage, else closes."""
         st = self._model_picker_state
-        if st and st.get("stage") == "model" and (st.get("filter") or ""):
+        if st and st.get("stage") in {"provider", "model"} and (st.get("filter") or ""):
             self._tui_set_filter(st, "")
             event.app.invalidate()
             return
@@ -1224,7 +1237,7 @@ class CLITuiMixin:
     def _tui_make_model_filter_char_handler(self, ch: str):
         def handler(event):
             st = self._model_picker_state
-            if not st or st.get("stage") != "model":
+            if not st or st.get("stage") not in {"provider", "model"}:
                 return
             self._tui_set_filter(st, (st.get("filter", "") or "") + ch)
             event.app.invalidate()
@@ -1987,9 +2000,8 @@ class CLITuiMixin:
         kb.add('down', filter=_picker)(self._tui_model_picker_down)
 
         def _model_picker_typing_active() -> bool:
-            # Type-to-filter is only live on the model stage (concrete list).
             st = self._model_picker_state
-            return bool(st) and st.get("stage") == "model"
+            return bool(st) and st.get("stage") in {"provider", "model"}
 
         _picker_typing = Condition(_model_picker_typing_active)
         for _ch in _TYPING_CHARS:

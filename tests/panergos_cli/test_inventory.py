@@ -165,6 +165,24 @@ def test_include_unconfigured_appends_canonical_skeletons():
     assert all(r["total_models"] == 0 for r in skeletons)
 
 
+def test_include_unconfigured_respects_excluded_provider_aliases():
+    ctx = ConfigContext(
+        current_provider="openrouter", current_model="m1", current_base_url="",
+        user_providers={}, custom_providers=[], excluded_providers=["claude"],
+    )
+    with _list_auth_returning([]):
+        providers = build_models_payload(
+            ctx, include_unconfigured=True, picker_hints=True,
+        )["providers"]
+
+    slugs = [row["slug"] for row in providers]
+    assert "anthropic" not in slugs
+    assert len(slugs) == len(set(slugs))
+    skeletons = [row for row in providers if row.get("source") == "canonical"]
+    assert skeletons
+    assert all(row.get("authenticated") is False for row in skeletons)
+
+
 def test_explicit_only_filters_ambient_credentials_but_keeps_current_and_custom_rows():
     rows = [
         {"slug": "openai-codex", "name": "OpenAI Codex", "models": ["gpt-5.4"],

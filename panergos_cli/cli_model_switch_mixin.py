@@ -233,6 +233,7 @@ def _show_model_picker(cli, ctx, force_refresh: bool) -> None:
         providers = build_models_payload(
             ctx, probe_custom_providers=force_refresh,
             probe_current_custom_provider=not force_refresh,
+            include_unconfigured=True, picker_hints=True,
             capabilities=True,  # the effort step hides itself on reasoning-free routes
         )["providers"]
     except Exception:
@@ -642,10 +643,19 @@ class CLIModelSwitchMixin:
         stage = state.get("stage")
         if stage == "provider":
             providers = state.get("providers") or []
-            if selected >= len(providers):
+            filtered_pairs = state.get("_filtered_pairs")
+            if filtered_pairs is None:
+                filtered_pairs = list(enumerate(providers))
+            if selected >= len(filtered_pairs):
                 self._close_model_picker()
                 return
-            provider_data = providers[selected]
+            provider_data = providers[filtered_pairs[selected][0]]
+            if provider_data.get("authenticated") is False:
+                from cli import _cprint
+                provider_name = provider_data.get("name") or provider_data.get("slug") or "provider"
+                self._close_model_picker()
+                _cprint(f"  Connect {provider_name}: run `panergos model`, then reopen /model.")
+                return
             # Curated list (same as `panergos model` / gateway pickers); live catalog only when
             # it is empty (user-defined endpoints).
             model_list = provider_data.get("models", [])
