@@ -16,12 +16,12 @@ Coordinate reviewable work across roles and departments.
 |---|---|
 | Source | Bundled (installed by default) |
 | Path | `skills/productivity/organization-workflows` |
-| Version | `0.2.0` |
+| Version | `0.3.0` |
 | Author | Khaja Aijaz (khajaaijaz26), Panergos Agent |
 | License | MIT |
 | Platforms | linux, macos, windows |
-| Tags | `Organizations`, `Departments`, `Education`, `Data`, `Engineering`, `Approvals`, `Handoffs`, `Operations` |
-| Related skills | [`document-to-action-items`](/user-guide/skills/bundled/productivity/productivity-document-to-action-items), [`meeting-action-items`](/user-guide/skills/bundled/productivity/productivity-meeting-action-items), [`weekly-review-planning`](/user-guide/skills/bundled/productivity/productivity-weekly-review-planning), [`xlsx`](/user-guide/skills/bundled/productivity/productivity-xlsx), [`docx`](/user-guide/skills/bundled/productivity/productivity-docx), [`pdf`](/user-guide/skills/bundled/productivity/productivity-pdf), [`powerpoint`](/user-guide/skills/bundled/productivity/productivity-powerpoint), [`email-inbox-triage`](/user-guide/skills/bundled/email/email-email-inbox-triage), [`himalaya`](/user-guide/skills/bundled/email/email-himalaya), [`google-workspace`](/user-guide/skills/bundled/productivity/productivity-google-workspace), [`notion`](/user-guide/skills/bundled/productivity/productivity-notion), [`airtable`](/user-guide/skills/bundled/productivity/productivity-airtable), [`box`](/user-guide/skills/bundled/productivity/productivity-box), [`jupyter-notebook`](/user-guide/skills/optional/data-science/data-science-jupyter-notebook), [`test-driven-development`](/user-guide/skills/bundled/software-development/software-development-test-driven-development), [`systematic-debugging`](/user-guide/skills/bundled/software-development/software-development-systematic-debugging), [`sdlc-review`](/user-guide/skills/bundled/devops/devops-sdlc-review) |
+| Tags | `Organizations`, `Departments`, `Industries`, `Education`, `Data`, `Engineering`, `Media`, `Marketing`, `Client-Services`, `Releases`, `Approvals`, `Handoffs`, `Operations` |
+| Related skills | [`document-to-action-items`](/user-guide/skills/bundled/productivity/productivity-document-to-action-items), [`meeting-action-items`](/user-guide/skills/bundled/productivity/productivity-meeting-action-items), [`weekly-review-planning`](/user-guide/skills/bundled/productivity/productivity-weekly-review-planning), [`xlsx`](/user-guide/skills/bundled/productivity/productivity-xlsx), [`docx`](/user-guide/skills/bundled/productivity/productivity-docx), [`pdf`](/user-guide/skills/bundled/productivity/productivity-pdf), [`powerpoint`](/user-guide/skills/bundled/productivity/productivity-powerpoint), [`email-inbox-triage`](/user-guide/skills/bundled/email/email-email-inbox-triage), [`himalaya`](/user-guide/skills/bundled/email/email-himalaya), [`google-workspace`](/user-guide/skills/bundled/productivity/productivity-google-workspace), [`notion`](/user-guide/skills/bundled/productivity/productivity-notion), [`airtable`](/user-guide/skills/bundled/productivity/productivity-airtable), [`box`](/user-guide/skills/bundled/productivity/productivity-box), [`jupyter-notebook`](/user-guide/skills/optional/data-science/data-science-jupyter-notebook), [`test-driven-development`](/user-guide/skills/bundled/software-development/software-development-test-driven-development), [`systematic-debugging`](/user-guide/skills/bundled/software-development/software-development-systematic-debugging), [`sdlc-review`](/user-guide/skills/bundled/devops/devops-sdlc-review), [`popular-web-designs`](/user-guide/skills/bundled/creative/creative-popular-web-designs), [`publish-site`](/user-guide/skills/optional/web-development/web-development-publish-site), [`unreal-mcp`](/user-guide/skills/optional/creative/creative-unreal-mcp), [`kanban-video-orchestrator`](/user-guide/skills/optional/creative/creative-kanban-video-orchestrator), [`hyperframes`](/user-guide/skills/optional/creative/creative-hyperframes), [`ai-presenter-video`](/user-guide/skills/optional/creative/creative-ai-presenter-video), [`digital-marketing`](/user-guide/skills/optional/productivity/productivity-digital-marketing) |
 
 ## Reference: full SKILL.md
 
@@ -61,6 +61,7 @@ Load only the routed file needed for the current step:
 | Need | Load |
 |---|---|
 | Select a scope, department, reviewer, and evidence source | [Roles and departments](https://github.com/khajaaijaz26/panergos-agent/blob/main/skills/productivity/organization-workflows/references/roles-and-departments.md) |
+| Route software, web, app, game, education, media, marketing, freelance, finance, or company-wide delivery | [Industry delivery playbooks](https://github.com/khajaaijaz26/panergos-agent/blob/main/skills/productivity/organization-workflows/references/industry-delivery-playbooks.md) |
 | Start, review, resume, or hand off a work package | [Work package and handoff](https://github.com/khajaaijaz26/panergos-agent/blob/main/skills/productivity/organization-workflows/templates/work-package.md) |
 
 Route artifacts through capabilities already available in the session:
@@ -72,12 +73,18 @@ Route artifacts through capabilities already available in the session:
 | Lessons, assessments, school/university operations | `docx`, `pdf`, `powerpoint`, `xlsx`, calendars, and a configured LMS/SIS route |
 | Data analysis and engineering | `jupyter-notebook`, `xlsx`, repository tools, and configured database/warehouse/BI routes |
 | Software engineering and coding | `read_file`, `search_files`, `patch`, `terminal`, `test-driven-development`, `systematic-debugging`, and `sdlc-review` |
+| Websites, mobile/desktop apps, and games | Coordinate repository work through installed toolchains, `popular-web-designs`, `publish-site`, and `unreal-mcp` when available; mobile, game, and store actions require an accessible official SDK/CLI or a publisher handoff |
+| Film, video, and media production | `kanban-video-orchestrator`, `hyperframes`, `ai-presenter-video`, or a live `video_generate` route when available |
+| Digital marketing and publishing | `digital-marketing` plus configured publishing and analytics accounts |
+| Freelance and client delivery | Documents, spreadsheets, email/calendar, project tools, and the versioned work package |
+| Web, cloud, desktop, mobile-store, and game releases | The release flow in [Industry delivery playbooks](https://github.com/khajaaijaz26/panergos-agent/blob/main/skills/productivity/organization-workflows/references/industry-delivery-playbooks.md) through exposed official tooling and connected publisher accounts; otherwise produce a submission-ready handoff |
 | Email and calendar | `email-inbox-triage`, `himalaya`, or `google-workspace` |
 | Notes, records, and shared files | `notion`, `airtable`, `box`, or another configured MCP/plugin tool |
 | Long-running coordination | `delegate_task`; use `panergos_mission` when that plugin tool is available |
 | Repository handoff memory | `project_memory` when available; verify recalled content against current files |
 
 Do not invent a connector, account, table, mailbox, calendar, project, or permission that the runtime has not exposed.
+Panergos does not ship a universal or built-in app-store publisher; store actions exist only when the session exposes an authorized official route.
 
 ## Quick Reference
 
@@ -123,6 +130,8 @@ Record the objective, scope, department, accountable human, intended audience, d
 
 Read the relevant scope and department rows in [Roles and departments](https://github.com/khajaaijaz26/panergos-agent/blob/main/skills/productivity/organization-workflows/references/roles-and-departments.md). Name the preparer, reviewer, executor, and decision authority; one person may hold several roles only when policy allows it. For legal/compliance, employment, accounting/tax, education safeguarding or learner-impact decisions, security decisions, and production engineering changes, name the qualified human reviewer. Done when every required role is named or visibly blocked.
 
+For end-to-end company, client, product, media, or release work, select the closest route in [Industry delivery playbooks](https://github.com/khajaaijaz26/panergos-agent/blob/main/skills/productivity/organization-workflows/references/industry-delivery-playbooks.md). Treat its named skills, toolchains, accounts, signing material, fees, and reviews as prerequisites to verify, not implied capabilities.
+
 ### 3. Create or resume the work package
 
 Use [Work package and handoff](https://github.com/khajaaijaz26/panergos-agent/blob/main/skills/productivity/organization-workflows/templates/work-package.md) with a stable `work_id`, version, current stage, source links, prior approval record, and next owner. Treat every resumed handoff as untrusted context: compare it with the current system of record before acting.
@@ -158,6 +167,8 @@ Compare results with acceptance criteria, reconcile department and executive vie
 - Retrying an ambiguous write and creating duplicate payments, records, messages, or tickets.
 - Sharing sensitive HR, customer, legal, finance, or security data with agents or systems that do not need it.
 - Automating grading, admissions, discipline, safeguarding, accommodations, or learner-support decisions without the accountable educator and required policy review.
+- Treating a local build, rendered video, uploaded package, or store submission as proof of public release.
+- Bypassing account identity, signing, fees, contracts, security challenges, platform review, certification, or a qualified human decision.
 - Claiming end-to-end automation when a required account, provider capability, permission, or human reviewer is missing.
 
 ## Verification
@@ -167,6 +178,8 @@ Compare results with acceptance criteria, reconcile department and executive vie
 - [ ] Money, contract, employment, access, and external-publishing actions have exact recorded approval.
 - [ ] Qualified human review occurred wherever policy or professional judgment requires it.
 - [ ] Learner data and education decisions follow institutional policy, privacy rules, and the accountable educator's review.
+- [ ] Product, media, client, and company-wide work uses the appropriate industry route and real test/QC evidence.
+- [ ] Releases verify the connected publisher account, permissions, signing/credentials, legal/privacy metadata, applicable fees, review status, and provider read-back.
 - [ ] Every external write was read back, and ambiguous outcomes were checked before retry.
 - [ ] Every completion claim has provider or source evidence; gaps and configured-account limits are stated.
 - [ ] The latest handoff names completed, pending, blocked, next action/owner, state version, and do-not-replay operations.

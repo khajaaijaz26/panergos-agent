@@ -139,3 +139,37 @@ def test_resume_and_real_world_limits_are_explicit():
     ).lower()
     for field in ("completed and evidenced", "blocked and why", "next safe action", "operations that must not be replayed"):
         assert field in handoff
+
+
+def test_industry_delivery_and_release_contract():
+    _, body = _frontmatter_and_body()
+    playbook = (SKILL_DIR / "references" / "industry-delivery-playbooks.md").read_text(
+        encoding="utf-8"
+    )
+    normalized = (body + playbook).lower()
+
+    for route in (
+        "software and product",
+        "websites and web apps",
+        "mobile and desktop apps",
+        "games and interactive work",
+        "education and research",
+        "film, video and media",
+        "digital marketing",
+        "freelance and client services",
+        "finance and corporate operations",
+        "whole-company programs",
+    ):
+        assert route in normalized
+
+    for release_contract in (
+        "connected developer or publisher account",
+        "certificates, signing keys",
+        "possible fees",
+        "store submission",
+        "provider read-back evidence",
+        "submitted` and `in_review` are not `released",
+        "must not self-approve or perform live financial transfers",
+        "never bypass identity checks",
+    ):
+        assert release_contract in normalized

@@ -42,6 +42,7 @@
 | **[Model choice with automatic recovery](#connect-models-tools-and-platforms)** | Use a ready local runtime, Anthropic, or an OpenAI-compatible endpoint, then combine fallback chains, credential pools, and Mixture of Agents without manually switching every failed route. | **Implemented** |
 | **One runtime across every surface** | Use the same configured Panergos runtime from the CLI, modern TUI, native desktop app, web dashboard, headless API, ACP/MCP clients, and more than 30 messaging and automation adapters. | **Implemented** |
 | **[Create, approve, publish, and verify](#professional-organization-workflows)** | Governed marketing and media workflows can produce assets, request exact approval, publish through a configured write route, and retain the returned platform ID, URL, or delivery record. | **Implemented** |
+| **[Company-to-release coordination](#company-industry-and-product-delivery)** | A built-in work-package route coordinates software, web/app/game, education, film/media, marketing, freelance, finance, and cross-industry delivery. Execution depends on installed tools, connected accounts, and required approval. | **Implemented** |
 | **[Professional work with explicit boundaries](#security-and-trust)** | Organization workflows, authorized-security scope locks, secret controls, approval gates, and evidence requirements keep consequential actions attributable. | **Implemented** |
 | **Visible speed and cost controls** | The TUI reports cache hit rate, rolling latency, output tokens per second, and `/fast` state; route selection can optimize latency or throughput when the provider supports it. | **Implemented** |
 | **Extensible without rebuilding the core** | Skills, plugins, toolsets, MCP servers, shell hooks, and platform adapters use discoverable registries with explicit enablement and trust boundaries. | **Implemented** |
@@ -139,6 +140,7 @@ uvx --from uv==0.9.28 uv sync --locked --python 3.11 --extra dev
 | **Research and knowledge work**   | Browse and search, collect cited evidence, analyze files and datasets, work with PDFs, documents, spreadsheets, presentations, notes, and configured knowledge systems.                                             |
 | **Authorized cybersecurity**      | Review source and dependencies, investigate incidents and open-source evidence, scan approved targets, validate web vulnerabilities inside a written allowlist, preserve evidence, and produce remediation reports. |
 | **Creative and media production** | Generate or edit images, create text/image/reference-to-video assets, produce presenter and animation projects, add voice, captions, music, and effects, then render, verify, and package the result.               |
+| **Product and client delivery**    | Coordinate a client brief or product objective through design, implementation, tests, review, release artifacts, configured deployment or a submission-ready handoff, evidence, and resumable continuity.       |
 | **Office and company operations** | Coordinate finance, HR, sales, marketing, support, procurement, legal/compliance, operations, product, analytics, engineering, IT, security, management, and executive review through accountable work packages.    |
 | **Education and data work**       | Support school and university planning, teaching and faculty workflows, student services, education data analysis, data engineering, and software engineering through accountable work packages and configured systems. |
 | **Communication**                 | Connect WhatsApp, WhatsApp Cloud, Telegram, Discord, Slack, Signal, Matrix, email, SMS, Teams, Google Chat, LINE, IRC, webhooks, and other installed adapters.                                                      |
@@ -197,6 +199,48 @@ Every package separates **Draft → Review → Execute → Evidence**. Money mov
 Covered role families include:
 
 `Finance` · `HR` · `Sales` · `Marketing` · `Support` · `Operations` · `Procurement` · `Legal & Compliance` · `Engineering` · `IT` · `Security` · `Product` · `Analytics` · `Management` · `Executive coordination`
+
+### Company, industry, and product delivery
+
+The organization workflow is a coordination router, not a list of job-title demos. It selects the relevant domain skills and connected systems, divides the objective into owned work packages, preserves approvals and dependencies, and requires evidence before any item is reported complete.
+
+Availability is explicit: the orchestration skill and core repository/browser/terminal routes are built in; named optional skills must be installed; external systems require a configured connector or official toolchain; consequential decisions and store acceptance remain with the authorized human and provider.
+
+| Workstream | End-to-end route |
+| --- | --- |
+| **Software company and product teams** | Discovery → architecture → backlog → implementation → automated tests → security/QA review → release → monitoring and support handoff, using repository tools, `test-driven-development`, `systematic-debugging`, `github`, `sdlc-review`, missions, and Project Memory when available. |
+| **Websites and web apps** | Requirements → content and visual system → implementation → accessibility/performance/functional QA → approved versioned deployment → live-URL verification. The optional `publish-site` workflow supports GitHub Pages, Cloudflare Pages, and Netlify for compatible projects. |
+| **Mobile and desktop apps** | Product brief → platform implementation → device/build testing → privacy and store assets → signed release artifact → account-owner approval → store submission → review-status and post-release verification. The required SDKs, signing identities, developer account, and store permissions must be configured. |
+| **Games** | Game design brief → prototype → code/content production → playtesting and performance QA → package → configured distribution or publisher handoff. `p5js` supports browser prototypes and `unreal-mcp` can automate exposed Unreal Editor tasks; a complete title still depends on the project's engine, assets, SDKs, and publisher tooling. Console SDK access is never assumed. |
+| **Film and media** | Brief → research/script → storyboard → generated or imported media through installed creative tools → edit/assembly, voice, music, captions, and effects → rights/accessibility/technical QA → master files → approved upload-ready package or configured delivery evidence. |
+| **Digital marketing** | Research → campaign and funnel → copy/images/video → brand, rights, and claims review → exact publication approval → connected publishing → read-back IDs/URLs → measurement and iteration through the optional `digital-marketing` workflow. |
+| **Freelance and agency work** | Client intake → scope and acceptance criteria → estimate/milestones → production → review and revisions → approved delivery/deployment → evidence, invoice-support handoff, and reusable project memory. Contracts, price commitments, invoices, and client-account writes remain approval-gated. |
+| **Finance and corporate departments** | Source-controlled analysis, reconciliations, forecasts, models, reports, and cross-department decision-support packs through `xlsx` and the optional finance skills. Payments, filings, trading, tax/accounting conclusions, and material financial decisions require the configured system and qualified human authority. |
+| **Education and other industries** | Apply the same owned Draft → Review → Execute → Evidence contract to education, healthcare, manufacturing, retail, logistics, government, nonprofit, professional services, technology, or another sector while substituting its real regulations, qualified reviewers, systems of record, and acceptance tests. This adapter does not supply sector expertise, authorization, or professional qualification. |
+
+A ready, authorized route lets Panergos execute its supported steps; a missing proprietary tool, account, credential, permission, SDK, reviewer, or legal right becomes an explicit `blocked` or `handed_off` item. It never converts a generated file into a claim that a real company system or public store was changed.
+
+#### Website, app, and game release path
+
+Panergos ships no built-in Apple, Google Play, Microsoft Store, Steam, or universal store-publisher connector. It can prepare a release and, when a store's official tooling, API, or permitted authenticated portal is exposed to the session, assist or run only those authorized steps; otherwise it produces a submission-ready handoff. The common contract is **build → test → sign → approve → submit → capture provider status → verify release → preserve rollback and handoff**.
+
+| Destination | Current route and required boundary |
+| --- | --- |
+| **Web and cloud** | Use the project's existing CI/cloud tooling or install `official/web-development/publish-site` for supported static deployments. Domain, billing, DNS, production-data, and infrastructure mutations use the connected owner's permissions and approval policy. |
+| **Apple App Store** | Build and sign with the Apple toolchain, upload to App Store Connect, complete metadata, select the build, and submit through an authorized role. The account owner supplies identity, agreements, tax/banking facts, signing authority, and final commercial decisions; Apple controls processing and App Review. See [Apple's upload](https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds) and [submission](https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/submit-an-app) workflows. |
+| **Google Play** | Produce and sign the Android App Bundle, configure Play App Signing/listing/testing, create the release, and submit with the required Play Console permission. The account owner supplies verified identity, declarations, fees where applicable, and final release authority; Google controls policy review and publication status. See the official [release](https://support.google.com/googleplay/android-developer/answer/9859348) and [publishing](https://support.google.com/googleplay/android-developer/answer/9859751) workflows. |
+| **Microsoft Store** | Reserve the product, prepare an MSIX/PWA or supported game package and listing, submit through an authorized Partner Center account, then track certification. Account/business verification, agreements, commercial terms, and certification remain external. See [Microsoft's publishing guide](https://learn.microsoft.com/windows/apps/publish/). |
+| **Steam** | With an onboarded Steamworks partner account and app ID, prepare the store/build checklists and upload through official tooling; an authorized publisher submits for Valve review and performs the final release after approval. See the official [Steam release options](https://partner.steamgames.com/doc/store/types). |
+| **Other and console stores** | Use that store's approved developer program, SDK, signing materials, account roles, policy forms, and review process. If those are not exposed to the session, Panergos stops at a verified submission-ready handoff. |
+
+Example request:
+
+```text
+Use organization-workflows to take this product from brief to release.
+Create owned work packages for design, engineering, QA, marketing, finance, and launch;
+use only connected accounts; stop at every required approval; verify every external result;
+and leave a resumable handoff for anything blocked or still in store review.
+```
 
 ### Education and data work
 
@@ -388,7 +432,7 @@ Read the [security guide](website/docs/user-guide/security.md) and report vulner
 | Image generation/editing, plugin-routed video generation, and end-to-end production skills                                    | **Implemented**  | Provider contracts, tool tests, and bundled/optional workflows   |
 | Governed digital campaigns with configured-route publication and read-back evidence                                            | **Implemented**  | Optional workflow contract and focused ordering/evidence tests   |
 | Scope-locked web security assessment and defensive investigation workflows                                                    | **Implemented**  | Authorization contract, target allowlist, evidence-first reports |
-| Organization workflow pack                                                                                                    | **Implemented**  | Bundled role pack, approval/evidence contract, and focused tests |
+| Cross-industry company-to-release workflow pack                                                                                | **Implemented**  | Bundled role/delivery packs, approval/evidence contract, and focused tests |
 | Durable Missions                                                                                                              | **Experimental** | Local contract, concurrency, recovery, and distribution tests    |
 | Project Memory                                                                                                                | **Experimental** | Focused tests and published synthetic microbenchmark             |
 | Capability Forge, Policy Ledger, unified Evidence Gates, mission budgets, signed installers, and comparative agent benchmarks | **Roadmap**      | Specifications or acceptance criteria only                       |
