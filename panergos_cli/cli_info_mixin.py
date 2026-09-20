@@ -93,7 +93,10 @@ class CLIInfoMixin:
         """Display the welcome banner in Claude Code style."""
         from cli import _build_compact_banner, get_tool_definitions, logger
         from panergos_cli.banner import build_welcome_banner
-        self.console.clear()
+        if getattr(self, "_preserve_startup_intro", False):
+            self._preserve_startup_intro = False
+        else:
+            self.console.clear()
         ctx_len = None
         if hasattr(self, 'agent') and self.agent and hasattr(self.agent, 'context_compressor'):
             ctx_len = self.agent.context_compressor.context_length

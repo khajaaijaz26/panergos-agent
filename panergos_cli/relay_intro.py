@@ -12,6 +12,16 @@ RELAY_FRAMES = ("╲  ▶", "╲━ ▶", "╲━━▶", "╱━━▶", "╱�
 RELAY_RESOLVED = ("━━━╲", "━━━━▶  RELAY / READY", "━━━╱")
 TICK_SECONDS = 0.045
 
+BIG_WORDMARK = (
+    "██████╗  █████╗ ███╗   ██╗███████╗██████╗  ██████╗  ██████╗ ███████╗",
+    "██╔══██╗██╔══██╗████╗  ██║██╔════╝██╔══██╗██╔════╝ ██╔═══██╗██╔════╝",
+    "██████╔╝███████║██╔██╗ ██║█████╗  ██████╔╝██║  ███╗██║   ██║███████╗",
+    "██╔═══╝ ██╔══██║██║╚██╗██║██╔══╝  ██╔══██╗██║   ██║██║   ██║╚════██║",
+    "██║     ██║  ██║██║ ╚████║███████╗██║  ██║╚██████╔╝╚██████╔╝███████║",
+    "╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚══════╝",
+)
+_BIG_LETTER_ENDS = (8, 16, 26, 34, 42, 51, 60, 68)
+
 _GLYPHS: dict[str, tuple[str, str, str]] = {
     "P": ("┌──┐", "├──┘", "│   "),
     "A": ("┌──┐", "├──┤", "│  │"),
@@ -30,9 +40,21 @@ def wordmark_rows(revealed: int) -> tuple[str, str, str]:
     return tuple(" ".join(_GLYPHS[letter][row] for letter in letters) for row in range(3))  # type: ignore[return-value]
 
 
+def big_wordmark_rows(revealed: int) -> tuple[str, ...]:
+    """Return the six-row wordmark through the last fully revealed letter."""
+    count = max(0, min(len(BRAND), int(revealed)))
+    width = _BIG_LETTER_ENDS[count - 1] if count else 0
+    return tuple(row[:width] for row in BIG_WORDMARK)
+
+
 def intro_lines(revealed: int, signal_index: int = -1, *, columns: int = 80) -> tuple[str, ...]:
-    """Pure six-line frame; terminals below 40 columns use a single-line brand."""
-    brand_lines = wordmark_rows(revealed) if columns >= 40 else (BRAND[:revealed], "", "")
+    """Pure frame with a full-width wordmark and responsive fallbacks."""
+    if columns >= len(BIG_WORDMARK[0]) + 4:
+        brand_lines = big_wordmark_rows(revealed)
+    elif columns >= 40:
+        brand_lines = wordmark_rows(revealed)
+    else:
+        brand_lines = (BRAND[:revealed], "", "")
     if signal_index < 0:
         signal_lines = ("", "", "")
     elif signal_index >= len(RELAY_FRAMES):
@@ -74,14 +96,18 @@ def play_relay_intro(
     *,
     stdout: TextIO = sys.stdout,
     columns: int = 80,
+    rows: int = 24,
     colors: tuple[str, str, str] = ("#FF6B5E", "#F7C453", "#2EE6A6"),
     sleep_fn: Callable[[float], None] = time.sleep,
 ) -> None:
-    """Trace the wordmark letter-by-letter, resolve Relay, and return in under one second."""
+    """Trace the centered wordmark in a fixed upper stage, then leave it visible."""
     color_enabled = "NO_COLOR" not in os.environ
     tones = tuple(_ansi(color, color_enabled) for color in colors)
     reset = "\033[0m" if any(tones) else ""
     first = True
+    final_lines = intro_lines(len(BRAND), len(RELAY_FRAMES), columns=columns)
+    stage_width = max(map(len, final_lines))
+    brand_height = len(final_lines) - len(RELAY_RESOLVED)
 
     def paint(lines: tuple[str, ...]) -> None:
         nonlocal first
@@ -89,11 +115,14 @@ def play_relay_intro(
             stdout.write(f"\033[{len(lines)}A")
         for index, line in enumerate(lines):
             tone = tones[index % 3]
-            stdout.write(f"\r\033[2K{tone}{line}{reset}\n")
+            staged = line.ljust(stage_width) if index < brand_height else line.center(stage_width)
+            centered = staged.center(max(1, columns)).rstrip()
+            stdout.write(f"\r\033[2K{tone}{centered}{reset}\n")
         stdout.flush()
         first = False
 
-    stdout.write("\033[?25l")
+    top_padding = max(0, rows // 4 - len(final_lines) // 2)
+    stdout.write("\033[?25l\033[2J\033[H" + "\n" * top_padding)
     try:
         for revealed in range(1, len(BRAND) + 1):
             paint(intro_lines(revealed, columns=columns))

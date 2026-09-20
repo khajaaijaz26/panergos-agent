@@ -59,6 +59,16 @@ class TestLowContextWarning:
         minimum_calls = [c for c in calls if f"{MINIMUM_CONTEXT_LENGTH:,}" in c]
         assert minimum_calls
 
+    def test_startup_intro_is_preserved_for_the_first_banner(self, cli_obj):
+        cli_obj._preserve_startup_intro = True
+
+        with patch("cli.get_tool_definitions", return_value=[]), \
+             patch("panergos_cli.banner.build_welcome_banner"):
+            cli_obj.show_banner()
+            cli_obj.show_banner()
+
+        assert cli_obj.console.clear.call_count == 1
+
 
     def test_warning_for_2048_context(self, cli_obj):
         """Warning shown for 2048 tokens (common LM Studio default)."""

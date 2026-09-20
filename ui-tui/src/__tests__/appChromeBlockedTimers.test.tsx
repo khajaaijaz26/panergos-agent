@@ -9,6 +9,7 @@ import { GatewayProvider } from '../app/gatewayContext.js'
 import type { AppLayoutProps, OverlayState, UiState } from '../app/interfaces.js'
 import { patchOverlayState, resetOverlayState } from '../app/overlayStore.js'
 import { patchUiState, resetUiState } from '../app/uiStore.js'
+import { panergosWordmark } from '../banner.js'
 import { StatusRule } from '../components/appChrome.js'
 import { AppLayout } from '../components/appLayout.js'
 import type { GatewayClient } from '../gatewayClient.js'
@@ -43,7 +44,7 @@ const mountTree = (tree: React.ReactElement, { interactive = false } = {}) => {
 
   let output = ''
 
-  Object.assign(stdout, { columns: 120, isTTY: false, rows: 20 })
+  Object.assign(stdout, { columns: 120, isTTY: false, rows: 24 })
   // PromptZone's prompts call `useInput`, which needs raw mode; without it Ink
   // swaps the whole tree for an error panel and stops updating.
   Object.assign(
@@ -225,6 +226,15 @@ afterEach(() => {
   nowSpy.mockRestore()
   resetOverlayState()
   resetUiState()
+})
+
+describe('AppLayout identity header', () => {
+  it('renders the full wordmark without a transcript-owned intro row', () => {
+    const view = mountLayout()
+
+    expect(layoutProps.transcript.historyItems).toHaveLength(0)
+    expect(view.output()).toContain(panergosWordmark(DEFAULT_THEME.color)[0]![1])
+  })
 })
 
 describe('status-chrome timers under an occluding overlay', () => {

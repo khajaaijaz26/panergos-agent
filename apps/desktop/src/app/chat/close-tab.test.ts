@@ -8,6 +8,7 @@ const closeSessionTile = vi.fn()
 const requestFreshSession = vi.fn()
 
 vi.mock('@/components/pane-shell/tree/store', () => ({
+  $layoutTree: atom(null),
   closeFocusedSessionTab: () => closeFocusedSessionTab(),
   closeFocusedToolTab: () => closeFocusedToolTab()
 }))

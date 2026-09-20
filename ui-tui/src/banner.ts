@@ -52,6 +52,8 @@ const PANERGOS_ART = [
   '╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚══════╝'
 ]
 
+const PANERGOS_REVEAL_COLUMNS = [0, 8, 16, 26, 34, 42, 51, 60, 68] as const
+
 const AGENT_ART = [
   '█████╗  ██████╗ ███████╗███╗   ██╗████████╗',
   '██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝',
@@ -77,10 +79,22 @@ const colorize = (art: string[], gradient: readonly number[], c: ThemeColors): L
 }
 
 export const LOGO_WIDTH = Math.max(...LOGO_ART.map(line => line.length))
+export const PANERGOS_WORDMARK_WIDTH = Math.max(...PANERGOS_ART.map(line => line.length))
 export const PANERGOS_RELAY_WIDTH = Math.max(...PANERGOS_RELAY_ART.map(line => line.length))
 
 export const logo = (c: ThemeColors, customLogo?: string): Line[] =>
   customLogo ? parseRichMarkup(customLogo) : colorize(LOGO_ART, LOGO_GRADIENT, c)
+
+export const panergosWordmark = (c: ThemeColors, revealed = PANERGOS_REVEAL_COLUMNS.length - 1): Line[] => {
+  const letters = Math.max(0, Math.min(PANERGOS_REVEAL_COLUMNS.length - 1, Math.floor(revealed)))
+  const columns = PANERGOS_REVEAL_COLUMNS[letters]!
+
+  return colorize(
+    PANERGOS_ART.map(line => line.slice(0, columns)),
+    LOGO_GRADIENT,
+    c
+  )
+}
 
 export const panergosRelay = (c: ThemeColors, customHero?: string): Line[] =>
   customHero ? parseRichMarkup(customHero) : colorize(PANERGOS_RELAY_ART, RELAY_GRADIENT, c)

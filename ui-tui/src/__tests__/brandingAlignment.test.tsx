@@ -5,18 +5,19 @@ import { stripAnsi } from '@panergos/shared/ansi'
 import React, { type ReactElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
-import { logo } from '../banner.js'
+import { panergosWordmark } from '../banner.js'
 import { Banner, SessionPanel } from '../components/branding.js'
+import { relayWordmarkRows } from '../components/relayIntro.js'
 import { DEFAULT_THEME } from '../theme.js'
 import type { SessionInfo } from '../types.js'
 
-const render = (node: ReactElement, columns: number) => {
+const render = (node: ReactElement, columns: number, rows = 50) => {
   const stdout = new PassThrough()
   const stdin = new PassThrough()
   const stderr = new PassThrough()
   let output = ''
 
-  Object.assign(stdout, { columns, isTTY: false, rows: 50 })
+  Object.assign(stdout, { columns, isTTY: false, rows })
   Object.assign(stdin, { isTTY: false })
   Object.assign(stderr, { isTTY: false })
   stdout.on('data', chunk => {
@@ -63,31 +64,33 @@ const info: SessionInfo = {
 }
 
 describe('branding alignment', () => {
-  it('renders a compact, left-aligned continuity mark instead of the legacy centred wordmark', () => {
-    const columns = 132
-    const lines = render(<Banner maxWidth={columns} t={DEFAULT_THEME} />, columns)
-    const giantWordmark = logo(DEFAULT_THEME.color)[0]![1]
+  it('keeps the completed Relay wordmark centered above the workspace', () => {
+    const columns = 80
+    const lines = render(<Banner maxWidth={columns} t={DEFAULT_THEME} />, columns, 24)
+    const wordmark = panergosWordmark(DEFAULT_THEME.color).map(([, text]) => text)
 
-    expect(lines.join('\n')).toContain('━━━━▶ PANERGOS')
-    expect(lines.join('\n')).toContain('WORK CONTINUITY')
-    expect(lines.join('\n')).toContain('context stays · work moves')
-    expect(lines.some(line => line.includes(giantWordmark))).toBe(false)
-    expect(lines.find(line => line.includes('━━━━▶'))?.indexOf('━━━━▶')).toBe(0)
+    wordmark.forEach(row => expect(lines.join('\n')).toContain(row))
+    expect(lines.join('\n')).toContain('RELAY / READY')
+    expect(lines.find(line => line.includes(wordmark[0]))?.indexOf(wordmark[0])).toBe(
+      Math.floor((columns - wordmark[0].length) / 2)
+    )
   })
 
-  it('steps the continuity label down without overflowing', () => {
+  it('uses the narrow wordmark fallback without overflowing', () => {
     const tiny = render(<Banner maxWidth={34} t={DEFAULT_THEME} />, 34)
     const mid = render(<Banner maxWidth={50} t={DEFAULT_THEME} />, 50)
     const wide = render(<Banner maxWidth={70} t={DEFAULT_THEME} />, 70)
+    const full = render(<Banner maxWidth={72} t={DEFAULT_THEME} />, 72)
 
-    expect(tiny.join('\n')).toContain('━━━━▶ PANERGOS')
-    expect(tiny.join('\n')).toContain('CONTINUITY')
-    expect(tiny.join('\n')).not.toContain('context stays')
-    expect(mid.join('\n')).toContain('WORK CONTINUITY')
-    expect(wide.join('\n')).toContain('context stays · work moves')
+    expect(tiny.join('\n')).toContain('PANERGOS')
+    expect(tiny.join('\n')).toContain('RELAY / READY')
+    expect(mid.join('\n')).toContain(relayWordmarkRows()[0])
+    expect(wide.join('\n')).toContain(relayWordmarkRows()[0])
+    expect(full.join('\n')).toContain(panergosWordmark(DEFAULT_THEME.color)[0]![1])
     expect(Math.max(...tiny.map(line => line.length))).toBeLessThanOrEqual(34)
     expect(Math.max(...mid.map(line => line.length))).toBeLessThanOrEqual(50)
     expect(Math.max(...wide.map(line => line.length))).toBeLessThanOrEqual(70)
+    expect(Math.max(...full.map(line => line.length))).toBeLessThanOrEqual(72)
   })
 
   it('keeps custom skin identity and hero art live', () => {

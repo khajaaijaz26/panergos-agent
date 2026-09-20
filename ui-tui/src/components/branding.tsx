@@ -3,13 +3,14 @@ import { mix } from '@panergos/shared/color'
 import { useEffect, useState } from 'react'
 import unicodeSpinners from 'unicode-animations'
 
-import { artWidth, logo, panergosRelay } from '../banner.js'
+import { artWidth, logo, panergosRelay, panergosWordmark } from '../banner.js'
 import { flat } from '../lib/text.js'
 import type { Theme } from '../theme.js'
 import type { PanelSection, SessionInfo } from '../types.js'
 
 import { Accordion } from './accordion.js'
 import { ShimmerRows } from './loaders.js'
+import { RelayWordmark, usesLargeRelayWordmark, usesWideRelayWordmark } from './relayIntro.js'
 import { WidgetGrid } from './widgetGrid.js'
 
 const LOADER_TICK_MS = 120
@@ -84,9 +85,24 @@ export function Banner({ maxWidth, t }: { maxWidth?: number; t: Theme }) {
     }
   }
 
+  if (t.brand.name === 'Panergos Agent') {
+    const large = usesLargeRelayWordmark(cols)
+
+    return (
+      <Box alignItems="center" flexDirection="column" marginBottom={1} width={cols}>
+        {large ? (
+          <ArtLines lines={panergosWordmark(t.color)} />
+        ) : (
+          <RelayWordmark t={t} wide={usesWideRelayWordmark(cols)} />
+        )}
+        <Text color={t.color.muted}>RELAY / READY</Text>
+      </Box>
+    )
+  }
+
   const full = cols >= 48
-  const brand = t.brand.name === 'Panergos Agent' ? 'PANERGOS' : t.brand.name.toUpperCase()
-  const customToken = t.brand.name === 'Panergos Agent' ? '' : `${t.brand.icon} `
+  const brand = t.brand.name.toUpperCase()
+  const customToken = `${t.brand.icon} `
 
   return (
     <Box marginBottom={1} width={Math.max(1, cols - 2)}>

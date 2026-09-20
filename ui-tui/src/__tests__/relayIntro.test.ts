@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest'
 import {
   RELAY_INTRO_LAST_TICK,
   relayIntroFrame,
+  relayIntroTopPadding,
   relayWordmarkRows,
   shouldPlayRelayIntro,
+  usesLargeRelayWordmark,
   usesWideRelayWordmark
 } from '../components/relayIntro.js'
 
@@ -24,6 +26,15 @@ describe('Relay intro', () => {
   it('uses the single-line fallback until the padded wordmark fits', () => {
     expect(usesWideRelayWordmark(41)).toBe(false)
     expect(usesWideRelayWordmark(42)).toBe(true)
+    expect(usesLargeRelayWordmark(71)).toBe(false)
+    expect(usesLargeRelayWordmark(72)).toBe(true)
+  })
+
+  it('keeps the animation stage near the upper quarter of the terminal', () => {
+    expect(relayIntroTopPadding(24)).toBe(3)
+    expect(relayIntroTopPadding(24, 10)).toBe(1)
+    expect(relayIntroTopPadding(40)).toBe(7)
+    expect(relayIntroTopPadding(8)).toBe(0)
   })
 
   it('only plays on an interactive terminal', () => {

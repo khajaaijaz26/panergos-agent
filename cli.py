@@ -3633,12 +3633,6 @@ class PanergosCLI(CLIProcessNotificationsMixin, CLIAgentSetupMixin, CLICommandsM
         """Startup output: light-mode probe, banner, advisories, resume/welcome lines, tips."""
         with suppress(Exception):  # light-mode probe before pt grabs the tty (cached)
             _detect_light_mode()
-        # Scroll the cursor to the last row so banner, responses and prompt pin to the bottom.
-        with suppress(Exception):
-            _term_lines = shutil.get_terminal_size().lines
-            if _term_lines > 2:
-                print("\n" * (_term_lines - 1), end="", flush=True)
-
         # An interactive launch gets a sub-second Panergos Relay trace before
         # the dashboard. Automated, piped, and CI runs bypass it.
         try:
@@ -3660,7 +3654,13 @@ class PanergosCLI(CLIProcessNotificationsMixin, CLIAgentSetupMixin, CLICommandsM
                         _intro_skin.get_color("banner_gold", _intro_colors[1]),
                         _intro_skin.get_color("banner_accent", _intro_colors[2]),
                     )
-                play_relay_intro(columns=shutil.get_terminal_size().columns, colors=_intro_colors)
+                _terminal_size = shutil.get_terminal_size()
+                play_relay_intro(
+                    columns=_terminal_size.columns,
+                    rows=_terminal_size.lines,
+                    colors=_intro_colors,
+                )
+                self._preserve_startup_intro = True
         except Exception:
             logger.debug("Relay startup trace failed", exc_info=True)
 

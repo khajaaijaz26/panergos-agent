@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { artWidth, logo, LOGO_WIDTH, PANERGOS_RELAY_WIDTH, panergosRelay } from '../banner.js'
+import {
+  artWidth,
+  logo,
+  LOGO_WIDTH,
+  PANERGOS_RELAY_WIDTH,
+  PANERGOS_WORDMARK_WIDTH,
+  panergosRelay,
+  panergosWordmark
+} from '../banner.js'
 import { DEFAULT_THEME } from '../theme.js'
 
 describe('default banner', () => {
@@ -27,5 +35,17 @@ describe('default banner', () => {
     ])
     expect(lines.some(([, text]) => text.includes(legacyStaff))).toBe(false)
     expect(artWidth(lines)).toBe(PANERGOS_RELAY_WIDTH)
+  })
+
+  it('reveals the six-line Panergos wordmark one whole letter at a time', () => {
+    const first = panergosWordmark(DEFAULT_THEME.color, 1)
+    const second = panergosWordmark(DEFAULT_THEME.color, 2)
+    const complete = panergosWordmark(DEFAULT_THEME.color)
+
+    expect(first.map(([, text]) => text)).toHaveLength(6)
+    expect(first[0]?.[1]).toBe('██████╗ ')
+    expect(second[0]?.[1]).toBe('██████╗  █████╗ ')
+    expect(artWidth(complete)).toBe(PANERGOS_WORDMARK_WIDTH)
+    expect(PANERGOS_WORDMARK_WIDTH).toBe(68)
   })
 })

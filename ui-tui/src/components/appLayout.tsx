@@ -206,8 +206,6 @@ const TranscriptPane = memo(function TranscriptPane({
 
               {row.msg.kind === 'intro' ? (
                 <Box flexDirection="column" paddingTop={1}>
-                  <Banner maxWidth={Math.max(1, composer.cols - 2)} t={ui.theme} />
-
                   {row.msg.info && (
                     <SessionPanel
                       info={row.msg.info}
@@ -549,6 +547,10 @@ export const AppLayout = memo(function AppLayout({
   return (
     <Shell {...shellProps}>
       <Box flexDirection="column" flexGrow={1} position="relative">
+        <Box flexDirection="column" flexShrink={0} paddingX={1}>
+          <Banner maxWidth={Math.max(1, composer.cols - 2)} t={ui.theme} />
+        </Box>
+
         <Box flexDirection="row" flexGrow={1}>
           {!overlay.agents && !overlay.journey && <AmbientRail side="left" />}
           {overlay.agents ? (
