@@ -203,7 +203,7 @@ def _warn_pending_fleet_restart(*, startup: bool = False) -> None:
     print("⚠ A previous `panergos update` pulled new code but did not restart running gateways.", file=stream)
     print("  Gateways may still be serving pre-update modules (mixed sys.modules).", file=stream)
     if startup:
-        print("  Run `panergos update` or `panergos gateway restart`.", file=stream)
+        print("  Run `panergos update` to finish verified recovery.", file=stream)
 
 
 def _warn_pending_fleet_restart_on_startup() -> None:

@@ -2649,27 +2649,32 @@ _BUILTIN_SUBCOMMANDS = frozenset(
 )
 
 
+def _first_positional_index(argv: list[str]) -> int | None:
+    """Index of the first non-flag, non-flag-value token."""
+    from panergos_cli._parser import top_level_value_flag_sets
+
+    required_value_flags, optional_value_flags = top_level_value_flag_sets()
+    value_flags = required_value_flags | optional_value_flags
+    i = 0
+    while i < len(argv):
+        tok = argv[i]
+        if tok == "--":
+            return i + 1 if i + 1 < len(argv) else None
+        if not tok.startswith("-"):
+            return i
+        i += 2 if ("=" not in tok and tok in value_flags and i + 1 < len(argv)) else 1
+    return None
+
+
 def _first_positional_argv() -> str | None:
     """First non-flag, non-flag-value token in ``sys.argv[1:]`` (skips values of known flags).
 
     Not a full argparse simulation: an unknown ``--foo bar`` may classify
     ``bar`` as positional, which at worst forces a one-time plugin discovery.
     """
-    from panergos_cli._parser import top_level_value_flag_sets
-
-    required_value_flags, optional_value_flags = top_level_value_flag_sets()
-    value_flags = required_value_flags | optional_value_flags
     argv = sys.argv[1:]
-    i = 0
-    while i < len(argv):
-        tok = argv[i]
-        if tok == "--":  # everything after is positional
-            return argv[i + 1] if i + 1 < len(argv) else None
-        if not tok.startswith("-"):
-            return tok
-        # ``--flag=value`` is a single token; a known value flag consumes the next.
-        i += 2 if ("=" not in tok and tok in value_flags and i + 1 < len(argv)) else 1
-    return None
+    index = _first_positional_index(argv)
+    return argv[index] if index is not None else None
 
 
 def _plugin_cli_discovery_needed() -> bool:
@@ -2680,7 +2685,7 @@ def _plugin_cli_discovery_needed() -> bool:
     discovery is needed; for a prompt its cost amortizes over the agent run.
     """
     first = _first_positional_argv()  # None = bare ``panergos`` → chat
-    return first is not None and first not in _BUILTIN_SUBCOMMANDS
+    return first is not None and first.casefold() not in _BUILTIN_SUBCOMMANDS
 
 
 def _resolve_deferred_platform_cli_command(command_name: str | None) -> None:
@@ -3304,12 +3309,48 @@ def _parse_cli_args(parser, subparsers, argv):
     routing; if that fails (``panergos -c model`` — 'model' is the session name)
     fall back to the default behaviour.
     """
+    import difflib as _difflib
     import io as _io
 
-    _processed_argv = _coalesce_session_name_args(argv)
     _known_cmds = (
         set(subparsers.choices.keys()) if hasattr(subparsers, "choices") else set()
     )
+    _processed_argv = list(argv)
+
+    # Only inspect the first real positional. Provider/model/session values stay
+    # byte-for-byte intact; just the command is friendly on case-insensitive shells.
+    _command_index = _first_positional_index(_processed_argv)
+
+    if _command_index is not None:
+        _command = _processed_argv[_command_index]
+        _case_matches = [name for name in _known_cmds if name.casefold() == _command.casefold()]
+        if len(_case_matches) == 1:
+            _processed_argv[_command_index] = _case_matches[0]
+
+    _processed_argv = _coalesce_session_name_args(_processed_argv)
+
+    # Unknown commands still fail instead of being guessed, but a close typo gets
+    # one actionable line rather than argparse's full choice dump.
+    if _command_index is not None and _command_index < len(_processed_argv):
+        _command = _processed_argv[_command_index]
+        if _command not in _known_cmds:
+            _folded = {name.casefold(): name for name in _known_cmds}
+            _match = _difflib.get_close_matches(
+                _command.casefold(), _folded, n=1, cutoff=0.75
+            )
+            if _match:
+                _suggestion = _folded[_match[0]]
+                _web_hint = (
+                    " To open the web UI, run 'panergos dashboard'."
+                    if _suggestion == "browser"
+                    else ""
+                )
+                parser.exit(
+                    2,
+                    f"panergos: error: unknown command '{_command}'. "
+                    f"Did you mean '{_suggestion}'?{_web_hint}\n",
+                )
+
     _has_cmd_token = any(
         t in _known_cmds for t in _processed_argv if not t.startswith("-")
     )

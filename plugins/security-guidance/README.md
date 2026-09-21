@@ -85,5 +85,5 @@ not a substitute for code review, SAST, dependency scanning, or pen testing.
   [Apache License 2.0](./LICENSE). See [NOTICE](./NOTICE) for the full
   attribution.
 * `__init__.py`, `plugin.yaml`, `README.md`, and tests originated in the
-  MIT-licensed baseline. The required notice is preserved in `NOTICE` and
-  `LICENSE-MIT-UPSTREAM`; Panergos modifications are distributed under Apache-2.0.
+  MIT-licensed baseline. The required notice is preserved in the repository
+  `NOTICE`; Panergos modifications are distributed under Apache-2.0.

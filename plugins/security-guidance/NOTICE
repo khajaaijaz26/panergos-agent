@@ -24,7 +24,6 @@ Original work
 -------------
 
 The Panergos-side plugin glue code (__init__.py, plugin.yaml, README.md,
-tests) includes work originally published by NousResearch under the MIT
-License preserved in the repository's LICENSE-MIT-UPSTREAM. Panergos
-modifications are distributed under Apache-2.0. Importing patterns.py does
-not change the license of either file.
+tests) includes work originally published under the MIT License preserved in
+the repository's NOTICE. Panergos modifications are distributed under
+Apache-2.0. Importing patterns.py does not change the license of either file.

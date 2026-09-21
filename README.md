@@ -528,4 +528,4 @@ Translations: [Español](README.es.md) · [简体中文](README.zh-CN.md) · [ا
 
 ## License
 
-Panergos Agent is distributed under the [MIT License](LICENSE), Copyright © 2026 Shaik Khaja Aijaz Ahmed. Required upstream attribution and bundled component licenses remain preserved in [NOTICE](NOTICE), [LICENSE-MIT-UPSTREAM](LICENSE-MIT-UPSTREAM), and component notice/license files; those third-party terms still apply to their respective files.
+Panergos Agent is distributed under its own [MIT License](LICENSE), Copyright © 2026 Shaik Khaja Aijaz Ahmed. Required third-party attribution is consolidated in [NOTICE](NOTICE) and component notice/license files; those terms apply only to their respective inherited or bundled portions.

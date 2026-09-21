@@ -13,6 +13,10 @@ import argparse
 import io
 import sys
 
+import pytest
+
+from panergos_cli.main import _parse_cli_args
+
 
 
 def _build_parser():
@@ -63,3 +67,44 @@ def _safe_parse(parser, subparsers, argv):
         subparsers.required = False
         return parser.parse_args(argv)
 
+
+def test_top_level_command_is_case_insensitive_without_lowercasing_option_values():
+    parser, subparsers = _build_parser()
+    parser.add_argument("--model")
+    subparsers.add_parser("desktop")
+
+    args = _parse_cli_args(
+        parser,
+        subparsers,
+        ["--model", "Desktop", "DeSkToP"],
+    )
+
+    assert args.command == "desktop"
+    assert args.model == "Desktop"
+
+
+def test_close_unknown_command_gets_concise_suggestion(capsys):
+    parser, subparsers = _build_parser()
+    subparsers.add_parser("browser")
+
+    with pytest.raises(SystemExit) as exc:
+        _parse_cli_args(parser, subparsers, ["broswer"])
+
+    assert exc.value.code == 2
+    assert capsys.readouterr().err == (
+        "panergos: error: unknown command 'broswer'. Did you mean 'browser'? "
+        "To open the web UI, run 'panergos dashboard'.\n"
+    )
+
+
+def test_distant_unknown_command_is_not_silently_mapped(capsys):
+    parser, subparsers = _build_parser()
+    subparsers.add_parser("browser")
+
+    with pytest.raises(SystemExit) as exc:
+        _parse_cli_args(parser, subparsers, ["unrelated"])
+
+    assert exc.value.code == 2
+    stderr = capsys.readouterr().err
+    assert "invalid choice: 'unrelated'" in stderr
+    assert "Did you mean" not in stderr
