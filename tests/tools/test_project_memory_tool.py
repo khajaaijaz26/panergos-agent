@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import tools.project_memory_tool as project_memory_module
 from tools.project_memory_tool import PROJECT_MEMORY_SCHEMA, latest_handoff
 from tools.registry import registry
 
@@ -128,7 +129,133 @@ def test_registry_handler_strictly_validates_action_arguments(repo):
     assert _dispatch(action="sync", root=str(repo), query="not valid here")["success"] is False
     assert _dispatch(action="search", root=str(repo), query="x", limit=True)["success"] is False
     assert _dispatch(action="remember", root=str(repo), note="x" * 6_001)["success"] is False
+    assert _dispatch(
+        action="import_graph", root=str(repo), path="graph.json", query="invalid",
+    )["success"] is False
     assert _dispatch(action="explode", root=str(repo))["success"] is False
+
+
+def test_graph_import_is_private_searchable_idempotent_and_removable(repo, monkeypatch):
+    graph_dir = repo / "legacy-memory"
+    graph_dir.mkdir()
+    graph_path = graph_dir / "graph.json"
+    graph_path.write_text(
+        json.dumps({
+            "directed": True,
+            "raw_only_marker": "must_never_be_indexed",
+            "nodes": [
+                {
+                    "id": "service-node",
+                    "label": "private_memory_beacon",
+                    "community_name": "backend",
+                    "source_file": "src/app.py",
+                },
+                {
+                    "id": "secret-node",
+                    "label": "must_not_import_secret",
+                    "source_file": ".env:1",
+                },
+                {
+                    "id": "location-secret-node",
+                    "label": "must_not_import_location_secret",
+                    "source_location": ".env:2 ",
+                },
+            ],
+            "links": [{
+                "source": "service-node",
+                "target": "database-node",
+                "relation": "depends_on",
+                "context": "stellar_edge_context",
+                "source_file": "src/app.py",
+            }],
+            "hyperedges": [{
+                "id": "deployment-set",
+                "members": ["service-node", "database-node"],
+                "context": "release_constellation",
+            }],
+        }),
+        encoding="utf-8",
+    )
+
+    imported = _dispatch(action="import_graph", root=str(repo), path=str(graph_path))
+    assert imported["success"] is True, imported
+    assert imported["deduplicated"] is False
+    assert (imported["nodes"], imported["links"], imported["hyperedges"]) == (1, 1, 1)
+    assert imported["skipped_records"] == 2
+    digest = imported["digest"]
+
+    result = _dispatch(action="search", root=str(repo), query="stellar_edge_context")
+    assert result["count"] == 1
+    assert result["results"][0]["path"] == f"@graph/{digest}/links.txt"
+    assert _dispatch(
+        action="search", root=str(repo), query="must_not_import_secret",
+    )["count"] == 0
+    assert _dispatch(
+        action="search", root=str(repo), query="must_not_import_location_secret",
+    )["count"] == 0
+
+    duplicate = _dispatch(action="import_graph", root=str(repo), path=str(graph_path))
+    assert duplicate["deduplicated"] is True
+    assert duplicate["digest"] == digest
+    graph_copy = graph_dir / "graph-copy.json"
+    graph_copy.write_bytes(graph_path.read_bytes())
+    assert _dispatch(
+        action="import_graph", root=str(repo), path=str(graph_copy),
+    )["deduplicated"] is True
+    assert _dispatch(action="sync", root=str(repo))["success"] is True
+    assert _dispatch(
+        action="search", root=str(repo), query="release_constellation",
+    )["count"] == 1
+    assert _dispatch(
+        action="search", root=str(repo), query="must_not_import_secret",
+    )["count"] == 0
+    assert _dispatch(
+        action="search", root=str(repo), query="must_never_be_indexed",
+    )["count"] == 0
+
+    status = _dispatch(action="status", root=str(repo))
+    assert status["graph_imports"]["count"] == 1
+    assert status["graph_imports"]["nodes"] == 1
+    assert status["graph_imports"]["items"][0]["source_path"] == "legacy-memory/graph.json"
+
+    original_home = os.environ["PANERGOS_HOME"]
+    monkeypatch.setenv("PANERGOS_HOME", str(repo.parent / "other-profile"))
+    assert _dispatch(
+        action="search", root=str(repo), query="private_memory_beacon",
+    )["count"] == 0
+    monkeypatch.setenv("PANERGOS_HOME", original_home)
+
+    removed = _dispatch(action="remove_graph", root=str(repo), digest=digest)
+    assert removed["removed"] is True
+    assert _dispatch(
+        action="search", root=str(repo), query="private_memory_beacon",
+    )["count"] == 0
+    assert _dispatch(action="sync", root=str(repo))["success"] is True
+    assert _dispatch(
+        action="search", root=str(repo), query="must_never_be_indexed",
+    )["count"] == 0
+    assert _dispatch(action="status", root=str(repo))["graph_imports"]["count"] == 0
+
+
+def test_graph_import_rejects_unsafe_or_invalid_input(repo, tmp_path, monkeypatch):
+    outside = tmp_path / "outside-graph.json"
+    outside.write_text('{"nodes": []}', encoding="utf-8")
+    outside_result = _dispatch(action="import_graph", root=str(repo), path=str(outside))
+    assert outside_result["success"] is False
+    assert "inside the project root" in outside_result["error"]
+
+    malformed = repo / "malformed.json"
+    malformed.write_text("not json", encoding="utf-8")
+    malformed_result = _dispatch(action="import_graph", root=str(repo), path=str(malformed))
+    assert malformed_result["success"] is False
+    assert "valid UTF-8 JSON" in malformed_result["error"]
+
+    oversized = repo / "oversized.json"
+    oversized.write_text('{"nodes": []}', encoding="utf-8")
+    monkeypatch.setattr(project_memory_module, "_MAX_GRAPH_BYTES", 4)
+    oversized_result = _dispatch(action="import_graph", root=str(repo), path=str(oversized))
+    assert oversized_result["success"] is False
+    assert "no larger than 4 bytes" in oversized_result["error"]
 
 
 def test_filesystem_fallback_is_bounded_and_skips_symlinks_and_secrets(tmp_path, monkeypatch):
