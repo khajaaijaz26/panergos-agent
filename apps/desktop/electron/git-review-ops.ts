@@ -44,20 +44,21 @@ function runGh(args, cwd, ghBin): Promise<{ ok: boolean; stdout: string }> {
 }
 
 function gitFor(cwd, gitBin) {
-  // `gitBin` is resolved inside the Electron main process from known install
-  // locations or PATH — never renderer/user input. simple-git's custom-binary
-  // validation rejects paths containing spaces (the default Windows install is
-  // `C:\Program Files\Git\cmd\git.exe`), which silently broke the Review pane.
-  // For spaced paths, opt into simple-git's trusted-binary escape hatch instead
-  // of falling back to PATH (often absent in GUI-launched apps, and PATH lookup
-  // could resolve a repo-local git.exe).
-  return simpleGit({
+  // Keep simple-git's binary safe while still preferring Electron's resolved
+  // install (not the repo cwd). Its unsafe custom-binary escape hatch logs a
+  // warning on every instance for the default `C:\Program Files\...` path.
+  const git = simpleGit({
     baseDir: cwd,
-    binary: gitBin || 'git',
+    binary: 'git',
     maxConcurrentProcesses: 4,
-    trimmed: false,
-    ...(gitBin && /\s/.test(gitBin) ? { unsafe: { allowUnsafeCustomBinary: true } } : {})
+    trimmed: false
   })
+
+  if (gitBin && path.isAbsolute(gitBin)) {
+    git.env('PATH', [path.dirname(gitBin), process.env.PATH].filter(Boolean).join(path.delimiter))
+  }
+
+  return git
 }
 
 // simple-git reports renames as `old => new` (and `dir/{old => new}/f`); resolve

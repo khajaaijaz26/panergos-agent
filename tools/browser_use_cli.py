@@ -251,8 +251,8 @@ def _find_cli() -> Optional[List[str]]:
     else:
         user_bin = str(Path(os.path.expanduser("~")) / ".local" / "bin")
     probe_paths = [p for p in (_managed_bin_dir(), None, user_bin) if p is None or p]  # None = PATH
-    for name, argv in (("browser-use", lambda b: [b]), ("uvx", lambda b: [b, "browser-use"])):
-        for probe_path in probe_paths:
+    for probe_path in probe_paths:
+        for name, argv in (("browser-use", lambda b: [b]), ("uvx", lambda b: [b, "browser-use"])):
             found = shutil.which(name, path=probe_path)
             if found:
                 return argv(found)

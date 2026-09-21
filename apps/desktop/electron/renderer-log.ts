@@ -16,52 +16,35 @@
  */
 
 interface ConsoleMessageDetails {
-  level: number
+  level: string
   message: string
-  sourceUrl: string
+  sourceId: string
   lineNumber: number
 }
 
 interface WebContentsLike {
-  on(event: 'console-message', listener: (...args: unknown[]) => void): unknown
+  on(event: 'console-message', listener: (details: ConsoleMessageDetails) => void): unknown
 }
 
 interface WindowLike {
   webContents: WebContentsLike
 }
 
-/** Normalize Electron's two `console-message` signatures into one line, or
- *  null for non-error levels. Canonical (Electron 36+): `(event, details)`;
- *  deprecated positional: `(event, level, message, line, sourceId)`.
- *  `level` is numeric 0..3, where 3 === error. */
-export function formatRendererConsoleLine(
-  label: string,
-  detailsOrLevel: unknown,
-  message?: unknown,
-  line?: unknown,
-  sourceId?: unknown
-): string | null {
-  const details =
-    detailsOrLevel && typeof detailsOrLevel === 'object' ? (detailsOrLevel as ConsoleMessageDetails) : null
-
-  const level = details ? details.level : detailsOrLevel
-
-  if (level !== 3) {
+/** Format Electron's `Event<WebContentsConsoleMessageEventParams>` object, or
+ *  return null for non-error levels. */
+export function formatRendererConsoleLine(label: string, details: ConsoleMessageDetails): string | null {
+  if (details.level !== 'error') {
     return null
   }
 
-  const text = details ? details.message : message
-  const src = details ? details.sourceUrl : sourceId
-  const lineNo = details ? details.lineNumber : line
-
-  return `[renderer console:${label}] ${String(text)} (${String(src)}:${String(lineNo)})`
+  return `[renderer console:${label}] ${String(details.message)} (${String(details.sourceId)}:${String(details.lineNumber)})`
 }
 
 /** Attach the error-level console hook to a renderer window. `log` is the
  *  desktop.log sink (rememberLog in main.ts). */
 export function attachRendererConsoleCapture(win: WindowLike, label: string, log: (line: string) => void): void {
-  win.webContents.on('console-message', (_event, detailsOrLevel, message, line, sourceId) => {
-    const formatted = formatRendererConsoleLine(label, detailsOrLevel, message, line, sourceId)
+  win.webContents.on('console-message', details => {
+    const formatted = formatRendererConsoleLine(label, details)
 
     if (formatted !== null) {
       log(formatted)

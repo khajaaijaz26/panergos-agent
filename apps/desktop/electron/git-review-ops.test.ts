@@ -4,13 +4,15 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { afterEach, test } from 'vitest'
+import { afterEach, test, vi } from 'vitest'
 
 import { gitFor, repoStatus, resolveRenamePath, REVIEW_FILE_CAP, reviewList } from './git-review-ops'
 
 const tempDirs: string[] = []
 
 afterEach(() => {
+  vi.restoreAllMocks()
+
   for (const dir of tempDirs.splice(0)) {
     fs.rmSync(dir, { force: true, recursive: true })
   }
@@ -34,8 +36,11 @@ test('resolveRenamePath: plain path is unchanged', () => {
   assert.equal(resolveRenamePath('src/a.ts'), 'src/a.ts')
 })
 
-test('gitFor accepts an internally resolved git binary path containing spaces', () => {
+test('gitFor accepts a spaced resolved path without simple-gits unsafe-binary warning', () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+
   assert.doesNotThrow(() => gitFor(process.cwd(), 'C:\\Program Files\\Git\\cmd\\git.exe'))
+  assert.equal(warn.mock.calls.some(args => String(args[0]).includes('Invalid value supplied for custom binary')), false)
 })
 
 test('gitFor runs git through a spaced binary path', async () => {

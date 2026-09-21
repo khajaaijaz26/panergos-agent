@@ -1047,6 +1047,24 @@ class TestFindCliManagedBin:
         managed_cli.chmod(managed_cli.stat().st_mode | stat.S_IXUSR)
         assert bu_cli._find_cli_unpatched() == [str(managed_cli)]
 
+    def test_managed_uvx_precedes_path_browser_use(self, tmp_path, monkeypatch):
+        """A stale PATH shim must not shadow Panergos' managed zero-install runner."""
+        managed_dir = str(tmp_path / "home" / "bin")
+        managed_uvx = str(tmp_path / "home" / "bin" / "uvx")
+        legacy_cli = str(tmp_path / "legacy" / "browser-use")
+        monkeypatch.setattr(bu_cli, "_managed_bin_dir", lambda: managed_dir)
+        monkeypatch.setattr(
+            bu_cli.shutil,
+            "which",
+            lambda name, path=None: (
+                managed_uvx if (name, path) == ("uvx", managed_dir)
+                else legacy_cli if (name, path) == ("browser-use", None)
+                else None
+            ),
+        )
+
+        assert bu_cli._find_cli_unpatched() == [managed_uvx, "browser-use"]
+
     def test_user_local_bin_uvx_fallback(self, tmp_path, monkeypatch):
         cli_dir = tmp_path / "userhome" / ".local" / "bin"
         cli_dir.mkdir(parents=True)

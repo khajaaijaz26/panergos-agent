@@ -138,6 +138,7 @@ jobs:
         with:
           name: playwright-report-${{ github.sha }}
           path: apps/desktop/playwright-report
+          if-no-files-found: ignore
           retention-days: 14
           overwrite: true
 
