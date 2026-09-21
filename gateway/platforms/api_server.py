@@ -2532,8 +2532,9 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
         return task
 
     async def _cancel_browser_extension_expiry_tasks(self) -> None:
-        tasks = list(self._browser_extension_expiry_tasks.values())
-        self._browser_extension_expiry_tasks.clear()
+        expiry_tasks = getattr(self, "_browser_extension_expiry_tasks", {})
+        tasks = list(expiry_tasks.values())
+        expiry_tasks.clear()
         for task in tasks:
             task.cancel()
         if tasks:
@@ -2753,10 +2754,10 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
             async with self._browser_extension_controller_lifecycle_lock():
                 if grant_id and not self._browser_extension_auth.grant_is_active(grant_id):
                     raise web.HTTPUnauthorized()
-                await ws.prepare(request)
                 await asyncio.to_thread(
                     self._browser_control_broker.attach, scope, _send, owner=ws, ready=False)
                 attached = True
+                await ws.prepare(request)
                 if grant_id:
                     self._browser_extension_controller_sockets.setdefault(grant_id, set()).add(ws)
                     ready_frame = {

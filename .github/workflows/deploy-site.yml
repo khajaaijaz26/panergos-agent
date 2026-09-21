@@ -46,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version: 26
           cache: npm
@@ -56,7 +56,7 @@ jobs:
         run: |
           npm i -g npm@12.0.2
 
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.11'
 
@@ -195,7 +195,7 @@ jobs:
       # collision is by definition the identical file — the merge never
       # overwrites current-build output (cp --update=none).
       - name: Restore asset retention pool
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: _asset_retention
           key: docs-asset-retention-${{ github.run_id }}

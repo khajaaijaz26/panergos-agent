@@ -174,7 +174,7 @@ def test_run_conversation_acquires_lease_when_session_probe_raises(monkeypatch):
     ]
 
 
-def test_fresh_session_keeps_caller_seed_without_durable_lease(monkeypatch):
+def test_fresh_session_keeps_caller_seed_under_durable_lease(monkeypatch):
     db = _DB(session_exists=False)
     agent = _agent_with_db(db, session_id="fresh", platform="subagent")
     agent._session_db_created = False
@@ -193,7 +193,11 @@ def test_fresh_session_keeps_caller_seed_without_durable_lease(monkeypatch):
     AIAgent.run_conversation(agent, "work", conversation_history=seed)
 
     assert observed["history"] is seed
-    assert db.events == []
+    assert [event[:2] for event in db.events] == [
+        ("acquire", "fresh"),
+        ("release", "fresh"),
+    ]
+    assert db.events[0][2] == db.events[1][2]
 
 
 def test_run_conversation_lease_timeout_returns_resend_notice(monkeypatch):
