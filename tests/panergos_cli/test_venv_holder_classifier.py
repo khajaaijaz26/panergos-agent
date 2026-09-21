@@ -48,7 +48,7 @@ class TestHolderMessage:
     def test_dashboard_not_labeled_desktop_backend(self):
         message = self._msg(r"C:\v\Scripts\python.exe -m panergos_cli.main dashboard")
         assert "close the desktop app" not in message.lower()
-        assert "panergos dashboard" in message
+        assert "panergos dashboard --stop" in message
 
     def test_preserve_cache_not_labeled_serve(self):
         message = self._msg(r"python -m panergos_cli.main kanban --preserve-cache")

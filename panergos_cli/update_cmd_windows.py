@@ -271,7 +271,7 @@ def _format_venv_python_holders_message(matches: list[tuple[int, str, str]]) -> 
     """
     hint_by_subcommand = {
         "serve": "  ← Panergos backend (if the Desktop app is open, close it)",
-        "dashboard": "  ← panergos dashboard (stop it: panergos dashboard stop, or close that terminal)",
+        "dashboard": "  ← panergos dashboard (stop it: panergos dashboard --stop, or close that terminal)",
         "gateway": "  ← gateway",
     }
     lines = ["✗ Other Panergos processes are running from this install's venv:"]
