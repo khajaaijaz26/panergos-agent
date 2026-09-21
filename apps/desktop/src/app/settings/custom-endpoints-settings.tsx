@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import { SearchField } from '@/components/ui/search-field'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
 import { Check, Globe, Loader2, Plus, Save, Trash2, Zap } from '@/lib/icons'
@@ -11,18 +12,24 @@ import {
   activateCustomEndpoint,
   deleteCustomEndpoint,
   getCustomEndpoints,
+  getProviderDirectory,
+  type ProfileScope,
   saveCustomEndpoint,
   validateCustomEndpoint
 } from '@/panergos'
 import { confirm } from '@/store/confirm'
 import { notify, notifyError } from '@/store/notifications'
-import type { CustomEndpoint, CustomEndpointUpdate } from '@/types/panergos'
+import type { CustomEndpoint, CustomEndpointUpdate, ProviderDirectoryEntry } from '@/types/panergos'
 
 import { EmptyState, Pill, SectionHeading, SettingsContent, SettingsSkeleton } from './primitives'
+import { SettingsProfileScope } from './profile-scope'
 
 interface CustomEndpointsSettingsProps {
   onConfigSaved?: () => void
   onMainModelChanged?: (provider: string, model: string) => void
+  onOpenAccounts: () => void
+  onOpenApiKeys: () => void
+  profile?: ProfileScope
 }
 
 interface EndpointForm {
@@ -76,7 +83,13 @@ function toPayload(form: EndpointForm, models?: string[]): CustomEndpointUpdate 
   }
 }
 
-export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: CustomEndpointsSettingsProps) {
+export function CustomEndpointsSettings({
+  onConfigSaved,
+  onMainModelChanged,
+  onOpenAccounts,
+  onOpenApiKeys,
+  profile
+}: CustomEndpointsSettingsProps) {
   const { t } = useI18n()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -84,11 +97,13 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
   const [activating, setActivating] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [endpoints, setEndpoints] = useState<CustomEndpoint[]>([])
+  const [providers, setProviders] = useState<ProviderDirectoryEntry[]>([])
+  const [providerQuery, setProviderQuery] = useState('')
   const [form, setForm] = useState<EndpointForm>(EMPTY_FORM)
   const [discoveredModels, setDiscoveredModels] = useState<string[]>([])
 
   async function refresh() {
-    const data = await getCustomEndpoints()
+    const data = await getCustomEndpoints(profile)
     setEndpoints(data.endpoints)
   }
 
@@ -96,27 +111,33 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
     let cancelled = false
 
     async function load() {
-      try {
-        const data = await getCustomEndpoints()
+      setLoading(true)
 
-        if (cancelled) {
-          return
-        }
+      const [endpointResult, directoryResult] = await Promise.allSettled([
+        getCustomEndpoints(profile),
+        getProviderDirectory(profile)
+      ])
 
-        setEndpoints(data.endpoints)
-        const current = data.endpoints.find(endpoint => endpoint.is_current) ?? data.endpoints[0]
-
-        if (current) {
-          setForm(formFromEndpoint(current))
-          setDiscoveredModels(current.models)
-        }
-      } catch (err) {
-        notifyError(err, 'Could not load custom endpoints')
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
+      if (cancelled) {
+        return
       }
+
+      if (endpointResult.status === 'fulfilled') {
+        setEndpoints(endpointResult.value.endpoints)
+        const current = endpointResult.value.endpoints.find(endpoint => endpoint.is_current) ?? endpointResult.value.endpoints[0]
+        setForm(current ? formFromEndpoint(current) : EMPTY_FORM)
+        setDiscoveredModels(current?.models ?? [])
+      } else {
+        notifyError(endpointResult.reason, 'Could not load custom endpoints')
+      }
+
+      if (directoryResult.status === 'fulfilled') {
+        setProviders(directoryResult.value.providers)
+      } else {
+        notifyError(directoryResult.reason, 'Could not load provider directory')
+      }
+
+      setLoading(false)
     }
 
     void load()
@@ -124,12 +145,12 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [profile])
 
   async function handleSave() {
     try {
       setSaving(true)
-      const response = await saveCustomEndpoint(toPayload(form, discoveredModels))
+      const response = await saveCustomEndpoint(toPayload(form, discoveredModels), profile)
       setEndpoints(response.endpoints)
       const saved = response.endpoints.find(endpoint => endpoint.id === response.id)
 
@@ -155,7 +176,7 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
   async function handleValidate() {
     try {
       setTesting(true)
-      const response = await validateCustomEndpoint(toPayload(form))
+      const response = await validateCustomEndpoint(toPayload(form), profile)
       setDiscoveredModels(response.models)
 
       if (response.ok) {
@@ -185,7 +206,7 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
   async function handleActivate(endpoint: CustomEndpoint) {
     try {
       setActivating(endpoint.id)
-      const response = await activateCustomEndpoint(endpoint.id)
+      const response = await activateCustomEndpoint(endpoint.id, profile)
       await refresh()
       onConfigSaved?.()
       onMainModelChanged?.(response.provider, response.model)
@@ -205,7 +226,7 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
 
     try {
       setDeleting(endpoint.id)
-      const response = await deleteCustomEndpoint(endpoint.id)
+      const response = await deleteCustomEndpoint(endpoint.id, profile)
       setEndpoints(response.endpoints)
 
       if (form.id === endpoint.id) {
@@ -228,12 +249,147 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
 
   const allModelOptions = Array.from(new Set([...discoveredModels, form.model].filter(Boolean)))
   const canSave = form.name.trim() && form.baseUrl.trim() && form.model.trim()
+  const query = providerQuery.trim().toLowerCase()
+
+  const visibleProviders = query
+    ? providers.filter(provider =>
+        [provider.name, provider.id, provider.key_env ?? '', ...provider.models].some(value =>
+          value.toLowerCase().includes(query)
+        )
+      )
+    : providers
+
+  const selectedProvider = providers.find(
+    provider => provider.setup_kind === 'custom_endpoint' && provider.id === form.id
+  )
 
   return (
     <SettingsContent>
       <div className="space-y-6">
+        <SettingsProfileScope />
         <section>
-          <SectionHeading icon={Globe} meta={`${endpoints.length}`} title={t.settings.customEndpoints.title} />
+          <SectionHeading icon={Globe} meta={`${providers.length}`} title="AI provider directory" />
+          <p className="mb-3 text-xs leading-5 text-muted-foreground">
+            Search every supported company or model. Built-in providers open the API-key screen; compatible
+            providers fill the connection form for you. Open the official link, create or copy the key, paste it,
+            then test and save.
+          </p>
+          <SearchField
+            aria-label="Search companies or models"
+            containerClassName="mb-3 w-full"
+            onChange={setProviderQuery}
+            placeholder="Search companies or models..."
+            value={providerQuery}
+          />
+          <div className="max-h-96 divide-y divide-border/40 overflow-y-auto rounded-md border border-border/50">
+            {visibleProviders.length ? (
+              visibleProviders.map(provider => (
+                <div
+                  className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                  key={`${provider.setup_kind}:${provider.id}`}
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium">{provider.name}</span>
+                      <Pill>{provider.setup_kind === 'built_in' ? 'Built in' : 'Compatible API'}</Pill>
+                      <Pill tone={provider.configured ? 'success' : 'muted'}>
+                        {provider.configured ? 'Connected' : 'Not connected'}
+                      </Pill>
+                      <Pill>
+                        {provider.total_models} {provider.total_models === 1 ? 'model' : 'models'}
+                      </Pill>
+                    </div>
+                    <div className="mt-1 font-mono text-[0.68rem] text-muted-foreground">
+                      {provider.key_env
+                        ? `API key: ${provider.key_env}`
+                        : provider.configured
+                          ? 'Ready without an API key'
+                          : provider.setup_tab === 'accounts'
+                            ? 'Provider account sign-in'
+                            : 'Advanced credential setup'}
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      {provider.models.length
+                        ? `${provider.models.slice(0, 8).join(', ')}${provider.total_models > 8 ? ` +${provider.total_models - 8} more` : ''}`
+                        : 'Models are discovered after connection.'}
+                    </p>
+                    {provider.setup_kind === 'built_in' &&
+                      provider.setup_tab === 'keys' &&
+                      !provider.key_env &&
+                      !provider.configured && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Advanced credentials: run <code>panergos model</code> and choose {provider.name}.
+                        </p>
+                      )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    {provider.signup_url && (
+                      <a
+                        className="text-xs font-medium text-primary hover:underline"
+                        href={provider.signup_url}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        Get key / setup instructions
+                      </a>
+                    )}
+                    {provider.setup_kind === 'built_in' && provider.key_env ? (
+                      <Button onClick={onOpenApiKeys} size="sm" variant="outline">
+                        {provider.configured ? 'Manage key' : 'Add API key'}
+                      </Button>
+                    ) : provider.setup_kind === 'built_in' &&
+                      provider.setup_tab === 'accounts' &&
+                      !provider.configured ? (
+                      <Button onClick={onOpenAccounts} size="sm" variant="outline">
+                        Sign in
+                      </Button>
+                    ) : (
+                      provider.setup_kind === 'custom_endpoint' && <Button
+                        aria-label={`Set up ${provider.name}`}
+                        onClick={() => {
+                          const saved = endpoints.find(
+                            endpoint => endpoint.id === provider.id || endpoint.base_url === provider.base_url
+                          )
+
+                          setForm(
+                            saved
+                              ? formFromEndpoint(saved)
+                              : {
+                                  ...EMPTY_FORM,
+                                  baseUrl: provider.base_url ?? '',
+                                  id: provider.id,
+                                  model: provider.models[0] ?? '',
+                                  name: provider.name
+                                }
+                          )
+                          setDiscoveredModels(saved?.models ?? provider.models)
+                          document
+                            .getElementById('provider-connection-form')
+                            ?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+                        }}
+                        size="sm"
+                        variant="outline"
+                      >
+                        Set up
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="grid min-h-24 place-items-center px-4 py-6 text-center text-xs text-muted-foreground">
+                No companies or models match your search.
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section>
+          <SectionHeading icon={Globe} meta={`${endpoints.length}`} title="Saved compatible endpoints" />
+          <p className="mb-3 text-xs leading-5 text-muted-foreground">
+            Connect a cloud company or local server that exposes an OpenAI-compatible API. Test discovers its
+            model names; you can always enter an exact model ID manually.
+          </p>
           <div className="divide-y divide-border/40 rounded-md border border-border/50">
             {endpoints.length ? (
               endpoints.map(endpoint => (
@@ -298,7 +454,7 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
           </div>
         </section>
 
-        <section>
+        <section id="provider-connection-form">
           <SectionHeading icon={Plus} title={form.id ? 'Edit Endpoint' : 'Add Endpoint'} />
           <div className="grid gap-3 rounded-md border border-border/50 p-3">
             <div className="grid gap-3 sm:grid-cols-2">
@@ -319,6 +475,21 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
                 />
               </label>
             </div>
+            <label className="grid gap-1.5 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs font-medium text-foreground">
+              API Key{selectedProvider?.key_env ? ` (${selectedProvider.key_env})` : ''}
+              <Input
+                aria-label="API Key"
+                onChange={event => setForm(current => ({ ...current, apiKey: event.target.value }))}
+                placeholder={endpoints.some(endpoint => endpoint.id === form.id) ? 'Leave blank to keep current key' : 'Paste provider API key'}
+                type="password"
+                value={form.apiKey}
+              />
+              <span className="font-normal text-muted-foreground">
+                {endpoints.some(endpoint => endpoint.id === form.id)
+                  ? 'A key is already saved; leave this blank to keep it.'
+                  : 'Paste the provider key here. Leave blank only for local or keyless servers.'}
+              </span>
+            </label>
             <label className="grid gap-1.5 text-xs text-muted-foreground">
               Endpoint URL
               <Input
@@ -352,15 +523,6 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
                 />
               </label>
             </div>
-            <label className="grid gap-1.5 text-xs text-muted-foreground">
-              API Key
-              <Input
-                onChange={event => setForm(current => ({ ...current, apiKey: event.target.value }))}
-                placeholder={form.id ? 'Leave blank to keep current key' : 'Optional'}
-                type="password"
-                value={form.apiKey}
-              />
-            </label>
             <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
               <label className="flex items-center gap-2">
                 <Checkbox

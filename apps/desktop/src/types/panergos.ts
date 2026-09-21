@@ -226,6 +226,23 @@ export interface CustomEndpointValidationResponse {
   reachable: boolean
 }
 
+export interface ProviderDirectoryEntry {
+  base_url?: string
+  configured: boolean
+  id: string
+  key_env?: string
+  models: string[]
+  name: string
+  setup_kind: 'built_in' | 'custom_endpoint'
+  setup_tab?: 'accounts' | 'keys'
+  signup_url?: string
+  total_models: number
+}
+
+export interface ProviderDirectoryResponse {
+  providers: ProviderDirectoryEntry[]
+}
+
 export interface MessagingEnvVarInfo {
   advanced: boolean
   description: string

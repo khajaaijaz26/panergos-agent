@@ -444,7 +444,11 @@ def _pool_entry_mode_and_url(provider, entry, model_cfg, effective_model, base_u
         api_mode, default_url = _POOL_ENTRY_SIMPLE_MODES[provider]
         return api_mode, base_url or (default_url() if callable(default_url) else default_url)
     if provider == "anthropic":
-        return "anthropic_messages", _anthropic_cfg_base_url(model_cfg) or base_url or _ANTHROPIC_DEFAULT_BASE_URL
+        candidate = _anthropic_cfg_base_url(model_cfg) or base_url
+        return (
+            "anthropic_messages",
+            candidate if _anthropic_base_url_override_ok(candidate) else _ANTHROPIC_DEFAULT_BASE_URL,
+        )
     if provider == "copilot":
         api_mode = _copilot_runtime_api_mode(model_cfg, getattr(entry, "runtime_api_key", ""), target_model=effective_model)
         return api_mode, base_url or PROVIDER_REGISTRY["copilot"].inference_base_url
@@ -515,7 +519,8 @@ def _resolve_from_pool(provider: str, requested_provider: str, model_cfg: Dict[s
 
 
 def _explicit_anthropic(requested_provider, model_cfg, api_key, base_url, target_model):
-    base_url = base_url or _anthropic_cfg_base_url(model_cfg) or _ANTHROPIC_DEFAULT_BASE_URL
+    candidate = base_url or _anthropic_cfg_base_url(model_cfg)
+    base_url = candidate if _anthropic_base_url_override_ok(candidate) else _ANTHROPIC_DEFAULT_BASE_URL
     api_key = api_key or _anthropic_token_or_raise()
     return _runtime("anthropic", "anthropic_messages", base_url, api_key, source="explicit", requested_provider=requested_provider)
 

@@ -66,6 +66,57 @@ def test_openai_base_url_probe_names_the_http_status_instead_of_no_models(monkey
     assert "HTTP 502" in out["message"]
 
 
+def test_anthropic_key_probe_uses_native_auth_headers_and_rejects_401(monkeypatch, caplog):
+    import httpx
+    import panergos_cli.web_routers.config_env as mod
+    from panergos_cli.web_models import EnvVarUpdate
+
+    calls = []
+
+    class _Resp:
+        status_code = 401
+        is_success = False
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def get(self, url, *, headers, params):
+            calls.append((url, headers, params))
+            return _Resp()
+
+    secret = "sk-ant-private-test"
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: _Client())
+    monkeypatch.setattr(mod, "_require_token", lambda request: None)
+
+    out = asyncio.run(
+        mod.validate_provider_credential(
+            EnvVarUpdate(key="ANTHROPIC_API_KEY", value=secret), request=None
+        )
+    )  # type: ignore[arg-type]
+
+    assert calls == [
+        (
+            "https://api.anthropic.com/v1/models",
+            {
+                "Accept": "application/json",
+                "x-api-key": secret,
+                "anthropic-version": "2023-06-01",
+            },
+            {},
+        )
+    ]
+    assert out == {
+        "ok": False,
+        "reachable": True,
+        "message": "That API key was rejected. Double-check it and try again.",
+    }
+    assert secret not in caplog.text
+
+
 @pytest.mark.parametrize(
     "base_url,api_key,detail",
     [

@@ -38,6 +38,31 @@ const apiMocks = vi.hoisted(() => ({
       },
     ],
   })),
+  getProviderDirectory: vi.fn(async () => ({
+    providers: [
+      {
+        configured: false,
+        id: "openai-api",
+        key_env: "OPENAI_API_KEY",
+        models: ["gpt-test"],
+        name: "OpenAI API",
+        setup_kind: "built_in",
+        signup_url: "https://example.test/openai-key",
+        total_models: 1,
+      },
+      {
+        base_url: "https://api.nebula.test/v1",
+        configured: false,
+        id: "nebula",
+        key_env: "NEBULA_API_KEY",
+        models: ["nebula-fast", "nebula-pro"],
+        name: "Nebula AI",
+        setup_kind: "custom_endpoint",
+        signup_url: "https://example.test/nebula-key",
+        total_models: 2,
+      },
+    ],
+  })),
   getManagementProfile: vi.fn(() => "worker"),
   saveCustomEndpoint: vi.fn(async () => ({
     current: {
@@ -67,10 +92,14 @@ const apiMocks = vi.hoisted(() => ({
     reachable: true,
   })),
 }));
+const profileScope = vi.hoisted(() => ({ profile: "worker" }));
 
 vi.mock("@/lib/api", () => ({
   api: apiMocks,
   getManagementProfile: apiMocks.getManagementProfile,
+}));
+vi.mock("@/contexts/useProfileScope", () => ({
+  useProfileScope: () => ({ profile: profileScope.profile }),
 }));
 vi.mock("@/components/DeleteConfirmDialog", () => ({
   DeleteConfirmDialog: ({
@@ -126,9 +155,45 @@ afterEach(async () => {
   container?.remove();
   vi.clearAllMocks();
   apiMocks.getManagementProfile.mockReturnValue("worker");
+  profileScope.profile = "worker";
 });
 
 describe("CustomEndpointsPanel", () => {
+  it("searches the provider directory and prefills a compatible company with its models", async () => {
+    const { CustomEndpointsPanel } = await import("./CustomEndpointsPanel");
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root.render(<CustomEndpointsPanel onChanged={() => undefined} />);
+    });
+    await vi.waitFor(() => expect(container.textContent).toContain("Nebula AI"));
+    expect(apiMocks.getProviderDirectory).toHaveBeenCalledWith("worker");
+
+    const select = container.querySelector<HTMLSelectElement>(
+      'select[aria-label="AI provider directory"]',
+    )!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(
+        select,
+        "nebula",
+      );
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain("NEBULA_API_KEY");
+    expect(container.textContent).toContain("nebula-pro");
+    expect(container.querySelector<HTMLInputElement>('input[placeholder="My model server"]')?.value).toBe(
+      "Nebula AI",
+    );
+    expect(container.querySelector<HTMLInputElement>('input[placeholder="Test to discover models, or type an ID"]')?.value).toBe(
+      "nebula-fast",
+    );
+    expect(container.querySelector<HTMLInputElement>('input[name="custom-endpoint-api-key"]')?.type).toBe(
+      "password",
+    );
+  });
+
   it("keeps a stored API key masked and never echoes its preview", async () => {
     const { CustomEndpointsPanel } = await import("./CustomEndpointsPanel");
     container = document.createElement("div");
@@ -185,7 +250,6 @@ describe("CustomEndpointsPanel", () => {
       setValue?.call(keyInput, "replacement-key");
       keyInput.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    apiMocks.getManagementProfile.mockReturnValue("default");
     await act(async () => button("Save & activate").click());
     await vi.waitFor(() => expect(apiMocks.saveCustomEndpoint).toHaveBeenCalled());
     expect(apiMocks.saveCustomEndpoint).toHaveBeenCalledWith(
@@ -243,7 +307,8 @@ describe("CustomEndpointsPanel", () => {
     );
   });
 
-  it("keeps endpoint mutations on the component-pinned profile", async () => {
+  it("clears the old profile before allowing endpoint mutations in a new profile", async () => {
+    let resolveDefault!: (value: Awaited<ReturnType<typeof apiMocks.getCustomEndpoints>>) => void;
     apiMocks.getCustomEndpoints.mockResolvedValueOnce({
       current: {
         base_url: "",
@@ -263,7 +328,29 @@ describe("CustomEndpointsPanel", () => {
           name: "Example",
         },
       ],
-    });
+    }).mockImplementationOnce(() => new Promise((resolve) => {
+      resolveDefault = resolve;
+    }));
+    const defaultResponse = {
+      current: {
+        base_url: "https://default.example.test/v1",
+        model: "default/model",
+        provider: "default-example",
+      },
+      endpoints: [
+        {
+          api_key_preview: null,
+          base_url: "https://default.example.test/v1",
+          discover_models: true,
+          has_api_key: false,
+          id: "default-example",
+          is_current: true,
+          model: "default/model",
+          models: ["default/model"],
+          name: "Default Example",
+        },
+      ],
+    };
     const { CustomEndpointsPanel } = await import("./CustomEndpointsPanel");
     container = document.createElement("div");
     document.body.append(container);
@@ -274,20 +361,17 @@ describe("CustomEndpointsPanel", () => {
     await vi.waitFor(() => expect(container.textContent).toContain("Example"));
     expect(apiMocks.getCustomEndpoints).toHaveBeenCalledWith("worker");
 
-    apiMocks.getManagementProfile.mockReturnValue("default");
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>('[aria-label="Activate Example"]')?.click();
-    });
-    await vi.waitFor(() =>
-      expect(apiMocks.activateCustomEndpoint).toHaveBeenCalledWith(
-        "example",
-        "worker",
-      ),
-    );
-    expect(apiMocks.getCustomEndpoints).toHaveBeenLastCalledWith("worker");
+    profileScope.profile = "default";
+    await act(async () => root.render(<CustomEndpointsPanel onChanged={() => undefined} />));
+    await vi.waitFor(() => expect(apiMocks.getCustomEndpoints).toHaveBeenLastCalledWith("default"));
+    expect(apiMocks.getProviderDirectory).toHaveBeenLastCalledWith("default");
+    expect(container.querySelector('[aria-label="Delete Example"]')).toBeNull();
+
+    await act(async () => resolveDefault(defaultResponse));
+    await vi.waitFor(() => expect(container.textContent).toContain("Default Example"));
 
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('[aria-label="Delete Example"]')?.click();
+      container.querySelector<HTMLButtonElement>('[aria-label="Delete Default Example"]')?.click();
     });
     await act(async () => {
       [...container.querySelectorAll("button")]
@@ -296,8 +380,8 @@ describe("CustomEndpointsPanel", () => {
     });
     await vi.waitFor(() =>
       expect(apiMocks.deleteCustomEndpoint).toHaveBeenCalledWith(
-        "example",
-        "worker",
+        "default-example",
+        "default",
       ),
     );
   });

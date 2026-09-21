@@ -22,8 +22,8 @@ import { disconnectOAuthProvider, listOAuthProviders } from '@/panergos'
 import { confirm } from '@/store/confirm'
 import { $localModelsEnabled } from '@/store/local-models-flag'
 import { notify, notifyError } from '@/store/notifications'
-import { $desktopOnboarding, startManualLocalEndpoint, startManualProviderOAuth } from '@/store/onboarding'
-import { $settingsRequestProfile } from '@/store/settings-scope'
+import { $desktopOnboarding, startManualProviderOAuth } from '@/store/onboarding'
+import { $settingsRequestProfile, $settingsScopeProfile } from '@/store/settings-scope'
 import type { EnvVarInfo, OAuthProvider } from '@/types/panergos'
 
 import { isKeyVar, ProviderKeyRows } from './credential-key-ui'
@@ -309,24 +309,16 @@ function NoProviderKeys() {
   )
 }
 
-// Surfaces the "Local / custom endpoint" entry point directly in the API-keys
-// tab so users can add any OpenAI-compatible endpoint (Zyphra, vLLM, Ollama…)
-// from the GUI. The composer pill and the providers "have an API key" affordance
-// both dead-end on the env-var-driven key catalog, which never lists a custom
-// endpoint — so without this row there is no reachable Desktop path to it.
-// The whole row is the button so the click target and a11y focus match the
-// visible area (the chevron + gutter are inside the button, not beside it).
-// Pass reason: null — the onboarding overlay renders an unmapped reason string
-// verbatim as a banner (see ReasonNotice in onboarding/index.tsx), and we don't
-// want a raw identifier like "providers-keys-tab" showing as literal text.
-function LocalEndpointRow({ onOpen }: { onOpen: (reason: null | string) => void }) {
+// The built-in key catalog cannot name every future company. Keep the universal
+// endpoint form one click away and open the full form directly.
+function LocalEndpointRow({ onOpen }: { onOpen: () => void }) {
   const { t } = useI18n()
   const copy = t.settings.providers.localEndpoint
 
   return (
     <RowButton
       className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1 rounded-[6px] px-3 py-2.5 text-left transition-colors hover:bg-(--ui-control-hover-background)"
-      onClick={() => onOpen(null)}
+      onClick={onOpen}
     >
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="truncate text-[length:var(--conversation-text-font-size)] font-semibold">{copy.title}</span>
@@ -348,6 +340,7 @@ export function ProvidersSettings({
 }: ProvidersSettingsProps) {
   const { t } = useI18n()
   const scopeProfile = useStore($settingsRequestProfile)
+  const scopeKey = useStore($settingsScopeProfile)
   const { rowProps, vars } = useEnvCredentials(scopeProfile)
   const [oauthProviders, setOauthProviders] = useState<OAuthProvider[]>([])
   const [openProvider, setOpenProvider] = useState<null | string>(null)
@@ -476,7 +469,7 @@ export function ProvidersSettings({
     return (
       <SettingsContent>
         <SettingsProfileScope className="mb-5" />
-        <LocalEndpointRow onOpen={reason => startManualLocalEndpoint(reason, scopeProfile)} />
+        <LocalEndpointRow onOpen={() => onViewChange('custom-endpoints')} />
         {keyGroups.length > 0 ? (
           <div className="grid gap-3">
             <SearchField
@@ -513,7 +506,16 @@ export function ProvidersSettings({
   }
 
   if (view === 'custom-endpoints') {
-    return <CustomEndpointsSettings onConfigSaved={onConfigSaved} onMainModelChanged={onMainModelChanged} />
+    return (
+      <CustomEndpointsSettings
+        key={scopeKey}
+        onConfigSaved={onConfigSaved}
+        onMainModelChanged={onMainModelChanged}
+        onOpenAccounts={() => onViewChange('accounts')}
+        onOpenApiKeys={() => onViewChange('keys')}
+        profile={scopeProfile}
+      />
+    )
   }
 
   if (view === 'local') {

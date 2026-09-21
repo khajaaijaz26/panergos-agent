@@ -976,7 +976,12 @@ def _is_anthropic_compatible_host(url: str) -> bool:
         return False
     try:
         parsed = urlparse(url)
-        if (parsed.hostname or "").strip().lower().rstrip(".") in _ANTHROPIC_COMPATIBLE_HOSTS:
+        hostname = (parsed.hostname or "").strip().lower().rstrip(".")
+        if (
+            hostname in _ANTHROPIC_COMPATIBLE_HOSTS
+            or any(base_url_host_matches(url, host) for host in ("anthropic.com", "claude.com", "azure.com"))
+            or (hostname == "api.kimi.com" and "/coding" in (parsed.path or "").lower())
+        ):
             return True
         path = (parsed.path or "").rstrip("/").lower()
         return path.endswith("/anthropic") or path.endswith("/anthropic/v1")
@@ -2597,7 +2602,8 @@ def _try_anthropic(explicit_api_key: str = None) -> Tuple[Optional[Any], Optiona
         return None, None
     # Honor config.yaml model.base_url only when provider is anthropic AND the URL is
     # Anthropic-compatible; a foreign host (Codex, OpenRouter) would 401 every aux call.
-    base_url = _pool_runtime_base_url(entry, _ANTHROPIC_DEFAULT_BASE_URL) if pool_present else _ANTHROPIC_DEFAULT_BASE_URL
+    pool_base_url = _pool_runtime_base_url(entry, _ANTHROPIC_DEFAULT_BASE_URL) if pool_present else ""
+    base_url = pool_base_url if _is_anthropic_compatible_host(pool_base_url) else _ANTHROPIC_DEFAULT_BASE_URL
     with contextlib.suppress(Exception):
         from panergos_cli.config import load_config_readonly
         cfg = load_config_readonly()

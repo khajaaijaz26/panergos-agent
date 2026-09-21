@@ -538,6 +538,10 @@ export const api = {
     fetchJSON<CustomEndpointsResponse>(
       appendProfileParam("/api/providers/custom-endpoints", profile),
     ),
+  getProviderDirectory: (profile = getManagementProfile()) =>
+    fetchJSON<ProviderDirectoryResponse>(
+      appendProfileParam("/api/providers/directory", profile),
+    ),
   saveCustomEndpoint: (
     endpoint: CustomEndpointUpdate,
     profile = getManagementProfile(),
@@ -2550,6 +2554,23 @@ export interface CustomEndpointValidationResponse {
   models: string[];
   ok: boolean;
   reachable: boolean;
+}
+
+export interface ProviderDirectoryEntry {
+  base_url?: string;
+  configured: boolean;
+  id: string;
+  key_env?: string;
+  models: string[];
+  name: string;
+  setup_kind: "built_in" | "custom_endpoint";
+  setup_tab?: "accounts" | "keys";
+  signup_url?: string;
+  total_models: number;
+}
+
+export interface ProviderDirectoryResponse {
+  providers: ProviderDirectoryEntry[];
 }
 
 // ── Model options / assignment types ──────────────────────────────────

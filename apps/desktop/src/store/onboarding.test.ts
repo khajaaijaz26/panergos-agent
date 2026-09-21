@@ -30,7 +30,9 @@ function baseState(overrides: Partial<DesktopOnboardingState> = {}): DesktopOnbo
   }
 }
 
-function installApiMock(api: (request: { path: string }) => Promise<unknown>) {
+function installApiMock(
+  api: (request: { body?: unknown; path: string; profile?: string }) => Promise<unknown>
+) {
   Object.defineProperty(window, 'panergosDesktop', {
     configurable: true,
     value: { api }
@@ -80,6 +82,37 @@ function fallbackTimeoutGateway(): OnboardingContext['requestGateway'] {
 }
 
 describe('refreshOnboarding', () => {
+  it('does not save a provider key rejected by the shared credential probe', async () => {
+    const { saveOnboardingApiKey } = await import('./onboarding')
+    const calls: { body?: unknown; path: string; profile?: string }[] = []
+
+    installApiMock(async request => {
+      calls.push(request)
+
+      if (request.path === '/api/providers/validate') {
+        return { message: 'That API key was rejected.', ok: false, reachable: true }
+      }
+
+      throw new Error(`unexpected API path: ${request.path}`)
+    })
+
+    const result = await saveOnboardingApiKey(
+      'ANTHROPIC_API_KEY',
+      'sk-ant-rejected',
+      'Anthropic',
+      { profile: 'worker', requestGateway: emptyOpenRouterGateway() }
+    )
+
+    expect(result).toEqual({ message: 'That API key was rejected.', ok: false })
+    expect(calls).toEqual([
+      expect.objectContaining({
+        body: { api_key: '', key: 'ANTHROPIC_API_KEY', value: 'sk-ant-rejected' },
+        path: '/api/providers/validate',
+        profile: 'worker'
+      })
+    ])
+  })
+
   it('keeps onboarding work in its initiating lifetime and profile', async () => {
     const { startManualOnboarding, startProviderOAuth, saveOnboardingApiKey, closeManualOnboarding } =
       await import('./onboarding')

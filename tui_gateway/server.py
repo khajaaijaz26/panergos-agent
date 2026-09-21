@@ -2255,6 +2255,13 @@ def _resolve_agent_model_runtime(model_override, provider_override) -> tuple[str
         if not resolution.selected_model:
             raise RuntimeError("Auth fallback resolved without a model")
         return resolution.selected_model, resolution.runtime
+    if (
+        str(resolution.runtime.get("provider") or "").strip().lower() == "anthropic"
+        and overrides.get("base_url")
+    ):
+        from panergos_cli.runtime_provider import _anthropic_base_url_override_ok
+        if not _anthropic_base_url_override_ok(overrides["base_url"]):
+            overrides.pop("base_url")
     resolution.runtime.update({k: v for k, v in overrides.items() if v})
     return model, resolution.runtime
 

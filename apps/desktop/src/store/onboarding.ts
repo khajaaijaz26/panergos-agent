@@ -927,12 +927,20 @@ export async function saveOnboardingApiKey(
     return saveOnboardingLocalEndpoint(trimmed, endpointApiKey?.trim() ?? '', ctx)
   }
 
-  // No key validation here on purpose: we previously live-probed the key and
-  // hard-blocked on a runtime check after saving, which rejected too many
-  // legitimate users (corporate proxies, regional blocks, flaky/rate-limited
-  // provider probes, self-hosted endpoints). We now save the value as-is and
-  // let the user proceed; an actually-bad key surfaces later at chat time.
   try {
+    const probe = await validateProviderCredential(envKey, trimmed, undefined, ctx.profile)
+
+    if (!probe.ok && probe.reachable) {
+      return { ok: false, message: probe.message || 'That API key was rejected. Check it and try again.' }
+    }
+
+    if (!probe.reachable) {
+      notify({
+        kind: 'warning',
+        message: probe.message || 'The key will be saved, but the provider could not be reached to verify it.'
+      })
+    }
+
     await setEnvVar(envKey, trimmed, ctx.profile)
 
     if (generation !== flowGeneration) {

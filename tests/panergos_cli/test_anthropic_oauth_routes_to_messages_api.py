@@ -52,6 +52,31 @@ class TestExplicitRuntimeForAnthropic:
         assert result["provider"] == "anthropic"
         assert result["base_url"] == "https://api.anthropic.com"
 
+    def test_foreign_session_endpoint_is_not_reused(self):
+        """A stale endpoint persisted by any UI must not receive Anthropic credentials."""
+        result = rp._resolve_explicit_runtime(
+            provider="anthropic",
+            requested_provider="anthropic",
+            model_cfg={},
+            explicit_api_key="sk-ant-api03-test",
+            explicit_base_url="https://openrouter.ai/api",
+        )
+
+        assert result is not None
+        assert result["base_url"] == "https://api.anthropic.com"
+
+    def test_anthropic_protocol_proxy_is_preserved(self):
+        result = rp._resolve_explicit_runtime(
+            provider="anthropic",
+            requested_provider="anthropic",
+            model_cfg={},
+            explicit_api_key="proxy-key",
+            explicit_base_url="https://gateway.example.com/anthropic",
+        )
+
+        assert result is not None
+        assert result["base_url"] == "https://gateway.example.com/anthropic"
+
 
     def test_no_explicit_args_returns_none(self):
         # Guard the gating contract — _resolve_explicit_runtime only
@@ -117,6 +142,22 @@ class TestPoolEntryForAnthropic:
 
         assert resolved["api_mode"] == "anthropic_messages"
 
+    def test_foreign_pool_endpoint_is_not_reused(self):
+        class _Entry:
+            access_token = "sk-ant-api03-pool"
+            runtime_api_key = "sk-ant-api03-pool"
+            source = "env:ANTHROPIC_API_KEY"
+            base_url = "https://openrouter.ai/api"
+
+        resolved = rp._resolve_runtime_from_pool_entry(
+            provider="anthropic",
+            entry=_Entry(),
+            requested_provider="anthropic",
+            model_cfg={"provider": "anthropic"},
+        )
+
+        assert resolved["base_url"] == "https://api.anthropic.com"
+
 
 class TestCustomProviderUrlFallback:
     """The detector fix's actual reachable path: a user-defined
@@ -156,4 +197,3 @@ class TestCustomProviderUrlFallback:
 
         assert resolved is not None
         assert resolved["api_mode"] == "anthropic_messages"
-

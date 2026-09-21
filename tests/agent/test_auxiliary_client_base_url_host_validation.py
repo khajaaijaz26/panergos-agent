@@ -7,6 +7,7 @@ non-Anthropic provider's endpoint while keeping `provider: anthropic` would
 otherwise have every side-channel call (memory extractors, reflection,
 vision, title generation) 401 from the foreign host.
 """
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 
@@ -55,6 +56,25 @@ class TestTryAnthropicBaseUrlHostValidation:
             f"Auxiliary client must use the Anthropic default base_url, "
             f"not the operator's main-session override. Got: {actual!r}"
         )
+
+    def test_openrouter_pool_base_url_does_not_leak_into_auxiliary(self, tmp_path, monkeypatch):
+        """A previously persisted bad pool route is healed at the final auxiliary boundary."""
+        from agent.auxiliary_client import _try_anthropic
+        monkeypatch.setenv("PANERGOS_HOME", str(tmp_path))
+        entry = SimpleNamespace(
+            runtime_api_key="sk-ant-api03-test",
+            runtime_base_url="https://openrouter.ai/api",
+        )
+
+        with (
+            patch("agent.auxiliary_client._select_pool_entry", return_value=(True, entry)),
+            patch("agent.anthropic_adapter.build_anthropic_client") as mock_build,
+        ):
+            mock_build.return_value = MagicMock()
+            client, _model = _try_anthropic()
+
+        assert client is not None
+        assert _extract_base_url_passed_to_build(mock_build) == "https://api.anthropic.com"
 
     def test_anthropic_default_host_is_preserved(self, tmp_path, monkeypatch):
         """The common case (operator sets model.base_url to api.anthropic.com) must still apply."""
@@ -198,6 +218,8 @@ class TestTryAnthropicBaseUrlHostValidation:
         assert ok("https://api.anthropic.com") is True
         assert ok("https://gateway.example.com/anthropic") is True
         assert ok("http://127.0.0.1:8080/anthropic/v1") is True
+        assert ok("https://api.kimi.com/coding") is True
+        assert ok("https://example.services.ai.azure.com/anthropic") is True
         assert ok("https://openrouter.ai/api/v1") is False
         assert ok("https://api.openai.com/v1") is False
         assert ok("") is False

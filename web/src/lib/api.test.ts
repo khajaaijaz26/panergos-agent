@@ -184,6 +184,7 @@ describe("api custom endpoint helpers", () => {
       name: "Example",
     };
     await api.getCustomEndpoints();
+    await api.getProviderDirectory();
     await api.validateCustomEndpoint(endpoint);
     await api.saveCustomEndpoint(endpoint);
     await api.activateCustomEndpoint("example/id");
@@ -191,21 +192,22 @@ describe("api custom endpoint helpers", () => {
 
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       "/api/providers/custom-endpoints?profile=worker",
+      "/api/providers/directory?profile=worker",
       "/api/providers/custom-endpoints/validate",
       "/api/providers/custom-endpoints?profile=worker",
       "/api/providers/custom-endpoints/example%2Fid/activate?profile=worker",
       "/api/providers/custom-endpoints/example%2Fid?profile=worker",
     ]);
-    expect(fetchMock.mock.calls[1][1]).toEqual(
+    expect(fetchMock.mock.calls[2][1]).toEqual(
       expect.objectContaining({ method: "POST" }),
     );
-    expect(fetchMock.mock.calls[2][1]).toEqual(
+    expect(fetchMock.mock.calls[3][1]).toEqual(
       expect.objectContaining({
         body: JSON.stringify(endpoint),
         method: "POST",
       }),
     );
-    expect(fetchMock.mock.calls[4][1]).toEqual(
+    expect(fetchMock.mock.calls[5][1]).toEqual(
       expect.objectContaining({ method: "DELETE" }),
     );
   });

@@ -60,6 +60,39 @@ def test_make_agent_passes_resolved_provider():
         assert call_kwargs.kwargs["api_mode"] == "anthropic_messages"
 
 
+def test_resumed_anthropic_runtime_rejects_only_foreign_saved_endpoint(monkeypatch):
+    """A saved GUI session cannot re-pair Anthropic credentials with an OpenAI endpoint."""
+    from tui_gateway import server
+
+    def resolved(_kwargs):
+        return server._RuntimeFallbackResolution(
+            {
+                "provider": "anthropic",
+                "base_url": "https://api.anthropic.com",
+                "api_key": "sk-test-key",
+                "api_mode": "anthropic_messages",
+            },
+            None,
+            False,
+        )
+
+    monkeypatch.setattr(server, "_resolve_runtime_with_fallback", resolved)
+    for saved_url, expected_url in (
+        ("https://openrouter.ai/api", "https://api.anthropic.com"),
+        ("https://proxy.example/anthropic", "https://proxy.example/anthropic"),
+    ):
+        _model, runtime = server._resolve_agent_model_runtime(
+            {
+                "model": "claude-opus-4-8",
+                "provider": "anthropic",
+                "base_url": saved_url,
+                "api_mode": "anthropic_messages",
+            },
+            "anthropic",
+        )
+        assert runtime["base_url"] == expected_url
+
+
 def test_probe_config_health_flags_null_sections():
     """Bare YAML keys (`agent:` with no value) parse as None and silently
     drop nested settings; probe must surface them so users can fix."""

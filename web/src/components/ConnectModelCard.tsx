@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, ExternalLink, KeyRound, SlidersHorizontal } from "lucide-react";
+import { Check, ExternalLink, Globe2, KeyRound, Search, SlidersHorizontal } from "lucide-react";
 import type { ModelOptionProvider } from "@panergos/shared";
 import { Button } from "@panergos/ui/ui/components/button";
 import {
@@ -11,7 +11,8 @@ import {
 import { Input } from "@panergos/ui/ui/components/input";
 import { Spinner } from "@panergos/ui/ui/components/spinner";
 import { ModelPickerDialog } from "@/components/ModelPickerDialog";
-import { api, getManagementProfile } from "@/lib/api";
+import { useProfileScope } from "@/contexts/useProfileScope";
+import { api } from "@/lib/api";
 import type { EnvVarInfo } from "@/lib/api";
 
 interface ProviderChoice {
@@ -74,9 +75,20 @@ function errorText(error: unknown): string {
 }
 
 export function ConnectModelCard({ onChanged }: { onChanged(): void }) {
-  const [profile] = useState(getManagementProfile);
+  const { profile } = useProfileScope();
+  return <ProfileConnectModelCard key={profile} onChanged={onChanged} profile={profile} />;
+}
+
+function ProfileConnectModelCard({
+  onChanged,
+  profile,
+}: {
+  onChanged(): void;
+  profile: string;
+}) {
   const [providers, setProviders] = useState<ProviderChoice[]>([]);
   const [providerSlug, setProviderSlug] = useState("");
+  const [providerQuery, setProviderQuery] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
@@ -112,6 +124,17 @@ export function ConnectModelCard({ onChanged }: { onChanged(): void }) {
   }, [profile]);
 
   const selected = providers.find((provider) => provider.slug === providerSlug);
+  const normalizedQuery = providerQuery.trim().toLocaleLowerCase();
+  const matchingProviders = normalizedQuery
+    ? providers.filter((provider) =>
+        `${provider.label} ${provider.slug} ${provider.envKey}`
+          .toLocaleLowerCase()
+          .includes(normalizedQuery),
+      )
+    : providers;
+  const visibleProviders = selected && !matchingProviders.includes(selected)
+    ? [selected, ...matchingProviders]
+    : matchingProviders;
   const connectedProviderCount = providers.filter(
     (provider) => provider.isSet,
   ).length;
@@ -208,7 +231,7 @@ export function ConnectModelCard({ onChanged }: { onChanged(): void }) {
 
   return (
     <>
-      <Card className="min-w-0 overflow-hidden border-primary/40 bg-primary/5">
+      <Card className="min-w-0 overflow-hidden border-primary/40 bg-primary/5" id="connect-model-card">
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -217,13 +240,26 @@ export function ConnectModelCard({ onChanged }: { onChanged(): void }) {
                 <CardTitle className="text-base">Connect a model</CardTitle>
               </div>
               <p className="mt-1 text-xs text-text-secondary">
-                Pick a provider and paste its API key. Panergos verifies it,
-                discovers models, and selects a sensible main model for new sessions.
+                Search {providers.length || "all"} built-in providers, paste one API key,
+                and Panergos verifies it, discovers its models, and activates one.
               </p>
             </div>
-            <Button outlined size="sm" onClick={() => setPickerOpen(true)}>
-              <SlidersHorizontal className="h-3.5 w-3.5" /> Choose manually
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                outlined
+                size="sm"
+                onClick={() =>
+                  document
+                    .getElementById("connect-any-provider")
+                    ?.scrollIntoView?.({ behavior: "smooth", block: "start" })
+                }
+              >
+                <Globe2 className="h-3.5 w-3.5" /> Company not listed
+              </Button>
+              <Button outlined size="sm" onClick={() => setPickerOpen(true)}>
+                <SlidersHorizontal className="h-3.5 w-3.5" /> Choose manually
+              </Button>
+            </div>
           </div>
         </CardHeader>
 
@@ -234,12 +270,27 @@ export function ConnectModelCard({ onChanged }: { onChanged(): void }) {
             </div>
           ) : (
             <form
-              className="grid min-w-0 gap-3 lg:grid-cols-[minmax(12rem,0.8fr)_minmax(16rem,1.4fr)_auto] lg:items-end"
+              className="grid min-w-0 gap-3 lg:grid-cols-[minmax(12rem,0.8fr)_minmax(12rem,0.8fr)_minmax(16rem,1.4fr)_auto] lg:items-end"
               onSubmit={(event) => {
                 event.preventDefault();
                 void connect();
               }}
             >
+              <label className="grid gap-1.5 text-xs text-text-secondary">
+                Search companies
+                <span className="relative">
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-tertiary" />
+                  <Input
+                    aria-label="Search model providers"
+                    className="pl-8"
+                    disabled={connecting}
+                    onChange={(event) => setProviderQuery(event.target.value)}
+                    placeholder="OpenAI, Google, NVIDIA..."
+                    value={providerQuery}
+                  />
+                </span>
+              </label>
+
               <label className="grid gap-1.5 text-xs text-text-secondary">
                 Provider
                 <select
@@ -253,12 +304,17 @@ export function ConnectModelCard({ onChanged }: { onChanged(): void }) {
                   value={providerSlug}
                 >
                   <option value="">Select a provider</option>
-                  {providers.map((provider) => (
+                  {visibleProviders.map((provider) => (
                     <option key={provider.slug} value={provider.slug}>
                       {provider.label}{provider.isSet ? " (connected)" : ""}
                     </option>
                   ))}
                 </select>
+                {normalizedQuery && visibleProviders.length === 0 && (
+                  <span className="text-[11px] text-warning">
+                    No built-in match. Use Company not listed.
+                  </span>
+                )}
               </label>
 
               <label className="grid min-w-0 gap-1.5 text-xs text-text-secondary">
@@ -273,7 +329,7 @@ export function ConnectModelCard({ onChanged }: { onChanged(): void }) {
                       rel="noreferrer"
                       target="_blank"
                     >
-                      Get API key <ExternalLink className="h-3 w-3" />
+                      Get key & instructions <ExternalLink className="h-3 w-3" />
                     </a>
                   )}
                 </span>
@@ -288,6 +344,9 @@ export function ConnectModelCard({ onChanged }: { onChanged(): void }) {
                   type="password"
                   value={apiKey}
                 />
+                <span className="text-[11px] text-text-tertiary">
+                  Open the provider link, create or copy the key, paste it here, then select Connect.
+                </span>
               </label>
 
               <Button disabled={!selected || !apiKey.trim() || connecting} type="submit">
@@ -313,7 +372,7 @@ export function ConnectModelCard({ onChanged }: { onChanged(): void }) {
             </p>
           )}
           <p className="mt-3 text-xs text-text-tertiary">
-            {connectedProviderCount} {connectedProviderCount === 1 ? "provider" : "providers"} connected.
+            {providers.length} built-in companies available | {connectedProviderCount} {connectedProviderCount === 1 ? "provider" : "providers"} connected.
             Connect as many as you use; keys stay in the selected profile and
             are redacted after saving.
           </p>

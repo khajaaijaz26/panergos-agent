@@ -43,10 +43,14 @@ const apiMocks = vi.hoisted(() => ({
     reachable: true,
   })),
 }));
+const profileScope = vi.hoisted(() => ({ profile: "worker" }));
 
 vi.mock("@/lib/api", () => ({
   api: apiMocks,
   getManagementProfile: apiMocks.getManagementProfile,
+}));
+vi.mock("@/contexts/useProfileScope", () => ({
+  useProfileScope: () => ({ profile: profileScope.profile }),
 }));
 vi.mock("@/components/ModelPickerDialog", () => ({
   ModelPickerDialog: ({
@@ -112,6 +116,7 @@ afterEach(async () => {
   vi.clearAllMocks();
   apiMocks.getManagementProfile.mockReset();
   apiMocks.getManagementProfile.mockReturnValue("worker");
+  profileScope.profile = "worker";
 });
 
 describe("ConnectModelCard", () => {
@@ -287,9 +292,50 @@ describe("ConnectModelCard", () => {
     );
   });
 
+  it("does not save a provider key rejected by the shared probe", async () => {
+    apiMocks.validateProviderCredential.mockResolvedValueOnce({
+      message: "That API key was rejected.",
+      ok: false,
+      reachable: true,
+    });
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const { ConnectModelCard } = await import("./ConnectModelCard");
+    await act(async () => root.render(<ConnectModelCard onChanged={() => undefined} />));
+    await vi.waitFor(() => expect(container.textContent).toContain("OpenAI API"));
+
+    const select = container.querySelector<HTMLSelectElement>(
+      'select[aria-label="Model provider"]',
+    )!;
+    const keyInput = container.querySelector<HTMLInputElement>(
+      'input[name="provider-api-key"]',
+    )!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(
+        select,
+        "openai-api",
+      );
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        keyInput,
+        "rejected-secret",
+      );
+      keyInput.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      [...container.querySelectorAll("button")]
+        .find((button) => button.textContent?.trim() === "Connect")
+        ?.click();
+    });
+
+    await vi.waitFor(() => expect(container.textContent).toContain("That API key was rejected."));
+    expect(apiMocks.setEnvVar).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain("rejected-secret");
+  });
+
   it("keeps every async connection write on the component-pinned profile", async () => {
     let releaseValidation!: () => void;
-    apiMocks.getManagementProfile.mockReturnValueOnce("worker");
     apiMocks.validateProviderCredential.mockImplementationOnce(
       () => new Promise((resolve) => {
         releaseValidation = () => resolve({ message: "", ok: true, reachable: true });
@@ -301,8 +347,6 @@ describe("ConnectModelCard", () => {
     const { ConnectModelCard } = await import("./ConnectModelCard");
     await act(async () => root.render(<ConnectModelCard onChanged={() => undefined} />));
     await vi.waitFor(() => expect(container.textContent).toContain("OpenAI API"));
-    apiMocks.getManagementProfile.mockReturnValue("default");
-
     const select = container.querySelector<HTMLSelectElement>(
       'select[aria-label="Model provider"]',
     )!;
@@ -329,6 +373,8 @@ describe("ConnectModelCard", () => {
     await vi.waitFor(() =>
       expect(apiMocks.validateProviderCredential).toHaveBeenCalled(),
     );
+    profileScope.profile = "default";
+    await act(async () => root.render(<ConnectModelCard onChanged={() => undefined} />));
     await act(async () => releaseValidation());
     await vi.waitFor(() => expect(apiMocks.setModelAssignment).toHaveBeenCalled());
 
@@ -354,8 +400,6 @@ describe("ConnectModelCard", () => {
     const { ConnectModelCard } = await import("./ConnectModelCard");
     await act(async () => root.render(<ConnectModelCard onChanged={() => undefined} />));
     await vi.waitFor(() => expect(container.textContent).toContain("OpenAI API"));
-    apiMocks.getManagementProfile.mockReturnValue("default");
-
     const button = (text: string) =>
       [...container.querySelectorAll("button")].find(
         (candidate) => candidate.textContent?.trim() === text,
@@ -374,6 +418,48 @@ describe("ConnectModelCard", () => {
         provider: "openai-api",
       }),
       "worker",
+    ));
+  });
+
+  it("uses a newly selected management profile for the next connection", async () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const { ConnectModelCard } = await import("./ConnectModelCard");
+    await act(async () => root.render(<ConnectModelCard onChanged={() => undefined} />));
+    await vi.waitFor(() => expect(apiMocks.getEnvVars).toHaveBeenCalledWith("worker"));
+
+    profileScope.profile = "default";
+    await act(async () => root.render(<ConnectModelCard onChanged={() => undefined} />));
+    await vi.waitFor(() => expect(apiMocks.getEnvVars).toHaveBeenCalledWith("default"));
+
+    const select = container.querySelector<HTMLSelectElement>(
+      'select[aria-label="Model provider"]',
+    )!;
+    const keyInput = container.querySelector<HTMLInputElement>(
+      'input[name="provider-api-key"]',
+    )!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(
+        select,
+        "openai-api",
+      );
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        keyInput,
+        "sk-new-profile",
+      );
+      keyInput.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      [...container.querySelectorAll("button")]
+        .find((button) => button.textContent?.trim() === "Connect")
+        ?.click();
+    });
+    await vi.waitFor(() => expect(apiMocks.setEnvVar).toHaveBeenCalledWith(
+      "OPENAI_API_KEY",
+      "sk-new-profile",
+      "default",
     ));
   });
 });

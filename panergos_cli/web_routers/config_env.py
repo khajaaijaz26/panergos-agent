@@ -45,6 +45,13 @@ _CONFIG_MUTATION_LOCK = LateState("_CONFIG_MUTATION_LOCK")
 _reveal_timestamps: List[float] = []
 _REVEAL_MAX_PER_WINDOW = 5
 _REVEAL_WINDOW_SECONDS = 30
+_PROVIDER_DIRECTORY_MODEL_LIMIT = 100
+_PROVIDER_SETUP_URLS = {
+    "bedrock": "https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html",
+    "copilot-acp": "https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli",
+    "tencent-tokenplan": "https://cloud.tencent.com/document/product/1772/130552",
+    "vertex": "https://cloud.google.com/docs/authentication",
+}
 
 # Display order for tabs — unlisted categories sort alphabetically after these.
 _CATEGORY_ORDER = [
@@ -294,6 +301,133 @@ def _get_env_vars_sync(profile: Optional[str] = None):
     return result
 
 
+def _concrete_http_url(value: Any) -> str:
+    """Return a literal HTTP(S) URL, never a models.dev template."""
+    candidate = str(value or "").strip().rstrip("/")
+    if "${" in candidate:
+        return ""
+    try:
+        return _require_safe_authenticated_endpoint(candidate, "catalog-key")
+    except RuntimeError:
+        return ""
+
+
+def _directory_models(raw: Any, preferred=()) -> Tuple[List[str], int]:
+    """Bound the response while retaining the full known-model count."""
+    catalog = raw.get("models") if isinstance(raw, dict) else {}
+    candidates = [*preferred, *(catalog if isinstance(catalog, dict) else ())]
+    seen: set[str] = set()
+    models = [mid for value in candidates if (mid := str(value).strip()) and not (mid in seen or seen.add(mid))]
+    return models[:_PROVIDER_DIRECTORY_MODEL_LIMIT], len(models)
+
+
+def _models_dev_match(slug: str, base_url: str, registry: Dict[str, Any], aliases: Dict[str, str]):
+    """Find a canonical provider's cached models.dev row without inventing aliases."""
+    for provider_id in (aliases.get(slug), slug):
+        row = registry.get(provider_id) if provider_id else None
+        if isinstance(row, dict):
+            return provider_id, row
+    if base_url:
+        matches = [
+            (provider_id, row) for provider_id, row in registry.items()
+            if isinstance(row, dict) and _concrete_http_url(row.get("api")) == base_url
+        ]
+        if len(matches) == 1:
+            return matches[0]
+    return "", {}
+
+
+def _provider_setup_directory_sync() -> Dict[str, List[Dict[str, Any]]]:
+    """Read-only provider setup directory for browser and desktop clients."""
+    from agent.models_dev import PROVIDER_TO_MODELS_DEV, fetch_models_dev
+    from panergos_cli.auth import PROVIDER_REGISTRY, is_provider_explicitly_configured
+    from panergos_cli.models import _PROVIDER_MODELS
+    from panergos_cli.provider_catalog import provider_catalog
+
+    registry = fetch_models_dev()
+    config = load_config()
+    saved = _custom_endpoint_response(config)["endpoints"]
+    saved_ids = {str(endpoint.get("id") or "").casefold() for endpoint in saved}
+    saved_urls = {_concrete_http_url(endpoint.get("base_url")) for endpoint in saved}
+    saved_urls.discard("")
+    rows: List[Dict[str, Any]] = []
+    consumed_models_dev: set[str] = set()
+
+    for descriptor in provider_catalog():
+        if descriptor.auth_type == "virtual" or descriptor.slug == "custom":
+            continue
+        provider_config = PROVIDER_REGISTRY.get(descriptor.slug)
+        base_url = _concrete_http_url(getattr(provider_config, "inference_base_url", ""))
+        models_dev_id, models_dev = _models_dev_match(
+            descriptor.slug, base_url, registry, PROVIDER_TO_MODELS_DEV
+        )
+        if models_dev_id:
+            consumed_models_dev.add(models_dev_id)
+        if not base_url:
+            base_url = _concrete_http_url(models_dev.get("api"))
+        # Account catalogs are entitlement-specific; use only their curated, route-safe list.
+        cached_models = models_dev if descriptor.tab == "keys" else {}
+        models, total_models = _directory_models(
+            cached_models, _PROVIDER_MODELS.get(descriptor.slug, ())
+        )
+        try:
+            configured = descriptor.keyless or is_provider_explicitly_configured(descriptor.slug)
+        except Exception:
+            configured = descriptor.keyless
+        row: Dict[str, Any] = {
+            "id": descriptor.slug, "name": descriptor.label, "setup_kind": "built_in",
+            "setup_tab": descriptor.tab, "configured": configured,
+            "models": models, "total_models": total_models,
+        }
+        key_env = next(iter(descriptor.api_key_env_vars), "")
+        signup_url = _concrete_http_url(
+            descriptor.signup_url or models_dev.get("doc")
+            or _PROVIDER_SETUP_URLS.get(descriptor.slug)
+        )
+        if key_env:
+            row["key_env"] = key_env
+        if signup_url:
+            row["signup_url"] = signup_url
+        if base_url:
+            row["base_url"] = base_url
+        rows.append(row)
+
+    for provider_id, raw in registry.items():
+        if provider_id in consumed_models_dev or not isinstance(raw, dict):
+            continue
+        base_url = _concrete_http_url(raw.get("api"))
+        env_vars = raw.get("env") if isinstance(raw.get("env"), list) else []
+        key_env = next((
+            str(value).strip() for value in env_vars
+            if re.search(r"(?:KEY|TOKEN|PAT|SECRET)$", str(value).strip(), re.IGNORECASE)
+        ), "")
+        models, total_models = _directory_models(raw)
+        if raw.get("npm") != "@ai-sdk/openai-compatible" or not (base_url and key_env and models):
+            continue
+        # An arbitrary env key alone cannot register this route; only a saved endpoint is runnable.
+        configured = provider_id.casefold() in saved_ids or base_url in saved_urls
+        row = {
+            "id": str(provider_id), "name": str(raw.get("name") or provider_id),
+            "setup_kind": "custom_endpoint", "configured": configured, "key_env": key_env,
+            "base_url": base_url, "models": models, "total_models": total_models,
+        }
+        if signup_url := _concrete_http_url(raw.get("doc")):
+            row["signup_url"] = signup_url
+        rows.append(row)
+
+    canonical_count = sum(row["setup_kind"] == "built_in" for row in rows)
+    rows[canonical_count:] = sorted(
+        rows[canonical_count:], key=lambda row: (row["name"].casefold(), row["id"].casefold())
+    )
+    return {"providers": rows}
+
+
+@router.get("/api/providers/directory")
+async def provider_setup_directory(profile: Optional[str] = None):
+    """List real built-ins plus routable OpenAI-compatible models.dev providers."""
+    return await scoped_to_thread(profile, _provider_setup_directory_sync)
+
+
 @router.put("/api/env")
 async def set_env_var(body: EnvVarUpdate, profile: Optional[str] = None):
     # Unified credential lifecycle: writes .env AND reconciles any config.yaml
@@ -316,13 +450,15 @@ async def set_env_var(body: EnvVarUpdate, profile: Optional[str] = None):
 
 
 # Live credential probes keyed by env var: (url, auth) where auth is "bearer"
-# (Authorization header) or "query" (?key=). A cheap read-only call that 401s
+# (Authorization header), "anthropic" (x-api-key + version), or "query" (?key=).
+# A cheap read-only call that 401s
 # on a bad token — enough to catch a mistyped key before it's persisted.
 # Providers absent here (or local endpoints) are not network-validated; the
 # client treats those as "unknown".
 _CREDENTIAL_PROBES: dict[str, tuple[str, str]] = {
     "OPENROUTER_API_KEY": ("https://openrouter.ai/api/v1/key", "bearer"),
     "OPENAI_API_KEY": ("https://api.openai.com/v1/models", "bearer"),
+    "ANTHROPIC_API_KEY": ("https://api.anthropic.com/v1/models", "anthropic"),
     "XAI_API_KEY": ("https://api.x.ai/v1/models", "bearer"),
     "GEMINI_API_KEY": ("https://generativelanguage.googleapis.com/v1beta/models", "query"),
 }
@@ -765,6 +901,9 @@ async def validate_provider_credential(body: EnvVarUpdate, request: Request):
     params = {}
     if auth == "bearer":
         headers["Authorization"] = f"Bearer {value}"
+    elif auth == "anthropic":
+        headers["x-api-key"] = value
+        headers["anthropic-version"] = "2023-06-01"
     else:
         params["key"] = value
 

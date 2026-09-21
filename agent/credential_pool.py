@@ -2422,6 +2422,10 @@ def _seed_from_env(provider: str, entries: List[PooledCredential]) -> Tuple[bool
     env_url = ""
     if pconfig.base_url_env_var:
         env_url = get_env_prefer_dotenv(pconfig.base_url_env_var).rstrip("/")
+    if provider == "anthropic" and env_url:
+        from panergos_cli.runtime_provider import _anthropic_base_url_override_ok
+        if not _anthropic_base_url_override_ok(env_url):
+            env_url = ""
 
     env_vars = list(pconfig.api_key_env_vars)
     if provider == "anthropic":

@@ -11,6 +11,7 @@ import type {
   OAuthSubmitResponse,
   PanergosConfig,
   PanergosConfigRecord,
+  ProviderDirectoryResponse,
   StatusResponse
 } from '@/types/panergos'
 
@@ -155,51 +156,69 @@ export function revealEnvVar(key: string, profile?: ProfileScope): Promise<{ key
 export function validateProviderCredential(
   key: string,
   value: string,
-  apiKey?: string
+  apiKey?: string,
+  profile?: ProfileScope
 ): Promise<{ ok: boolean; reachable: boolean; message: string; models?: string[] }> {
   return panergosApi<{ ok: boolean; reachable: boolean; message: string; models?: string[] }>({
-    ...profileScoped(),
+    ...capabilityScoped(profile),
     path: '/api/providers/validate',
     method: 'POST',
     body: { key, value, api_key: apiKey ?? '' }
   })
 }
 
-export function getCustomEndpoints(): Promise<CustomEndpointsResponse> {
+export function getProviderDirectory(profile?: ProfileScope): Promise<ProviderDirectoryResponse> {
+  return panergosApi<ProviderDirectoryResponse>({
+    ...capabilityScoped(profile),
+    path: '/api/providers/directory'
+  })
+}
+
+export function getCustomEndpoints(profile?: ProfileScope): Promise<CustomEndpointsResponse> {
   return panergosApi<CustomEndpointsResponse>({
-    ...profileScoped(),
+    ...capabilityScoped(profile),
     path: '/api/providers/custom-endpoints'
   })
 }
 
-export function saveCustomEndpoint(endpoint: CustomEndpointUpdate): Promise<CustomEndpointsResponse> {
+export function saveCustomEndpoint(
+  endpoint: CustomEndpointUpdate,
+  profile?: ProfileScope
+): Promise<CustomEndpointsResponse> {
   return panergosApi<CustomEndpointsResponse>({
-    ...profileScoped(),
+    ...capabilityScoped(profile),
     path: '/api/providers/custom-endpoints',
     method: 'POST',
     body: endpoint
   })
 }
 
-export function validateCustomEndpoint(endpoint: CustomEndpointUpdate): Promise<CustomEndpointValidationResponse> {
+export function validateCustomEndpoint(
+  endpoint: CustomEndpointUpdate,
+  profile?: ProfileScope
+): Promise<CustomEndpointValidationResponse> {
   return panergosApi<CustomEndpointValidationResponse>({
+    ...capabilityScoped(profile),
     path: '/api/providers/custom-endpoints/validate',
     method: 'POST',
     body: endpoint
   })
 }
 
-export function activateCustomEndpoint(id: string): Promise<{ ok: boolean; provider: string; model: string }> {
+export function activateCustomEndpoint(
+  id: string,
+  profile?: ProfileScope
+): Promise<{ ok: boolean; provider: string; model: string }> {
   return panergosApi<{ ok: boolean; provider: string; model: string }>({
-    ...profileScoped(),
+    ...capabilityScoped(profile),
     path: `/api/providers/custom-endpoints/${encodeURIComponent(id)}/activate`,
     method: 'POST'
   })
 }
 
-export function deleteCustomEndpoint(id: string): Promise<CustomEndpointsResponse> {
+export function deleteCustomEndpoint(id: string, profile?: ProfileScope): Promise<CustomEndpointsResponse> {
   return panergosApi<CustomEndpointsResponse>({
-    ...profileScoped(),
+    ...capabilityScoped(profile),
     path: `/api/providers/custom-endpoints/${encodeURIComponent(id)}`,
     method: 'DELETE'
   })

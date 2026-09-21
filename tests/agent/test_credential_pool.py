@@ -1063,6 +1063,24 @@ def test_load_pool_api_key_path_skips_oauth_autodiscovery(tmp_path, monkeypatch)
     assert cc_called["n"] == 0
 
 
+def test_load_pool_rejects_foreign_anthropic_base_url(tmp_path, monkeypatch):
+    """A stale inherited URL must not bind an Anthropic key to a foreign wire protocol."""
+    monkeypatch.setenv("PANERGOS_HOME", str(tmp_path / "panergos"))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-api03-explicit-user-key")
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://openrouter.ai/api")
+    monkeypatch.delenv("ANTHROPIC_TOKEN", raising=False)
+    monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
+    _write_auth_store(tmp_path, {"version": 1, "providers": {}})
+    monkeypatch.setattr("panergos_cli.auth.is_provider_explicitly_configured", lambda _pid: True)
+
+    from agent.credential_pool import load_pool
+
+    entry = load_pool("anthropic").select()
+
+    assert entry is not None
+    assert entry.base_url == "https://api.anthropic.com"
+
+
 def test_load_pool_api_key_path_prunes_stale_oauth_entries(tmp_path, monkeypatch):
     """Switching OAuth -> API key must prune stale OAuth entries from auth.json.
 

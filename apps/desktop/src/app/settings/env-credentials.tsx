@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 
 import { useI18n } from '@/i18n'
 import { type IconComponent } from '@/lib/icons'
-import { deleteEnvVar, getEnvVars, revealEnvVar, setEnvVar } from '@/panergos'
+import { deleteEnvVar, getEnvVars, revealEnvVar, setEnvVar, validateProviderCredential } from '@/panergos'
 import { confirm } from '@/store/confirm'
 import { notify, notifyError } from '@/store/notifications'
 import type { EnvVarInfo } from '@/types/panergos'
@@ -95,6 +95,22 @@ export function useEnvCredentials(profile?: string): UseEnvCredentials {
     setRevealed(c => withoutKey(c, key))
   }
 
+  async function validateProviderKey(key: string, value: string): Promise<string> {
+    const info = vars?.[key]
+
+    if (info?.category !== 'provider' || !info.is_password) {
+      return ''
+    }
+
+    const probe = await validateProviderCredential(key, value, undefined, profile)
+
+    if (!probe.ok && probe.reachable) {
+      throw new Error(probe.message || 'That API key was rejected. Check it and try again.')
+    }
+
+    return probe.reachable ? '' : probe.message || 'The key was saved, but the provider could not be reached to verify it.'
+  }
+
   async function handleSave(key: string) {
     const value = edits[key]
 
@@ -105,10 +121,15 @@ export function useEnvCredentials(profile?: string): UseEnvCredentials {
     setSaving(key)
 
     try {
+      const warning = await validateProviderKey(key, value)
       await setEnvVar(key, value, profile)
       patchVar(key, { is_set: true, redacted_value: redactedValue(value) })
       clearLocalState(key)
-      notify({ kind: 'success', title: toolsets.savedTitle, message: toolsets.savedMessage(key) })
+      notify({
+        kind: warning ? 'warning' : 'success',
+        title: toolsets.savedTitle,
+        message: warning || toolsets.savedMessage(key)
+      })
     } catch (err) {
       notifyError(err, toolsets.failedSave(key))
     } finally {
@@ -129,10 +150,15 @@ export function useEnvCredentials(profile?: string): UseEnvCredentials {
     setSaving(key)
 
     try {
+      const warning = await validateProviderKey(key, trimmed)
       await setEnvVar(key, trimmed, profile)
       patchVar(key, { is_set: true, redacted_value: redactedValue(trimmed) })
       clearLocalState(key)
-      notify({ kind: 'success', message: toolsets.savedMessage(key), title: toolsets.savedTitle })
+      notify({
+        kind: warning ? 'warning' : 'success',
+        message: warning || toolsets.savedMessage(key),
+        title: toolsets.savedTitle
+      })
 
       return { ok: true }
     } catch (err) {

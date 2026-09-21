@@ -1264,10 +1264,14 @@ export default function ModelsPage() {
 
       <ConnectModelCard onChanged={onAssigned} />
 
+      <div id="connect-any-provider">
+        <CustomEndpointsPanel onChanged={onAssigned} />
+      </div>
+
       <FreeModelAccess />
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-2">
-        <details className="group border border-border/60 bg-card/40 p-4">
+        <details className="group border border-border/60 bg-card/40 p-4" id="connect-provider-account">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium">
             <span>
               Sign in with an AI account
@@ -1360,21 +1364,6 @@ export default function ModelsPage() {
           </Card>
         )}
       </div>
-
-      <details className="group border border-border/60 bg-card/40 p-4">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium">
-          <span>
-            Advanced: custom endpoint
-            <span className="ml-2 text-xs font-normal text-text-secondary">
-              OpenAI-compatible and local servers
-            </span>
-          </span>
-          <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
-        </summary>
-        <div className="mt-4">
-          <CustomEndpointsPanel onChanged={onAssigned} />
-        </div>
-      </details>
 
       {loading && !data && (
         <div className="flex items-center justify-center py-24">

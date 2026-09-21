@@ -430,7 +430,7 @@ export const en: Translations = {
       providers: 'Providers',
       providerAccounts: 'Accounts',
       providerApiKeys: 'API keys',
-      providerCustomEndpoints: 'Custom Endpoints',
+      providerCustomEndpoints: 'Any AI Provider',
       providerLocalModels: 'Local Models',
       gateway: 'Gateways',
       apiKeys: 'Tools & Keys',
@@ -808,10 +808,10 @@ export const en: Translations = {
       backendIdleTimeoutTitle: 'Backend Idle Timeout'
     },
     customEndpoints: {
-      title: 'Custom Endpoints',
+      title: 'Any AI Provider',
       deleteEndpoint: 'Delete endpoint',
-      emptyDescription: 'Add an OpenAI-compatible endpoint below.',
-      emptyTitle: 'No custom endpoints',
+      emptyDescription: 'Choose a company preset or add its OpenAI-compatible API URL, key, and model below.',
+      emptyTitle: 'No additional providers connected',
       namePlaceholder: 'Axet Proxy',
       contextPlaceholder: 'Auto'
     },
@@ -1393,8 +1393,8 @@ export const en: Translations = {
       searchKeys: 'Search providers…',
       noKeysMatch: 'No providers match your search.',
       localEndpoint: {
-        title: 'Local / custom endpoint',
-        description: 'Point Panergos at any OpenAI-compatible endpoint (Zyphra, vLLM, llama.cpp, Ollama, etc).'
+        title: 'Company or model not listed?',
+        description: 'Add any OpenAI-compatible cloud or local provider, then discover its model names with one API key.'
       },
       loading: 'Loading providers...'
     },

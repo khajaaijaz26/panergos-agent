@@ -97,6 +97,8 @@ export type {
   ProjectFolder,
   ProjectInfo,
   ProjectsPayload,
+  ProviderDirectoryEntry,
+  ProviderDirectoryResponse,
   SessionCreateResponse,
   SessionInfo,
   SessionMessage,

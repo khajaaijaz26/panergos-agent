@@ -10,8 +10,8 @@ const listOAuthProviders = vi.fn()
 const disconnectOAuthProvider = vi.fn()
 const getEnvVars = vi.fn()
 const setEnvVar = vi.fn()
+const validateProviderCredential = vi.fn()
 const startManualProviderOAuth = vi.fn()
-const startManualLocalEndpoint = vi.fn()
 const onboarding = atom({ manual: false })
 
 vi.mock('@/store/profile', () => ({
@@ -25,6 +25,8 @@ vi.mock('@/panergos', () => ({
   setApiRequestProfile: vi.fn(),
   getProfiles: async () => ({ profiles: (await import('@/store/profile')).$profiles.get() }),
   setEnvVar: (key: string, value: string, profile?: string) => setEnvVar(key, value, profile),
+  validateProviderCredential: (key: string, value: string, apiKey?: string, profile?: string) =>
+    validateProviderCredential(key, value, apiKey, profile),
   disconnectOAuthProvider: (...args: unknown[]) => disconnectOAuthProvider(...args),
   getEnvVars: (...args: unknown[]) => getEnvVars(...args),
   listOAuthProviders: (...args: unknown[]) => listOAuthProviders(...args)
@@ -32,8 +34,7 @@ vi.mock('@/panergos', () => ({
 
 vi.mock('@/store/onboarding', () => ({
   $desktopOnboarding: onboarding,
-  startManualProviderOAuth: (...args: unknown[]) => startManualProviderOAuth(...args),
-  startManualLocalEndpoint: (reason: null | string) => startManualLocalEndpoint(reason)
+  startManualProviderOAuth: (...args: unknown[]) => startManualProviderOAuth(...args)
 }))
 
 function provider(id: string, loggedIn: boolean, patch: Partial<OAuthProvider> = {}): OAuthProvider {
@@ -77,6 +78,7 @@ beforeEach(() => {
   listOAuthProviders.mockResolvedValue({
     providers: [provider('acme', true), provider('minimax-oauth', false)]
   })
+  validateProviderCredential.mockResolvedValue({ message: '', ok: true, reachable: true })
 })
 
 afterEach(() => {
@@ -132,6 +134,14 @@ describe('ProvidersSettings', () => {
       fireEvent.focus(input)
       fireEvent.change(input, { target: { value: 'fixture-key' } })
       fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+      await waitFor(() =>
+        expect(validateProviderCredential).toHaveBeenCalledWith(
+          'WIDGET_API_KEY',
+          'fixture-key',
+          undefined,
+          'profile-b'
+        )
+      )
       await waitFor(() => expect(setEnvVar).toHaveBeenCalledWith('WIDGET_API_KEY', 'fixture-key', 'profile-b'))
       fireEvent.click(screen.getByRole('button', { name: 'profile-a' }))
       await waitFor(() => expect(getEnvVars).toHaveBeenLastCalledWith(undefined))
@@ -284,22 +294,19 @@ describe('ProvidersSettings', () => {
     expect(await screen.findByText('No providers match your search.')).toBeTruthy()
   })
 
-  it('offers a Local / custom endpoint entry in the API-keys tab that opens the custom-endpoint flow', async () => {
-    // Regression: the composer pill and the providers "have an API key"
-    // affordance both dead-end on the env-var-driven key catalog, which never
-    // lists a custom endpoint — so without this row there is no reachable
-    // Desktop GUI path to add one. See issue #62817.
+  it('opens the full custom-endpoint settings directly from the API-key catalog', async () => {
     getEnvVars.mockResolvedValue({})
     listOAuthProviders.mockResolvedValue({ providers: [] })
 
     const { ProvidersSettings } = await import('./providers-settings')
-    render(<ProvidersSettings onClose={vi.fn()} onViewChange={vi.fn()} view="keys" />)
+    const onViewChange = vi.fn()
+    render(<ProvidersSettings onClose={vi.fn()} onViewChange={onViewChange} view="keys" />)
 
-    const row = await screen.findByText('Local / custom endpoint')
-    expect(screen.getByText(/OpenAI-compatible endpoint/)).toBeTruthy()
+    const row = await screen.findByText('Company or model not listed?')
+    expect(screen.getByText(/discover its model names/)).toBeTruthy()
 
     fireEvent.click(row)
 
-    await waitFor(() => expect(startManualLocalEndpoint).toHaveBeenCalledWith(null))
+    await waitFor(() => expect(onViewChange).toHaveBeenCalledWith('custom-endpoints'))
   })
 })
