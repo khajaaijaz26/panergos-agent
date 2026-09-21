@@ -52,6 +52,26 @@ curl http://localhost:8642/v1/chat/completions \
 
 Or connect Open WebUI, LobeChat, or any other frontend — see the [Open WebUI integration guide](/user-guide/messaging/open-webui) for step-by-step instructions.
 
+## Portable session continuity
+
+The bearer key authenticates a client; an explicit session ID selects the exact Panergos-owned conversation. This separation lets another authorized API client continue the same work without treating one shared credential as one shared chat.
+
+```bash
+# Client A discovers or records the session ID.
+curl http://127.0.0.1:8642/api/sessions?limit=20 \
+  -H "Authorization: Bearer $API_SERVER_KEY"
+
+# Client B continues it through the runs API.
+curl http://127.0.0.1:8642/v1/runs \
+  -H "Authorization: Bearer $API_SERVER_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"input":"Continue from the last verified step.","session_id":"SESSION_ID"}'
+```
+
+If `SESSION_ID` exists and the request does not supply replacement history, Panergos loads that session's active persisted transcript. A later turn can select another configured model route without discarding the Panergos conversation. Provider credentials are resolved again and are never copied into session messages.
+
+For frontends that rotate transcript IDs but need one durable long-term-memory scope, also send [`X-Panergos-Session-Key`](#long-term-memory-scoping-x-panergos-session-key). This continuity applies to clients connected to the same Panergos server/profile; a provider API key alone cannot import private account history from an unrelated AI service.
+
 ## Endpoints
 
 ### POST /v1/chat/completions
@@ -269,6 +289,8 @@ browser:
   extension_control:
     enabled: true
 ```
+
+For the ready-to-load Panergos Relay side panel and its least-privilege pairing flow, follow the [browser extension guide](/user-guide/features/browser-extension). The lower-level protocol below remains available for custom controllers.
 
 The local API path also requires the API server bearer key. A controller may
 register only for an existing server session. Panergos derives the controller

@@ -13,13 +13,14 @@
   <a href="https://github.com/khajaaijaz26/panergos-agent/actions/workflows/ci.yaml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/khajaaijaz26/panergos-agent/ci.yaml?branch=main&style=flat-square&label=CI&labelColor=120B1F&color=2EE6A6"></a>
   <a href="https://github.com/khajaaijaz26/panergos-agent/actions/workflows/panergos-ci.yml"><img alt="Panergos contracts" src="https://img.shields.io/github/actions/workflow/status/khajaaijaz26/panergos-agent/panergos-ci.yml?branch=main&style=flat-square&label=contracts&labelColor=120B1F&color=2EE6A6"></a>
   <a href="https://github.com/khajaaijaz26/panergos-agent/releases"><img alt="Release" src="https://img.shields.io/github/v/release/khajaaijaz26/panergos-agent?style=flat-square&label=release&labelColor=120B1F&color=FF6B5E"></a>
-  <a href="LICENSE"><img alt="Apache-2.0 license" src="https://img.shields.io/badge/license-Apache--2.0-F7C453?style=flat-square&labelColor=120B1F"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-F7C453?style=flat-square&labelColor=120B1F"></a>
   <a href="https://khajaaijaz26.github.io/panergos-agent/docs/"><img alt="Documentation" src="https://img.shields.io/badge/docs-live-2EE6A6?style=flat-square&labelColor=120B1F"></a>
 </p>
 
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
   <a href="#current-build-interface-and-model-highlights">What's new</a> ·
+  <a href="#portable-continuity-across-clients-and-models">Continuity</a> ·
   <a href="#open-the-native-desktop-app">Desktop app</a> ·
   <a href="#what-panergos-can-do">Capabilities</a> ·
   <a href="#memory-that-does-not-reread-everything">Memory</a> ·
@@ -37,6 +38,7 @@
 
 | Highlight | Why it matters | Delivery |
 | --- | --- | --- |
+| **[Portable continuity across clients and models](#portable-continuity-across-clients-and-models)** | Authenticate to one Panergos instance, reuse an explicit session ID from another compatible client, and continue its persisted history on the same or a different configured model route. | **Implemented** |
 | **[Memory-first continuity](#memory-that-does-not-reread-everything)** | Incremental Project Memory, checkpoints, compact retrieval, and durable handoffs continue from verified evidence instead of repeatedly loading an entire repository. | **Experimental** |
 | **[Durable multi-agent missions](#durable-multi-agent-missions)** | Persistent task graphs add dependencies, leases, retries, review stages, typed shared state, peer messages, restart recovery, and an auditable event stream. | **Experimental** |
 | **[Model choice with automatic recovery](#connect-models-tools-and-platforms)** | Use a ready local runtime, Anthropic, or an OpenAI-compatible endpoint, then combine fallback chains, credential pools, and Mixture of Agents without manually switching every failed route. | **Implemented** |
@@ -46,6 +48,20 @@
 | **[Professional work with explicit boundaries](#security-and-trust)** | Organization workflows, authorized-security scope locks, secret controls, approval gates, and evidence requirements keep consequential actions attributable. | **Implemented** |
 | **Visible speed and cost controls** | The TUI reports cache hit rate, rolling latency, output tokens per second, and `/fast` state; route selection can optimize latency or throughput when the provider supports it. | **Implemented** |
 | **Extensible without rebuilding the core** | Skills, plugins, toolsets, MCP servers, shell hooks, and platform adapters use discoverable registries with explicit enablement and trust boundaries. | **Implemented** |
+
+<p align="center">
+  <img src="assets/panergos-differentiators.svg" alt="Panergos differentiators: portable continuity, delta memory, scoped browser relay, and governed delivery" width="100%">
+</p>
+
+### What is materially different here
+
+Panergos is designed around a durable work thread instead of a single chat window. Its differentiators are composable product paths, not an unsupported claim that every capability is exclusive:
+
+- **Portable continuity:** the API key authenticates the caller and the explicit session ID selects the exact Panergos-owned conversation. Compatible clients can hand that session across surfaces without sharing provider cookies or confusing two conversations that use the same key.
+- **Model-independent resume:** a persisted session can be resumed and routed to another configured provider or model. Panergos reloads its own stored history and runtime metadata; it does not pretend to import private chat history from a provider account.
+- **Delta memory:** Project Memory indexes changed eligible files and retrieves bounded evidence instead of rereading an entire repository for every turn.
+- **Scoped browser execution:** Panergos Relay pairs with a short-lived code, binds one user-selected tab and origin, opens ordinary anchors without executing page click handlers, shows live work, and provides an immediate Stop control.
+- **Governed delivery:** work packages connect departments, artifacts, approvals, evidence, and release handoffs while durable missions retain dependencies and restart state.
 
 ## Current build: interface and model highlights
 
@@ -61,6 +77,7 @@
 | **Native desktop appearance** | Panergos Eclipse uses eclipse plum, signal coral, relay amber, and electric jade instead of a single-color surface. Built-in themes, light/dark/system mode, live theme search, VS Code Marketplace theme installation, terminal font, session density, tab defaults, and supported glass/translucency controls are available. | Open **Settings → Appearance**; use its theme search to filter installed themes or install another one. |
 | **Browser command workspace** | The local dashboard uses a searchable Command Map, full-width Focus Stage, bottom Launch Bay, and compact Continuity Lane instead of a permanent admin sidebar. | Run `panergos dashboard`, then open `http://127.0.0.1:9119`; press `Ctrl/Cmd+K` for Navigation. |
 | **Live browser themes and fonts** | The dashboard palette switcher changes color roles, typography, density, corner radius, terminal colors, and supported custom theme assets immediately. Built-in and user YAML themes persist, while the font override can be changed independently. | Press `Ctrl/Cmd+K`, then use the palette control in Navigation; choose a theme and font. |
+| **Panergos Relay browser extension** | A one-prompt side panel binds one explicitly selected tab and origin, streams progress, keeps a visible Stop control, uses native navigation instead of page click handlers, and refuses protected or recognized-sensitive targets. | Enable browser extension control, load `apps/browser-extension` as an unpacked extension, then run `panergos extension pair --origin chrome-extension://<id>`. |
 | **Terminal command discovery** | Slash completion and a searchable command palette expose the available commands without memorizing them. | Type `/` then Tab, or press `Ctrl+P`; choose a command, then press Enter to run it. |
 
 The capability, memory, media, security, organization, connector, and delivery sections below describe the rest of the implemented and experimental feature set; status labels are kept visible so roadmap work is not presented as shipped.
@@ -113,6 +130,35 @@ The first desktop launch may install its dependencies and build the packaged app
 > [!NOTE]
 > The v0.1 source release does not yet publish a prebuilt GUI installer. The working cross-platform launcher is `panergos desktop`; packaged installer downloads and automatic shortcuts will be documented when those release artifacts are published.
 
+### Run Panergos Relay in Chrome or Edge
+
+Panergos Relay is a dependency-free Manifest V3 side panel in [`apps/browser-extension`](apps/browser-extension). It uses a restricted, origin-bound credential instead of exposing the full `API_SERVER_KEY` to the extension.
+
+1. Enable the local API server and browser controller:
+
+   ```yaml
+   browser:
+     extension_control:
+       enabled: true
+   ```
+
+   ```bash
+   # ~/.panergos/.env
+   API_SERVER_ENABLED=true
+   API_SERVER_KEY=replace-with-a-strong-random-secret
+   ```
+
+2. Run `panergos gateway`. In `chrome://extensions` or `edge://extensions`, enable Developer mode, choose **Load unpacked**, and select `apps/browser-extension`.
+3. Open the Panergos Relay side panel and copy the displayed extension origin. Generate its 120-second, one-use pairing code:
+
+   ```bash
+   panergos extension pair --origin chrome-extension://<extension-id>
+   ```
+
+4. Paste the code, choose **Use this page**, enter one goal, and follow the live progress. The pairing grant lasts up to eight hours in the browser session and is revoked by disconnect or API-server restart.
+
+The extension refuses protected browser pages, literal and recognized local/private/metadata destinations, secret-looking text, fields whose DOM metadata identifies password/OTP/payment use, CAPTCHA, forms, buttons, and recognizable consequential targets. It opens eligible anchors through native tab navigation rather than page click handlers and requires **Use this page** again after a cross-origin move. Before a tab is bound, it installs tab-scoped Manifest V3 block rules and revalidates the loaded URL after navigation. Browser URL filtering cannot prove where a public hostname resolves, so DNS rebinding remains outside this v0.1 boundary; secret recognition and page metadata are also heuristics. Do not treat Relay as a standalone network-isolation, SSRF, or hostile-page sandbox. Enter every confidential value and complete sensitive or consequential steps manually. See the [browser extension guide](website/docs/user-guide/features/browser-extension.md).
+
 <details>
 <summary><strong>Install from source</strong></summary>
 
@@ -150,6 +196,28 @@ uvx --from uv==0.9.28 uv sync --locked --python 3.11 --extra dev
 | **Operations and governance**     | Profiles, encrypted credential storage, external secret sources, egress controls, approvals, audit logs, monitoring, backups, diagnostics, emergency pause, and safe mode.                                          |
 
 Panergos can draft, analyze, coordinate, and execute across these areas. External actions still require the relevant connector, authenticated account, permissions, and any configured human approval.
+
+## Portable continuity across clients and models
+
+The **API key proves who may access the Panergos instance; the session ID identifies which conversation to continue**. Keeping those roles separate prevents one shared key from accidentally opening the wrong conversation.
+
+From any compatible client pointed at the same Panergos server and profile:
+
+```bash
+# Discover the session on the first client or another authorized surface.
+curl http://127.0.0.1:8642/api/sessions?limit=20 \
+  -H "Authorization: Bearer $API_SERVER_KEY"
+
+# Continue that exact stored session from a second client.
+curl http://127.0.0.1:8642/v1/runs \
+  -H "Authorization: Bearer $API_SERVER_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"input":"Continue from the last verified step.","session_id":"SESSION_ID"}'
+```
+
+When `SESSION_ID` already exists and the request does not replace its history, Panergos loads the persisted conversation before running the new turn. A client may select another configured model route for a later turn while retaining the Panergos session; provider credentials are resolved again instead of being copied into the transcript. `X-Panergos-Session-Key` can additionally keep the long-term memory scope stable when a frontend rotates transcript IDs.
+
+This transfers **Panergos-owned state** across authorized API clients. It does not extract a proprietary ChatGPT, Claude, Gemini, or other provider's private account history merely from that provider's API key.
 
 ## Memory that does not reread everything
 
@@ -314,12 +382,12 @@ Verified against provider documentation on **2026-09-21**. Connect more than one
 | **OpenCode Zen** — built-in API key | The [live pricing page](https://opencode.ai/docs/zen/) lists several limited-time models with free input and output. | The free catalog can change and no fixed token quota is published; use the live model list shown by Panergos. |
 | **Google Gemini API** — built-in API key | Selected models have [free input and output tokens](https://ai.google.dev/gemini-api/docs/pricing); [limits vary by project and model](https://ai.google.dev/gemini-api/docs/rate-limits). | No universal token total; AI Studio shows the active RPM, TPM, and daily limits for the account. |
 | **Groq** — custom OpenAI-compatible endpoint | The [Free Plan table](https://console.groq.com/docs/rate-limits) lists 200K tokens/day, 8K tokens/minute, and 1,000 requests/day for each of `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, and `qwen/qwen3.8-27b`. | **200K tokens/day per listed model** is a rate ceiling, not a promised grant; organization limits and whichever limit is reached first apply. |
-| **Cerebras** — custom OpenAI-compatible endpoint | The [Free Trial limits](https://inference-docs.cerebras.ai/support/rate-limits) currently list 1M tokens/day for each of `gpt-oss-120b` and `qwen-3.8-27b`. | **1M tokens/day per named trial model** is a rate ceiling, not a guaranteed recurring allowance. |
+| **Cerebras** — custom OpenAI-compatible endpoint | The [Free Trial limits](https://inference-docs.cerebras.ai/support/rate-limits) currently list 1M tokens/day for each of `gpt-oss-120b` and `qwen-3.8-27b`. | **1M tokens/day per named trial model** is a rate ceiling; the trial requires a verified payment method and is bounded by $5 in credits that expire after 30 days. |
 | **Hugging Face** — built-in token | [Monthly credits](https://huggingface.co/docs/inference-providers/pricing): $0.10 for Free, $2 for PRO, and $2 per Team/Enterprise seat. | Dollar credits cannot be converted to one token number because model and provider prices differ. |
 | **Mistral Studio** — custom OpenAI-compatible endpoint | [Free mode needs no credit card](https://docs.mistral.ai/getting-started/quickstarts/studio/activate-and-generate-api-key), but its [RPS, tokens/minute, and tokens/month limits](https://help.mistral.ai/en/articles/698531-why-am-i-hitting-api-rate-limits-and-how-do-i-increase-them) are shown in the signed-in Limits page. | No fixed public token amount. |
 | **GitHub Copilot** — built-in account sign-in | [Copilot Free includes an unspecified AI-credit allowance and automatic model selection](https://docs.github.com/en/copilot/get-started/plans); paid individual plans include 1,500, 7,000, or 20,000 monthly AI credits. | AI credits are not API tokens; the separate 2,000 IDE-completion allowance is not Panergos model usage, and access depends on the account entitlement. |
 
-**Largest verified figures above:** 200K tokens/day on each cited Groq model and 1M tokens/day on each cited Cerebras trial model. These are separate per-model rate ceilings—not a guaranteed combined allowance. There is no defensible universal subtotal across providers, so Panergos does not advertise “billions of free tokens.” Provider catalogs, limits, eligibility, geography, and terms can change; check the linked source and the account's live limits before relying on a number.
+**Largest verified figures above:** 200K tokens/day on each cited Groq model and 1M tokens/day on each cited Cerebras trial model. These are separate per-model rate ceilings—not a guaranteed combined allowance, and Cerebras does not offer a renewing free tier. There is no defensible universal subtotal across providers, so Panergos does not advertise “billions of free tokens.” Provider catalogs, limits, eligibility, geography, and terms can change; check the linked source and the account's live limits before relying on a number.
 
 Local inference has no Panergos usage fee and can run CPU-only when the selected model fits memory; a compatible GPU is optional and usually much faster. Panergos can also connect to a remote OpenAI-compatible GPU endpoint, but it is a client and orchestrator—not a free cloud-GPU provider. Local hardware still consumes RAM, storage, CPU/GPU time, and electricity, while hosted compute may charge separately.
 
@@ -460,4 +528,4 @@ Translations: [Español](README.es.md) · [简体中文](README.zh-CN.md) · [ا
 
 ## License
 
-Panergos Agent is distributed under the [Apache License 2.0](LICENSE). Required third-party attribution and bundled component licenses are preserved in [NOTICE](NOTICE), [LICENSE-MIT-UPSTREAM](LICENSE-MIT-UPSTREAM), and component notice/license files.
+Panergos Agent is distributed under the [MIT License](LICENSE), Copyright © 2026 Shaik Khaja Aijaz Ahmed. Required upstream attribution and bundled component licenses remain preserved in [NOTICE](NOTICE), [LICENSE-MIT-UPSTREAM](LICENSE-MIT-UPSTREAM), and component notice/license files; those third-party terms still apply to their respective files.

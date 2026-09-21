@@ -11,6 +11,7 @@ import concurrent.futures
 import errno
 import hashlib
 import hmac
+import ipaddress
 import itertools
 import json
 from contextlib import contextmanager, nullcontext, suppress
@@ -120,6 +121,14 @@ from gateway.platforms import api_server_room_dispatch as _room_dispatch
 from gateway.platforms import api_server_room_grants as _room_grants
 from gateway.platforms import api_server_runs as _api_runs
 from gateway.platforms.api_server_openai_routes import OpenAICompatRoutesMixin
+from gateway.platforms.api_server_extension_auth import (
+    BROWSER_EXTENSION_CONTROLLER_CAPABILITIES,
+    BROWSER_EXTENSION_SCOPES,
+    BrowserExtensionAuthError,
+    BrowserExtensionGrant,
+    BrowserExtensionAuthStore,
+    valid_extension_origin,
+)
 from gateway.platforms.base import (
     MEDIA_TAG_CLEANUP_RE, BasePlatformAdapter, SendResult, is_network_accessible, validate_media_delivery_path)
 from gateway.platforms.api_server_run_idempotency import RunIdempotencyStore
@@ -779,7 +788,9 @@ class ResponseStore:
 
 _CORS_HEADERS = {
     "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Authorization, Content-Type, Idempotency-Key, X-Panergos-Session-Id"}
+    "Access-Control-Allow-Headers": (
+        "Authorization, Content-Type, Idempotency-Key, X-Artifact-Filename, "
+        "X-Panergos-Session-Id, X-Panergos-Session-Key")}
 _SECURITY_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
@@ -1175,6 +1186,11 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
         self._pending_agent_requests: int = 0
         # Shared broker; this adapter maps HTTP registration + controller WS onto it.
         self._browser_control_broker = get_browser_control_broker()
+        # Pairing codes and restricted browser-extension grants deliberately die on restart.
+        self._browser_extension_auth = BrowserExtensionAuthStore()
+        self._browser_extension_controller_lock: Optional[asyncio.Lock] = None
+        self._browser_extension_controller_sockets: Dict[str, set[Any]] = {}
+        self._browser_extension_expiry_tasks: Dict[str, asyncio.Task] = {}
         # One-shot artifact transport: lazy per-profile stores + limiter (tests inject).
         self._browser_control_artifacts: Dict[str, ArtifactStore] = {}
         self._browser_control_artifact_limiter: Optional[ArtifactRateLimiter] = None
@@ -1284,7 +1300,12 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
 
     def _cors_headers_for_origin(self, origin: str) -> Optional[Dict[str, str]]:
         """Return CORS headers for an allowed browser origin."""
-        if not origin or not self._cors_origins:
+        if not origin:
+            return None
+        if valid_extension_origin(origin):
+            return {**_CORS_HEADERS, "Access-Control-Allow-Origin": origin, "Vary": "Origin",
+                    "Access-Control-Max-Age": "600"}
+        if not self._cors_origins:
             return None
         if "*" in self._cors_origins:
             return {**_CORS_HEADERS, "Access-Control-Allow-Origin": "*", "Access-Control-Max-Age": "600"}
@@ -1295,7 +1316,8 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
 
     def _origin_allowed(self, origin: str) -> bool:
         """Allow non-browser clients and explicitly configured browser origins."""
-        return not origin or "*" in self._cors_origins or origin in self._cors_origins
+        return (not origin or valid_extension_origin(origin)
+                or "*" in self._cors_origins or origin in self._cors_origins)
 
     @staticmethod
     def _clean_log_value(value: Any, *, max_len: int = 200) -> str:
@@ -1361,11 +1383,70 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
                        "code": "gateway_auth_failed"}},
             status=401)
 
+    @staticmethod
+    def _browser_extension_auth_error(exc: BrowserExtensionAuthError) -> "web.Response":
+        return _error_response(str(exc), exc.status, err_type="gateway_auth_error", code=exc.code)
+
+    @staticmethod
+    def _browser_extension_grant(request: "web.Request") -> Optional[BrowserExtensionGrant]:
+        grant = request.get("panergos_extension_grant")
+        return grant if isinstance(grant, BrowserExtensionGrant) else None
+
+    def _browser_extension_session_error(
+        self, request: "web.Request", session_id: str
+    ) -> Optional["web.Response"]:
+        grant = self._browser_extension_grant(request)
+        if grant is None or hmac.compare_digest(grant.session_id, str(session_id or "")):
+            return None
+        return _error_response(
+            "This browser-extension token is restricted to its assigned session.", 403,
+            err_type="gateway_auth_error", code="extension_session_forbidden")
+
+    def _check_owner_auth(self, request: "web.Request") -> Optional["web.Response"]:
+        """Require the full API_SERVER_KEY; restricted extension grants never pass."""
+        if valid_extension_origin(request.headers.get("Origin", "")):
+            return self._auth_failed_response()
+        expected_key = self._expected_api_key()
+        if not expected_key:
+            return _error_response(
+                "Browser-extension pairing requires a configured API_SERVER_KEY.", 403,
+                err_type="gateway_auth_error", code="extension_pairing_auth_required")
+        auth_header = request.headers.get("Authorization", "")
+        token = auth_header[7:].strip() if auth_header.startswith("Bearer ") else ""
+        if token and hmac.compare_digest(token.encode(), expected_key.encode()):
+            return None
+        return self._auth_failed_response()
+
     def _check_auth(self, request: "web.Request") -> Optional["web.Response"]:
         """Validate the Bearer token; None when OK, else a 401. The no-key branch (connect()
         refuses to start without API_SERVER_KEY) exists for tests/manual wiring on the default
         listener only; named profiles fail closed rather than inherit the owner's key."""
         profile = _api_request_profile.get()
+        auth_header = request.headers.get("Authorization", "")
+        token = auth_header[7:].strip() if auth_header.startswith("Bearer ") else ""
+        if (token.startswith("pxe_")
+                and valid_extension_origin(request.headers.get("Origin", ""))):
+            try:
+                grant = self._browser_extension_auth.authenticate(
+                    token=token,
+                    origin=request.headers.get("Origin", ""),
+                    profile=profile or "default",
+                    method=request.method,
+                    path=request.path,
+                )
+            except BrowserExtensionAuthError as exc:
+                return self._browser_extension_auth_error(exc)
+            request["panergos_extension_principal"] = grant.principal
+            request["panergos_extension_grant"] = grant
+            _api_request_browser_control_principal.set(grant.principal)
+            transport_family = self._browser_control_transport_family(request)
+            _api_request_browser_control_transport_family.set(transport_family)
+            self._browser_control_broker.mark_authoritative_lane(
+                session_id=grant.session_id,
+                principal_id=grant.principal,
+                transport_family=transport_family,
+            )
+            return None
         expected_key = self._expected_api_key()
         if not expected_key:
             if not (profile and profile != "default"):
@@ -1375,9 +1456,11 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
                 "API_SERVER_KEY is configured; %s",
                 profile, self._request_audit_log_suffix(request))
             return self._auth_failed_response()
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[7:].strip()
+        # An extension page must pair for a scoped token; never admit the owner key
+        # through a browser-extension origin.
+        if valid_extension_origin(request.headers.get("Origin", "")):
+            return self._auth_failed_response()
+        if token:
             # Compare as bytes: compare_digest raises TypeError on non-ASCII str, and the
             # token is raw client input — a stray byte must 401, not 500.
             if hmac.compare_digest(token.encode(), expected_key.encode()):
@@ -1530,6 +1613,9 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
             ("GET", "/v1/models", self._handle_models),
             ("GET", "/api/model/options", self._handle_model_options),
             ("GET", "/v1/capabilities", self._handle_capabilities),
+            ("POST", "/v1/browser-extension/pair", self._handle_browser_extension_pair),
+            ("POST", "/v1/browser-extension/pair/exchange", self._handle_browser_extension_exchange),
+            ("DELETE", "/v1/browser-extension/token", self._handle_browser_extension_revoke),
             # Browser-control (gated on browser.extension_control.enabled + API key): POST
             # mints a short-lived ticket, WS consumes it; artifacts are bounded + scope-bound.
             ("POST", "/v1/browser-control/register", self._handle_browser_control_register),
@@ -2254,9 +2340,229 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
             logger.exception("[%s] GET /api/model/options failed", self.name)
             return _error_response("Failed to list model options.", 500, code="model_options_failed")
 
+    @staticmethod
+    def _is_loopback_host(value: str) -> bool:
+        value = str(value or "").strip().rstrip(".")
+        if value.lower() == "localhost":
+            return True
+        try:
+            address = ipaddress.ip_address(value)
+            return address.is_loopback or bool(
+                getattr(address, "ipv4_mapped", None) and address.ipv4_mapped.is_loopback)
+        except ValueError:
+            return False
+
+    def _browser_extension_loopback_error(
+        self, request: "web.Request"
+    ) -> Optional["web.Response"]:
+        """Reject pairing outside a directly connected loopback listener.
+
+        Forwarded headers are deliberately ignored: a reverse proxy must not turn a
+        remote browser into a local owner action.
+        """
+        bind_host = self._host
+        peer_host = ""
+        with suppress(Exception):
+            peer = request.transport.get_extra_info("peername") if request.transport else None
+            if isinstance(peer, (tuple, list)) and peer:
+                peer_host = str(peer[0])
+            elif isinstance(peer, str):
+                peer_host = peer
+        host_header = request.headers.get("Host", "")
+        if host_header.startswith("[") and "]" in host_header:
+            authority_host = host_header[1:host_header.index("]")]
+        elif host_header.count(":") == 1:
+            authority_host = host_header.rsplit(":", 1)[0]
+        else:
+            authority_host = host_header
+        if all(self._is_loopback_host(host) for host in (bind_host, peer_host, authority_host)):
+            return None
+        return _error_response(
+            "Browser-extension pairing is available only on a loopback listener.", 403,
+            err_type="gateway_auth_error", code="extension_pairing_loopback_only")
+
+    def _browser_extension_pairing_prelude(
+        self, request: "web.Request"
+    ) -> Optional["web.Response"]:
+        loopback_err = self._browser_extension_loopback_error(request)
+        if loopback_err is not None:
+            return loopback_err
+        if request.query_string:
+            return _error_response(
+                "Pairing credentials must not be sent in the URL query.", 400,
+                code="extension_pairing_query_forbidden")
+        return None
+
+    async def _handle_browser_extension_pair(self, request: "web.Request") -> "web.Response":
+        """Owner-authorized minting of a short-lived, origin-bound pairing code."""
+        prelude_err = self._browser_extension_pairing_prelude(request)
+        if prelude_err is not None:
+            return prelude_err
+        auth_err = self._check_owner_auth(request)
+        if auth_err is not None:
+            return auth_err
+        try:
+            payload = await request.json()
+        except Exception:
+            return _error_response("Request body must be valid JSON.", 400, code="invalid_json")
+        if not isinstance(payload, dict):
+            return _error_response("Request body must be a JSON object.", 400, code="invalid_request")
+        try:
+            code, ttl = self._browser_extension_auth.mint_pairing_code(
+                origin=str(payload.get("origin") or ""),
+                profile=_api_request_profile.get() or "default",
+                actor=self._request_audit_context(request).get("peer_ip") or "loopback",
+            )
+        except BrowserExtensionAuthError as exc:
+            return self._browser_extension_auth_error(exc)
+        return web.json_response(
+            {"pairing_code": code, "expires_in_seconds": ttl}, status=201,
+            headers={"Cache-Control": "no-store"})
+
+    async def _handle_browser_extension_exchange(self, request: "web.Request") -> "web.Response":
+        """Exchange one pairing code for a revocable restricted bearer."""
+        prelude_err = self._browser_extension_pairing_prelude(request)
+        if prelude_err is not None:
+            return prelude_err
+        try:
+            payload = await request.json()
+        except Exception:
+            return _error_response("Request body must be valid JSON.", 400, code="invalid_json")
+        if not isinstance(payload, dict):
+            return _error_response("Request body must be a JSON object.", 400, code="invalid_request")
+        pairing_code = str(payload.get("pairing_code") or "")
+        if not pairing_code or len(pairing_code) > 128:
+            return _error_response(
+                "pairing_code is required.", 400, code="invalid_pairing_code")
+        try:
+            token, grant = self._browser_extension_auth.exchange(
+                pairing_code=pairing_code,
+                origin=request.headers.get("Origin", ""),
+                actor=self._request_audit_context(request).get("peer_ip") or "loopback",
+            )
+        except BrowserExtensionAuthError as exc:
+            return self._browser_extension_auth_error(exc)
+        self._schedule_browser_extension_grant_expiry(grant)
+        ttl = self._browser_extension_auth.token_ttl_seconds
+        return web.json_response(
+            {
+                "access_token": token,
+                "token_type": "Bearer",
+                "expires_in_seconds": ttl,
+                "expires_at": int(time.time()) + ttl,
+                "scope": list(BROWSER_EXTENSION_SCOPES),
+                "origin": grant.origin,
+                "session_id": grant.session_id,
+            },
+            headers={"Cache-Control": "no-store"},
+        )
+
+    async def _handle_browser_extension_revoke(self, request: "web.Request") -> "web.Response":
+        """Revoke the restricted bearer used for this request."""
+        prelude_err = self._browser_extension_pairing_prelude(request)
+        if prelude_err is not None:
+            return prelude_err
+        auth_err = self._check_auth(request)
+        if auth_err is not None:
+            return auth_err
+        token = request.headers.get("Authorization", "")[7:].strip()
+        async with self._browser_extension_controller_lifecycle_lock():
+            grant = self._browser_extension_auth.revoke_grant(token)
+            if grant is not None:
+                expiry_task = self._browser_extension_expiry_tasks.pop(grant.grant_id, None)
+                if expiry_task is not None and expiry_task is not asyncio.current_task():
+                    expiry_task.cancel()
+                await asyncio.to_thread(
+                    self._browser_control_broker.detach_extension_grant, grant.grant_id)
+                sockets = list(
+                    self._browser_extension_controller_sockets.get(grant.grant_id, ()))
+            else:
+                sockets = []
+        if grant is not None:
+            _api_runs._stop_runs_for_owner(
+                self,
+                _api_runs._extension_owner_scope(grant.profile, grant.principal),
+                extension_grant_id=grant.grant_id,
+                reason="Browser-extension grant revoked",
+                _api_server=sys.modules[__name__],
+            )
+        for ws in sockets:
+            await ws.close(code=1008, message=b"Browser-extension grant revoked")
+        return web.json_response(
+            {"revoked": grant is not None},
+            headers={"Cache-Control": "no-store"})
+
+    def _browser_extension_controller_lifecycle_lock(self) -> asyncio.Lock:
+        lock = self._browser_extension_controller_lock
+        if lock is None:
+            lock = self._browser_extension_controller_lock = asyncio.Lock()
+        return lock
+
+    @staticmethod
+    def _browser_extension_expiry_delay(grant: BrowserExtensionGrant) -> float:
+        return max(0.0, grant.expires_at - time.monotonic())
+
+    async def _wait_for_browser_extension_grant_expiry(
+        self, grant: BrowserExtensionGrant
+    ) -> None:
+        await asyncio.sleep(self._browser_extension_expiry_delay(grant))
+
+    def _schedule_browser_extension_grant_expiry(
+        self, grant: BrowserExtensionGrant
+    ) -> asyncio.Task:
+        """Retain one expiry task for the grant, independent of controller sockets."""
+        previous = self._browser_extension_expiry_tasks.pop(grant.grant_id, None)
+        if previous is not None:
+            previous.cancel()
+        task = asyncio.create_task(
+            self._expire_browser_extension_grant(grant),
+            name=f"browser-extension-grant-expiry-{grant.grant_id[:12]}",
+        )
+        self._browser_extension_expiry_tasks[grant.grant_id] = task
+        self._track_background_task(task)
+
+        def finished(completed: asyncio.Task) -> None:
+            if self._browser_extension_expiry_tasks.get(grant.grant_id) is completed:
+                self._browser_extension_expiry_tasks.pop(grant.grant_id, None)
+            if not completed.cancelled() and (error := completed.exception()) is not None:
+                logger.error(
+                    "Browser-extension grant expiry cleanup failed: %s", type(error).__name__)
+
+        task.add_done_callback(finished)
+        return task
+
+    async def _cancel_browser_extension_expiry_tasks(self) -> None:
+        tasks = list(self._browser_extension_expiry_tasks.values())
+        self._browser_extension_expiry_tasks.clear()
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def _expire_browser_extension_grant(
+        self, grant: BrowserExtensionGrant
+    ) -> None:
+        await self._wait_for_browser_extension_grant_expiry(grant)
+        async with self._browser_extension_controller_lifecycle_lock():
+            self._browser_extension_auth.revoke_grant_id(grant.grant_id)
+            await asyncio.to_thread(
+                self._browser_control_broker.detach_extension_grant, grant.grant_id)
+            sockets = list(
+                self._browser_extension_controller_sockets.get(grant.grant_id, ()))
+        _api_runs._stop_runs_for_owner(
+            self,
+            _api_runs._extension_owner_scope(grant.profile, grant.principal),
+            extension_grant_id=grant.grant_id,
+            reason="Browser-extension grant expired",
+            _api_server=sys.modules[__name__],
+        )
+        for ws in sockets:
+            await ws.close(code=1008, message=b"Browser-extension grant expired")
+
     @_require_auth
     async def _handle_capabilities(self, request: "web.Request") -> "web.Response":
         """GET /v1/capabilities — the stable, machine-readable API surface for external UIs."""
+        extension_restricted = self._browser_extension_grant(request) is not None
         return web.json_response({
             "object": "panergos.api_server.capabilities", "platform": "panergos-agent",
             "model": self._model_name,
@@ -2277,10 +2583,25 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
                 "browser_extension_control": {
                     "enabled": self._browser_control_enabled(),
                     "protocol_version": _BROWSER_CONTROL_PROTOCOL_VERSION,
-                    "capabilities": sorted(BROWSER_CONTROL_CAPABILITIES),
-                    "artifact_capabilities": sorted(BROWSER_CONTROL_ARTIFACT_CAPABILITIES),
-                    "developer_capabilities": sorted(BROWSER_CONTROL_DEVELOPER_CAPABILITIES),
-                    "developer_mode": self._browser_control_developer_mode(),
+                    "pairing": {
+                        "owner_mint": {"method": "POST", "path": "/v1/browser-extension/pair"},
+                        "exchange": {
+                            "method": "POST", "path": "/v1/browser-extension/pair/exchange"},
+                        "revoke": {"method": "DELETE", "path": "/v1/browser-extension/token"},
+                        "origin_bound": True,
+                        "scope": list(BROWSER_EXTENSION_SCOPES)},
+                    "capabilities": sorted(
+                        BROWSER_EXTENSION_CONTROLLER_CAPABILITIES
+                        if extension_restricted else BROWSER_CONTROL_CAPABILITIES),
+                    "artifact_capabilities": (
+                        [] if extension_restricted
+                        else sorted(BROWSER_CONTROL_ARTIFACT_CAPABILITIES)),
+                    "developer_capabilities": (
+                        [] if extension_restricted
+                        else sorted(BROWSER_CONTROL_DEVELOPER_CAPABILITIES)),
+                    "developer_mode": (
+                        False if extension_restricted
+                        else self._browser_control_developer_mode()),
                     "artifact_transport": {
                         "upload": {"method": "POST", "path": "/v1/artifacts/upload"},
                         "download": {
@@ -2334,6 +2655,9 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
             return _error_response(
                 "controller_id, browser_profile_id, and session_id are required.", 400,
                 code="browser_control_invalid_registration")
+        scope_err = self._browser_extension_session_error(request, session_id)
+        if scope_err is not None:
+            return scope_err
         db = await self._ensure_session_db_async()
         if db is None:
             return _error_response("Session database unavailable.", 503, code="session_db_unavailable")
@@ -2344,6 +2668,9 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
         profile = _api_request_profile.get() or "default"
         developer_mode = self._browser_control_developer_mode()
         capabilities = filter_browser_control_capabilities(payload.get("capabilities"), developer_mode=developer_mode)
+        extension_grant = self._browser_extension_grant(request)
+        if extension_grant is not None:
+            capabilities &= BROWSER_EXTENSION_CONTROLLER_CAPABILITIES
         if not capabilities:
             return _error_response(
                 "At least one permitted browser-control capability is required.", 400,
@@ -2354,11 +2681,16 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
                 "Developer Mode is required for browser_evaluate and raw CDP.", 403,
                 code="browser_control_developer_mode_required")
         scope = ControllerScope(
-            principal_id=self._derive_browser_control_principal(profile), profile_id=profile,
+            principal_id=(request.get("panergos_extension_principal")
+                          or self._derive_browser_control_principal(profile)),
+            profile_id=profile,
             session_id=session_id or None, controller_id=controller_id,
             browser_profile_id=browser_profile_id,
             transport_family=self._browser_control_transport_family(request),
-            capabilities=capabilities)
+            capabilities=capabilities,
+            extension_grant_id=(extension_grant.grant_id if extension_grant else None),
+            extension_grant_expires_at=(extension_grant.expires_at if extension_grant else None),
+            extension_origin=(extension_grant.origin if extension_grant else None))
         ticket = self._browser_control_broker.mint_ticket(scope)
         ticket_ttl = self._browser_control_broker.ticket_ttl_seconds
         return web.json_response(
@@ -2405,15 +2737,42 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
         except Exception:
             logger.exception("browser-control WS ticket consumption failed")
             raise web.HTTPUnauthorized() from None
+        if (scope.extension_origin
+                and not hmac.compare_digest(
+                    scope.extension_origin, request.headers.get("Origin", ""))):
+            raise web.HTTPUnauthorized()
         ws = web.WebSocketResponse(heartbeat=30.0, protocols=(_BROWSER_CONTROL_WS_PROTOCOL,))
-        await ws.prepare(request)
         loop = asyncio.get_running_loop()
         _send = _browser_controller_ws_sender(ws, loop)
 
         # attach/disconnect take the controller send_lock, which a worker-thread dispatch may
         # hold while blocking on THIS loop: offload so the race parks a worker, not the loop.
-        await asyncio.to_thread(self._browser_control_broker.attach, scope, _send, owner=ws)
+        grant_id = scope.extension_grant_id
+        attached = False
         try:
+            async with self._browser_extension_controller_lifecycle_lock():
+                if grant_id and not self._browser_extension_auth.grant_is_active(grant_id):
+                    raise web.HTTPUnauthorized()
+                await ws.prepare(request)
+                await asyncio.to_thread(
+                    self._browser_control_broker.attach, scope, _send, owner=ws, ready=False)
+                attached = True
+                if grant_id:
+                    self._browser_extension_controller_sockets.setdefault(grant_id, set()).add(ws)
+                    ready_frame = {
+                        "method": "browser.controller.ready",
+                        "params": {"protocol_version": _BROWSER_CONTROL_PROTOCOL_VERSION},
+                    }
+                    activated = await asyncio.to_thread(
+                        self._browser_control_broker.activate, scope, owner=ws,
+                        initial_frame=ready_frame)
+                    if not activated:
+                        raise ConnectionError("browser controller activation failed")
+                else:
+                    activated = await asyncio.to_thread(
+                        self._browser_control_broker.activate, scope, owner=ws)
+                    if not activated:
+                        raise ConnectionError("browser controller activation failed")
             async for msg in ws:
                 if msg.type == web.WSMsgType.TEXT:
                     try:
@@ -2428,7 +2787,14 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
                 elif msg.type in (web.WSMsgType.CLOSE, web.WSMsgType.ERROR):
                     break
         finally:
-            await asyncio.to_thread(self._browser_control_broker.disconnect, scope, owner=ws)
+            if grant_id:
+                sockets = self._browser_extension_controller_sockets.get(grant_id)
+                if sockets is not None:
+                    sockets.discard(ws)
+                    if not sockets:
+                        self._browser_extension_controller_sockets.pop(grant_id, None)
+            if attached:
+                await asyncio.to_thread(self._browser_control_broker.disconnect, scope, owner=ws)
         return ws
 
     def _handle_browser_control_frame(
@@ -2566,7 +2932,8 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
         if auth_err:
             return None, auth_err
         profile = _api_request_profile.get() or "default"
-        principal = self._derive_browser_control_principal(profile)
+        principal = (request.get("panergos_extension_principal")
+                     or self._derive_browser_control_principal(profile))
         if not self._artifact_limiter().allow(f"{action}:{principal}"):
             return None, _error_response(
                 f"Artifact {action} rate limit exceeded.", 429, err_type="rate_limit_error",
@@ -2739,14 +3106,20 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
             return None, _error_response(f"Session not found: {session_id}", 404, code="session_not_found")
         return session, None
 
-    async def _conversation_history_for_session(self, session_id: str) -> List[Dict[str, Any]]:
+    async def _conversation_history_for_session(
+        self, session_id: str, *, required: bool = False
+    ) -> List[Dict[str, Any]]:
         db = await self._ensure_session_db_async()
         if db is None:
+            if required:
+                raise RuntimeError("session database is unavailable")
             return []
         try:
             return await asyncio.to_thread(db.get_messages_as_conversation, session_id)
         except Exception as exc:
             logger.warning("Failed to load session history for %s: %s", session_id, exc)
+            if required:
+                raise
             return []
 
     @_require_auth
@@ -2805,6 +3178,15 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
         body, err = await self._read_json_body(request)
         if err:
             return err
+        extension_grant = self._browser_extension_grant(request)
+        if extension_grant is not None:
+            if set(body) != {"id", "source"} or body.get("source") != "browser_extension":
+                return _error_response(
+                    "Browser-extension session creation accepts only its assigned id and source.",
+                    400, code="extension_session_payload_invalid")
+            scope_err = self._browser_extension_session_error(request, str(body.get("id") or ""))
+            if scope_err is not None:
+                return scope_err
         db = await self._ensure_session_db_async()
         if db is None:
             return self._session_db_unavailable()
@@ -2869,7 +3251,11 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
     @_require_auth
     async def _handle_get_session(self, request: "web.Request") -> "web.Response":
         """GET /api/sessions/{session_id}."""
-        session, err = await self._get_existing_session_or_404(request.match_info["session_id"])
+        session_id = request.match_info["session_id"]
+        scope_err = self._browser_extension_session_error(request, session_id)
+        if scope_err is not None:
+            return scope_err
+        session, err = await self._get_existing_session_or_404(session_id)
         if err:
             return err
         return web.json_response({"object": "panergos.session", "session": self._session_response(session)})
@@ -3509,6 +3895,7 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
     def _bind_api_server_session(
         *, chat_id: str = "", session_key: str = "", session_id: str = "", profile: str = "",
         browser_control_principal: str = "", browser_control_transport_family: str = "",
+        browser_control_session_id: str = "", browser_control_run_id: str = "",
         session_history_delivery: str = "") -> list:
         """Bind an API turn with push disabled and history delivery default-denied.
 
@@ -3523,6 +3910,8 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
             platform="api_server", chat_id=chat_id, session_key=session_key, session_id=session_id,
             profile=profile, browser_control_principal=browser_control_principal,
             browser_control_transport_family=browser_control_transport_family,
+            browser_control_session_id=browser_control_session_id,
+            browser_control_run_id=browser_control_run_id,
             async_delivery=False, cron_session="", session_history_delivery=session_history_delivery)
 
     def _turn_runtime_metadata(
@@ -3923,6 +4312,7 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
         files, #37011).
         """
         self._mark_disconnected()
+        await self._cancel_browser_extension_expiry_tasks()
         if self._response_store is not None:
             try:
                 self._response_store.close()

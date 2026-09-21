@@ -1,7 +1,8 @@
 Panergos Agent
 Copyright (c) 2026 Shaik Khaja Aijaz Ahmed
 
-Panergos Agent is distributed under the Apache License, Version 2.0.
+Panergos Agent is distributed under the MIT License in LICENSE. Source
+incorporated from other projects retains the notices described below.
 
 This distribution contains software originally distributed by Nous Research,
 Copyright (c) 2025 Nous Research, under the MIT License. The required upstream
@@ -9,3 +10,7 @@ copyright and permission notice is preserved in LICENSE-MIT-UPSTREAM.
 
 Panergos Agent is an independent project and is not affiliated with, sponsored
 by, or endorsed by Nous Research.
+
+Some bundled components and adapted materials are distributed under their own
+licenses, including Apache-2.0. Their copyright notices and license files remain
+with those components and continue to apply to them.

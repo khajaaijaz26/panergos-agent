@@ -29,7 +29,7 @@
     "type": "git",
     "url": "git+https://github.com/khajaaijaz26/panergos-agent.git"
   },
-  "license": "Apache-2.0",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/khajaaijaz26/panergos-agent/issues"
   },

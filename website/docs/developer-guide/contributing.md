@@ -300,4 +300,4 @@ When you ask Panergos to review a PR in a repository that has `.agents/checks/`,
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the [Apache License 2.0](https://github.com/khajaaijaz26/panergos-agent/blob/main/LICENSE).
+By contributing, you agree that your contributions will be licensed under the [MIT License](https://github.com/khajaaijaz26/panergos-agent/blob/main/LICENSE).

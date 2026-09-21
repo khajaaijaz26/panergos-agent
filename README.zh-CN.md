@@ -60,4 +60,4 @@ Panergos 不限定任务类型，也不强制使用某个模型提供商。它�
 
 ## 许可证
 
-Apache-2.0。请参阅 [LICENSE](LICENSE)、[NOTICE](NOTICE) 以及随附的第三方声明。
+Panergos 原创核心及其自有更改采用 MIT 许可证。请参阅 [LICENSE](LICENSE)、[NOTICE](NOTICE) 以及随附的第三方声明；第三方组件保留各自的许可证。

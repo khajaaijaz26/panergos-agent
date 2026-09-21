@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">Panergos Relay</title>
+  <desc id="desc">Three work lanes converge into one forward execution path.</desc>
+  <path d="M14 20h17l21 21" fill="none" stroke="#ff6b5e" stroke-linecap="round" stroke-linejoin="round" stroke-width="11"/>
+  <path d="M14 76h17l21-21" fill="none" stroke="#2ee6a6" stroke-linecap="round" stroke-linejoin="round" stroke-width="11"/>
+  <path d="M14 48h66" fill="none" stroke="#f7c453" stroke-linecap="round" stroke-width="11"/>
+  <path d="m70 34 14 14-14 14" fill="none" stroke="#f7c453" stroke-linecap="round" stroke-linejoin="round" stroke-width="11"/>
+</svg>

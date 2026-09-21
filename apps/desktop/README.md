@@ -3,7 +3,7 @@
 <p align="center">
   <a href="https://github.com/khajaaijaz26/panergos-agent/releases"><img src="https://img.shields.io/badge/Download-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-675CFF?style=for-the-badge" alt="Download"></a>
   <a href="../../PANERGOS.md"><img src="https://img.shields.io/badge/Docs-Panergos-22D3EE?style=for-the-badge" alt="Documentation"></a>
-  <a href="https://github.com/khajaaijaz26/panergos-agent/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-green?style=for-the-badge" alt="License: Apache-2.0"></a>
+  <a href="https://github.com/khajaaijaz26/panergos-agent/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License: MIT"></a>
 </p>
 
 **The native desktop app for [Panergos Agent](../../PANERGOS.md), an independent open-source agent built on the Panergos core.** It shares skills, memory, sessions, and tools with the CLI and gateway in a polished native window. Available for **macOS, Windows, and Linux**.
@@ -236,4 +236,4 @@ Remove-Item -Recurse -Force "$env:LOCALAPPDATA\panergos\panergos-agent\venv"
 
 ## License
 
-Apache-2.0 — see [LICENSE](../../LICENSE). Legal provenance is recorded in [NOTICE](../../NOTICE).
+MIT — see [LICENSE](../../LICENSE). Legal provenance is recorded in [NOTICE](../../NOTICE).

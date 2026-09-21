@@ -211,7 +211,7 @@ stdenv.mkDerivation {
   meta = with lib; {
     description = "Native Electron desktop shell for Panergos Agent";
     homepage = "https://github.com/khajaaijaz26/panergos-agent";
-    license = licenses.asl20;
+    license = licenses.mit;
     platforms = platforms.unix;
     mainProgram = "panergos-desktop";
   };

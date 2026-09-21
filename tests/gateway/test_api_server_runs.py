@@ -370,6 +370,125 @@ class TestStartRun:
         assert kwargs["requested_provider"] == "minimax"
         assert kwargs["model_options"] == model_options
 
+    @pytest.mark.asyncio
+    async def test_explicit_session_resumes_history_after_model_switch(self, adapter):
+        session_id = "portable-session"
+        persisted = [
+            {"role": "user", "content": "Remember the launch plan."},
+            {"role": "assistant", "content": "The launch is Friday."},
+        ]
+        reads = []
+
+        class StoredSession:
+            @staticmethod
+            def get_messages_as_conversation(candidate):
+                reads.append(candidate)
+                return list(persisted)
+
+        adapter._session_db = StoredSession()
+        captured = {}
+        app = _create_runs_app(adapter)
+        async with TestClient(TestServer(app)) as cli:
+            with patch.object(
+                adapter, "_create_agent", return_value=self._capturing_agent(captured)
+            ) as create:
+                response = await cli.post(
+                    "/v1/runs",
+                    json={
+                        "input": "When is launch?",
+                        "session_id": session_id,
+                        "model": "MiniMax-M3",
+                        "provider": "minimax",
+                    },
+                )
+                assert response.status == 202, await response.text()
+                run_id = (await response.json())["run_id"]
+                await self._wait_completed(cli, run_id)
+                status = await (await cli.get(f"/v1/runs/{run_id}")).json()
+
+        assert reads == [session_id]
+        assert captured["conversation_history"] == persisted
+        assert create.call_args.kwargs["session_id"] == session_id
+        assert create.call_args.kwargs["requested_model"] == "MiniMax-M3"
+        assert create.call_args.kwargs["requested_provider"] == "minimax"
+        assert status["session_id"] == session_id
+
+    @pytest.mark.asyncio
+    async def test_compression_tip_keeps_explicit_browser_controller_lane(
+        self, auth_adapter, monkeypatch
+    ):
+        from gateway.browser_control_broker import BrowserControlBroker, ControllerScope
+        from gateway.platforms import api_server_runs
+        from tools.browser_extension_router import route_browser_tool
+
+        parent, tip = "session-before-compression", "session-live-tip"
+        principal = auth_adapter._derive_browser_control_principal("default")
+        broker = BrowserControlBroker(command_timeout=0.1)
+        scope = ControllerScope(
+            principal_id=principal,
+            profile_id="default",
+            session_id=parent,
+            controller_id="controller-fixture",
+            browser_profile_id="browser-profile-fixture",
+            transport_family="local-api",
+            capabilities=frozenset({"browser_navigate"}),
+        )
+
+        def send(frame):
+            assert broker.complete(
+                frame["params"]["command_id"], scope=scope, ok=True, result="controller-result"
+            )
+
+        broker.attach(scope, send, owner=object())
+        completed = asyncio.Event()
+        captured = {}
+        fallbacks = []
+
+        async def execute(owner, launch, *, _api_server):
+            try:
+                captured["transcript_session"] = launch.session_id
+                captured["controller_session"] = launch.browser_control_session_id
+                captured["result"] = route_browser_tool(
+                    "browser_navigate",
+                    {"url": "https://example.test"},
+                    fallback=lambda: fallbacks.append(True) or "legacy-result",
+                    broker=broker,
+                    enabled=True,
+                    session_id=launch.browser_control_session_id,
+                    principal_id=launch.browser_control_principal,
+                    transport_family=launch.browser_control_transport_family,
+                )
+            finally:
+                api_server_runs._retire_live_run(owner, launch.run_id)
+                completed.set()
+
+        async def resolve(_owner, session_id):
+            assert session_id == parent
+            return tip
+
+        monkeypatch.setattr(api_server_runs, "_execute_run", execute)
+        monkeypatch.setattr(api_server_runs, "_resolve_live_session_id", resolve)
+        app = web.Application(middlewares=[auth_adapter._make_profile_prefix_middleware()])
+        app.router.add_post("/v1/runs", auth_adapter._handle_runs)
+        async with TestClient(TestServer(app)) as cli:
+            with patch.object(
+                auth_adapter, "_conversation_history_for_session", new=AsyncMock(return_value=[])
+            ):
+                response = await cli.post(
+                    "/v1/runs",
+                    json={"input": "continue", "session_id": parent},
+                    headers={"Authorization": "Bearer sk-secret"},
+                )
+                assert response.status == 202, await response.text()
+                await asyncio.wait_for(completed.wait(), timeout=1)
+
+        assert captured == {
+            "transcript_session": tip,
+            "controller_session": parent,
+            "result": "controller-result",
+        }
+        assert fallbacks == []
+
 
 # ---------------------------------------------------------------------------
 # GET /v1/runs/{run_id} — poll run status
@@ -1020,6 +1139,17 @@ def _use_idempotency_db(adapter, path):
 
 
 class TestRunIdempotency:
+    def test_run_id_is_globally_reserved_across_principals(self, tmp_path):
+        from gateway.platforms.api_server_run_idempotency import RunIdempotencyStore
+
+        store = RunIdempotencyStore(str(tmp_path / "idem.db"))
+        status = {"run_id": "run_" + "a" * 32, "status": "queued"}
+        try:
+            assert store.reserve("principal-a", "key-a", "fingerprint-a", status["run_id"], status)[0] == "created"
+            assert store.reserve("principal-b", "key-b", "fingerprint-b", status["run_id"], status)[0] == "run_id_conflict"
+        finally:
+            store.close()
+
     @pytest.mark.asyncio
     async def test_invalid_body_does_not_consume_idempotency_key(
         self, adapter, tmp_path
@@ -1512,6 +1642,26 @@ class TestRunIdempotency:
                 )
         assert response.status == 202
         history.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_explicit_session_fails_closed_when_history_is_unavailable(self, adapter):
+        app = _create_runs_app(adapter)
+        async with TestClient(TestServer(app)) as cli:
+            with (
+                patch.object(
+                    adapter, "_conversation_history_for_session",
+                    new=AsyncMock(side_effect=RuntimeError("database unavailable")),
+                ),
+                patch.object(adapter, "_create_agent") as create,
+            ):
+                response = await cli.post(
+                    "/v1/runs", json={"input": "continue", "session_id": "portable-session"})
+                payload = await response.json()
+
+        assert response.status == 503
+        assert payload["error"]["code"] == "session_history_unavailable"
+        create.assert_not_called()
+        assert adapter._run_statuses == {}
 
 
 class TestHostedRoomRuns:

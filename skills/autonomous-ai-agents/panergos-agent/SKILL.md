@@ -3,7 +3,7 @@ name: panergos-agent
 description: "Operate and extend Panergos Agent."
 version: 3.3.0
 author: Panergos contributors
-license: Apache-2.0
+license: MIT
 platforms: [linux, macos, windows]
 metadata:
   panergos:

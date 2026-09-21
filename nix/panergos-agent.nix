@@ -265,7 +265,7 @@ stdenv.mkDerivation (finalAttrs: {
     description = "Panergos Agent with durable missions and project memory";
     homepage = "https://github.com/khajaaijaz26/panergos-agent";
     mainProgram = "panergos";
-    license = licenses.asl20;
+    license = licenses.mit;
     platforms = platforms.unix;
   };
 })

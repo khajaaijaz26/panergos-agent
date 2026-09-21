@@ -250,4 +250,4 @@ fix(security): prevent shell injection in sudo password piping
 
 ## 许可证
 
-提交贡献即表示您同意您的贡献将以 [Apache-2.0 许可证](https://github.com/khajaaijaz26/panergos-agent/blob/main/LICENSE) 授权。
+提交贡献即表示您同意您的贡献将以 [MIT 许可证](https://github.com/khajaaijaz26/panergos-agent/blob/main/LICENSE) 授权。

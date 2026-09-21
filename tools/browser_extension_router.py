@@ -5,7 +5,7 @@ invocation, whether an attached extension controller (via
 :mod:`gateway.browser_control_broker`) or the legacy backend executes it.
 
 Routing contract (see ``tests/tools/test_browser_extension_router.py``):
-- Feature off ⇒ legacy, broker never touched, ``fallback()`` called exactly once.
+- Feature off ⇒ legacy unless the server already marked the lane authoritative.
 - No server-bound identity ⇒ legacy.
 - Bound identity ⇒ authoritative extension lane; missing/ambiguous scope,
   disconnect, or capability mismatch fail closed (never jump to another browser).
@@ -30,11 +30,18 @@ def _bound_identity() -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """(session_id, principal_id, transport_family) from the session context."""
     from gateway.session_context import get_session_env
 
-    return tuple(  # type: ignore[return-value]
-        get_session_env(key, "") or None
-        for key in ("PANERGOS_SESSION_ID", "PANERGOS_BROWSER_CONTROL_PRINCIPAL",
-                    "PANERGOS_BROWSER_CONTROL_TRANSPORT_FAMILY")
+    return (  # type: ignore[return-value]
+        get_session_env("PANERGOS_BROWSER_CONTROL_SESSION_ID", "")
+        or get_session_env("PANERGOS_SESSION_ID", "") or None,
+        get_session_env("PANERGOS_BROWSER_CONTROL_PRINCIPAL", "") or None,
+        get_session_env("PANERGOS_BROWSER_CONTROL_TRANSPORT_FAMILY", "") or None,
     )
+
+
+def _bound_run_id() -> Optional[str]:
+    from gateway.session_context import get_session_env
+
+    return get_session_env("PANERGOS_BROWSER_CONTROL_RUN_ID", "") or None
 
 
 def _controller_unavailable(message: str) -> Exception:
@@ -67,6 +74,7 @@ def route_browser_tool(
     action: str, args: Dict[str, Any], *, fallback: Callable[[], Any], broker: Any, enabled: bool,
     session_id: Optional[str] = None, task_id: Optional[str] = None, principal_id: Optional[str] = None,
     transport_family: Optional[str] = None, tool_call_id: Optional[str] = "",
+    run_id: Optional[str] = None,
 ) -> Any:
     """Route one browser action through the extension-control broker.
 
@@ -75,10 +83,15 @@ def route_browser_tool(
     called exactly once when the feature is off or no server-bound identity
     exists; once a controller is selected its result/exception is final.
     """
-    if not enabled or not str(principal_id or "").strip() or not str(transport_family or "").strip():
+    if not str(principal_id or "").strip() or not str(transport_family or "").strip():
         return fallback()
 
     identity = dict(session_id=session_id, task_id=task_id, principal_id=principal_id, transport_family=transport_family)
+    if not enabled:
+        lane_bound = getattr(broker, "lane_registered", None)
+        if not callable(lane_bound) or not lane_bound(**identity):
+            return fallback()
+        raise _controller_unavailable(f"bound browser controller unavailable for {action}")
     scope = broker.scope_for_session(**identity)
     if scope is None:
         # A stamped identity only becomes authoritative once a controller has
@@ -95,7 +108,8 @@ def route_browser_tool(
     # Controller is authoritative: never retry the legacy backend. Registry
     # handlers must return a string; keep string results byte-identical and
     # serialize decoded JSON values at this boundary.
-    result = broker.dispatch(scope, action=action, arguments=args, tool_call_id=tool_call_id)
+    result = broker.dispatch(
+        scope, action=action, arguments=args, tool_call_id=tool_call_id, run_id=run_id)
     return result if isinstance(result, str) else json.dumps(result, ensure_ascii=False)
 
 
@@ -121,8 +135,7 @@ def routed_browser_handler(
     except Exception as exc:  # pragma: no cover - defensive, gateway always present
         logger.debug("browser extension router unavailable (%s); using legacy backend", exc)
         return fallback()
-    if not browser_control_enabled():
-        return fallback()
+    enabled = browser_control_enabled()
 
     try:
         env_session, env_principal, env_transport = _bound_identity()
@@ -130,8 +143,9 @@ def routed_browser_handler(
         env_session = env_principal = env_transport = None
 
     return route_browser_tool(
-        action, args, fallback=fallback, broker=get_browser_control_broker(), enabled=True,
+        action, args, fallback=fallback, broker=get_browser_control_broker(), enabled=enabled,
         session_id=session_id or env_session, task_id=task_id, principal_id=principal_id or env_principal,
         transport_family=transport_family or env_transport,
         tool_call_id=current_tool_call_id() if tool_call_id is None else tool_call_id,
+        run_id=_bound_run_id(),
     )

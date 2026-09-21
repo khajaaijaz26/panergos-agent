@@ -36,7 +36,8 @@ _SESSION_VARS = (
     _SESSION_CHAT_NAME, _SESSION_THREAD_ID, _SESSION_USER_ID, _SESSION_USER_ID_ALT,
     _SESSION_USER_NAME, _SESSION_SCOPE_ID, _SESSION_KEY, _SESSION_ID,
     _SESSION_UI_SESSION_ID, _SESSION_MESSAGE_ID, _SESSION_PROFILE,
-    _BROWSER_CONTROL_PRINCIPAL, _BROWSER_CONTROL_TRANSPORT_FAMILY, _CRON_SESSION, _SESSION_PARENT_CHAT_ID,
+    _BROWSER_CONTROL_PRINCIPAL, _BROWSER_CONTROL_TRANSPORT_FAMILY,
+    _BROWSER_CONTROL_SESSION_ID, _BROWSER_CONTROL_RUN_ID, _CRON_SESSION, _SESSION_PARENT_CHAT_ID,
 ) = tuple(ContextVar(name, default=_UNSET) for name in (
     "PANERGOS_SESSION_PLATFORM", "PANERGOS_SESSION_SOURCE", "PANERGOS_SESSION_CHAT_ID",
     "PANERGOS_SESSION_CHAT_TYPE", "PANERGOS_SESSION_CHAT_NAME", "PANERGOS_SESSION_THREAD_ID",
@@ -44,6 +45,7 @@ _SESSION_VARS = (
     "PANERGOS_SESSION_SCOPE_ID", "PANERGOS_SESSION_KEY", "PANERGOS_SESSION_ID",
     "PANERGOS_UI_SESSION_ID", "PANERGOS_SESSION_MESSAGE_ID", "PANERGOS_SESSION_PROFILE",
     "PANERGOS_BROWSER_CONTROL_PRINCIPAL", "PANERGOS_BROWSER_CONTROL_TRANSPORT_FAMILY",
+    "PANERGOS_BROWSER_CONTROL_SESSION_ID", "PANERGOS_BROWSER_CONTROL_RUN_ID",
     "PANERGOS_CRON_SESSION", "PANERGOS_SESSION_PARENT_CHAT_ID",
 ))
 
@@ -117,7 +119,8 @@ def set_session_vars(
     chat_name: str = "", thread_id: str = "", user_id: str = "", user_id_alt: str = "",
     user_name: str = "", scope_id: str = "", session_key: str = "", session_id: str = "",
     message_id: str = "", profile: str = "", browser_control_principal: str = "",
-    browser_control_transport_family: str = "", cwd: str = "", async_delivery: bool = True,
+    browser_control_transport_family: str = "", browser_control_session_id: str = "",
+    browser_control_run_id: str = "", cwd: str = "", async_delivery: bool = True,
     ui_session_id: str = "", cron_session: Any = _UNSET, parent_chat_id: str = "",
     session_history_delivery: str | None = None,
 ) -> list:
@@ -135,7 +138,8 @@ def set_session_vars(
     values = (
         platform, source, chat_id, chat_type, chat_name, thread_id, user_id, user_id_alt,
         user_name, scope_id, session_key, session_id, ui_session_id, message_id, profile,
-        browser_control_principal, browser_control_transport_family, cron_session, parent_chat_id,
+        browser_control_principal, browser_control_transport_family,
+        browser_control_session_id, browser_control_run_id, cron_session, parent_chat_id,
     )
     tokens = [var.set(value) for var, value in zip(_SESSION_VARS, values)]
     tokens.append(_SESSION_ASYNC_DELIVERY.set(bool(async_delivery)))

@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import hmac
 import json
 import logging
 import os
@@ -95,9 +96,10 @@ def _initialize_run_state(self, *, store_factory) -> None:
     self._run_stream_subscribers: set[str] = set()
     self._stopping_run_ids: set[str] = set()
     (
-        self._run_owners, self._run_streams, self._run_streams_created, self._active_run_agents,
-        self._active_run_tasks, self._run_statuses, self._run_approval_sessions,
-    ) = ({} for _ in range(7))
+        self._run_owners, self._run_extension_grants, self._run_streams,
+        self._run_streams_created, self._active_run_agents, self._active_run_tasks,
+        self._run_statuses, self._run_approval_sessions,
+    ) = ({} for _ in range(8))
 
 
 def _http_routes(self) -> list[tuple[str, str, Any]]:
@@ -189,18 +191,53 @@ def _room_permission_for(request: "web.Request") -> str:
     return "status" if request.method == "GET" else "dispatch"
 
 
+def _extension_owner_scope(profile: str, principal: str) -> str:
+    return hashlib.sha256(f"{profile}\0{principal}".encode()).hexdigest()
+
+
 def _run_idempotency_scope(self, request: "web.Request", *, _api_server) -> str:
     """Opaque auth/profile namespace; never persist bearer credentials."""
+    request_get = getattr(request, "get", None)
+    extension_principal = request_get("panergos_extension_principal") if callable(request_get) else ""
     if self._room_grant_token(request):
         claims = self._room_grant_claims(request, permission=_room_permission_for(request))
         _remember_room_retention(request, claims)
         parts = (claims[k] for k in (
             "room_id", "home_install_id", "authority_gateway_id", "authority_epoch",
             "member_id", "target_install_id", "target_profile"))
+    elif isinstance(extension_principal, str) and extension_principal:
+        return _extension_owner_scope(
+            _api_server._api_request_profile.get() or "default", extension_principal)
     else:
         parts = (_api_server._api_request_profile.get() or "default",
                  self._expected_api_key() or "unauthenticated-test-listener")
     return hashlib.sha256("\0".join(map(str, parts)).encode()).hexdigest()
+
+
+def _stop_runs_for_owner(
+    self, owner_scope: str, *, extension_grant_id: str, reason: str, _api_server
+) -> int:
+    """Stop nonterminal runs launched by one exact revoked extension grant."""
+    stopped = 0
+    for run_id, owner in list(self._run_owners.items()):
+        status = self._run_statuses.get(run_id, {})
+        if (owner != owner_scope
+                or self._run_extension_grants.get(run_id) != extension_grant_id
+                or status.get("status") in TERMINAL_STATUSES):
+            continue
+        agent = self._active_run_agents.get(run_id)
+        task = self._active_run_tasks.get(run_id)
+        if agent is None and task is None:
+            continue
+        self._set_run_status(run_id, "stopping", last_event="run.stopping")
+        self._stopping_run_ids.add(run_id)
+        if agent is not None:
+            with suppress(Exception):
+                _api_server.request_hard_interrupt(agent, reason)
+            _api_server._reap_disconnected_agent_processes(
+                agent, source="browser_extension_grant_revoked")
+        stopped += 1
+    return stopped
 
 
 def _check_run_auth(self, request: "web.Request", *, permission: str, _api_server) -> "web.Response | None":
@@ -331,6 +368,8 @@ class _RunLaunch:
     request_profile: Any
     browser_control_principal: Any
     browser_control_transport_family: Any
+    browser_control_session_id: str
+    browser_control_run_id: str
     turn_author: Optional[Dict[str, Any]] = None  # memory-attribution label only; grants nothing
 
     @property
@@ -353,8 +392,9 @@ def _forget_run(self, run_id: str, *tables) -> None:
 
 def _retire_live_run(self, run_id: str) -> None:
     """Retire agent/task/approval control state once the executor-backed task is done."""
-    _forget_run(self, run_id, self._active_run_agents, self._active_run_tasks, self._run_approval_sessions,
-                self._stopping_run_ids)
+    _forget_run(
+        self, run_id, self._active_run_agents, self._active_run_tasks,
+        self._run_approval_sessions, self._run_extension_grants, self._stopping_run_ids)
 
 
 def _drop_run_transport(self, run_id: str) -> None:
@@ -381,7 +421,14 @@ async def _resolve_live_session_id(self, session_id: str) -> str:
 async def _handle_runs(self, request: "web.Request", *, _api_server) -> "web.Response":
     """POST /v1/runs — start an agent run, return run_id immediately."""
     _openai_error = _api_server._openai_error
+    request_get = getattr(request, "get", None)
+    extension_grant = request_get("panergos_extension_grant") if callable(request_get) else None
+    extension_session_id = str(getattr(extension_grant, "session_id", "") or "")
     # Long-term memory scope header (see chat_completions for details).
+    if extension_session_id and request.headers.get("X-Panergos-Session-Key"):
+        return _json_error(
+            _openai_error, "Browser-extension runs cannot override the assigned session scope.",
+            code="extension_run_payload_invalid", status=400)
     gateway_session_key, key_err = self._parse_session_key_header(request)
     if key_err is not None:
         return key_err
@@ -389,6 +436,24 @@ async def _handle_runs(self, request: "web.Request", *, _api_server) -> "web.Res
         body = await request.json()
     except Exception:
         return _json_error(_openai_error, "Invalid JSON", status=400)
+    if extension_session_id:
+        if (not isinstance(body, dict) or set(body) != {"input", "session_id", "run_id"}
+                or not isinstance(body.get("input"), str)):
+            return _json_error(
+                _openai_error,
+                "Browser-extension runs accept only string input, the assigned session_id, and a run_id.",
+                code="extension_run_payload_invalid", status=400)
+        if body.get("session_id") != extension_session_id:
+            return _json_error(
+                _openai_error, "This browser-extension token is restricted to its assigned session.",
+                code="extension_session_forbidden", status=403)
+        extension_run_id = body.get("run_id")
+        if (not isinstance(extension_run_id, str) or len(extension_run_id) != 36
+                or not extension_run_id.startswith("run_")
+                or any(ch not in "0123456789abcdef" for ch in extension_run_id[4:])):
+            return _json_error(
+                _openai_error, "Browser-extension run_id must be run_ followed by 32 lowercase hex characters.",
+                code="extension_run_payload_invalid", status=400)
     body, room_error = await self._normalize_room_dispatch(request, body)
     if room_error is not None:
         return room_error
@@ -400,6 +465,10 @@ async def _handle_runs(self, request: "web.Request", *, _api_server) -> "web.Res
     if len(idempotency_key) > 255 or any(ord(ch) < 33 or ord(ch) > 126 for ch in idempotency_key):
         return _json_error(
             _openai_error, "Idempotency-Key must be 1-255 visible ASCII characters",
+            code="invalid_idempotency_key", status=400)
+    if extension_session_id and not idempotency_key:
+        return _json_error(
+            _openai_error, "Browser-extension runs require an Idempotency-Key.",
             code="invalid_idempotency_key", status=400)
     idempotency_scope = idempotency_fingerprint = ""
     if idempotency_key:
@@ -447,14 +516,16 @@ async def _handle_runs(self, request: "web.Request", *, _api_server) -> "web.Res
     limited = self._concurrency_limited_response()
     if limited is not None:
         return limited
-    run_id = f"run_{uuid.uuid4().hex}"
-    self._run_owners[run_id] = self._run_idempotency_scope(request)
+    run_id = body["run_id"] if extension_session_id else f"run_{uuid.uuid4().hex}"
     # Same precedence as /v1/responses: body session_id > response chain > X-Panergos-Session-Key
     # conversation > run_id (which would otherwise re-key every affinity surface per run).
     # An explicit or chained session owns its routing key and is never rebound to the header.
     _declared_selected = not session_id and bool(gateway_session_key)
     selected_session_id = session_id or (
         self._declared_conversation_session(gateway_session_key) if _declared_selected else None)
+    # Compression advances the transcript, not the authenticated browser lane: a
+    # controller registered to the client-addressed parent must remain authoritative.
+    browser_control_session_id = extension_session_id or str(selected_session_id or "")
     # A client-addressed id from before a compression rotation must adopt the live tip (#98619):
     # history loads from it, the turn writes to it, and a detached delivery row persisted to it
     # is what the next same-id run consumes below.
@@ -471,23 +542,64 @@ async def _handle_runs(self, request: "web.Request", *, _api_server) -> "web.Res
     # turn, never consumes the SessionDB delivery row, and is denied on the same contract.
     session_history_delivery = not previous_response_id and not conversation_history
     if not conversation_history and selected_session_id and not previous_response_id:
-        conversation_history = await self._conversation_history_for_session(str(selected_session_id))
-    q = self._run_streams[run_id] = asyncio.Queue()
-    created_at = self._run_streams_created[run_id] = time.time()
-    self._run_approval_sessions[run_id] = run_id  # approval session key (see _RunLaunch)
-    initial_status = self._set_run_status(
-        run_id, "queued", created_at=created_at, session_id=session_id, model=body.get("model", self._model_name))
+        try:
+            conversation_history = await self._conversation_history_for_session(
+                str(selected_session_id), required=True)
+        except Exception:
+            logger.exception("Could not load required history for session %s", selected_session_id)
+            return _json_error(
+                _openai_error, "Session history is temporarily unavailable; the run was not started.",
+                code="session_history_unavailable", status=503)
+    if extension_session_id and any(
+        candidate.get("session_id") == extension_session_id
+        and candidate.get("status") not in TERMINAL_STATUSES
+        for candidate in self._run_statuses.values()
+    ):
+        # The first admission may have landed while this request awaited history.
+        # Re-check so a retry of its lost 202 remains an idempotent replay.
+        if idempotency_key:
+            outcome, record = self._run_idempotency_store.lookup(
+                idempotency_scope, idempotency_key, idempotency_fingerprint,
+                retention_until=_room_retention_until(request))
+            if outcome == "conflict" or (outcome == "reused" and record is not None):
+                return _replay_or_conflict(
+                    self, request, outcome, record, gateway_session_key, _openai_error)
+        return _json_error(
+            _openai_error,
+            "This browser-extension session already has an active run.",
+            code="extension_run_in_progress", status=409)
+    if any(run_id in table for table in (
+        self._run_owners, self._run_streams, self._active_run_tasks,
+        self._run_statuses, self._run_approval_sessions,
+    )):
+        return _json_error(
+            _openai_error, "That run_id is already in use.", code="run_id_conflict", status=409)
+    created_at = time.time()
+    initial_status = {
+        "object": "panergos.run", "run_id": run_id, "status": "queued",
+        "updated_at": created_at, "created_at": created_at,
+        "session_id": extension_session_id or session_id,
+        "model": body.get("model", self._model_name),
+    }
     if idempotency_key:
         outcome, record = self._run_idempotency_store.reserve(
             idempotency_scope, idempotency_key, idempotency_fingerprint, run_id, initial_status,
             owner_pid=self._run_owner_pid, owner_started=self._run_owner_started,
             retention_until=_room_retention_until(request))
         if outcome != "created":
-            _forget_run(
-                self, run_id, self._run_streams, self._run_streams_created, self._run_approval_sessions,
-                self._run_statuses, self._run_owners)
+            if outcome == "run_id_conflict":
+                return _json_error(
+                    _openai_error, "That run_id is already in use.",
+                    code="run_id_conflict", status=409)
             return _replay_or_conflict(self, request, outcome, record, gateway_session_key, _openai_error)
         self._run_idempotency_ids.add(run_id)
+    self._run_owners[run_id] = self._run_idempotency_scope(request)
+    if extension_grant is not None:
+        self._run_extension_grants[run_id] = extension_grant.grant_id
+    q = self._run_streams[run_id] = asyncio.Queue()
+    self._run_streams_created[run_id] = created_at
+    self._run_approval_sessions[run_id] = run_id  # approval session key (see _RunLaunch)
+    self._run_statuses[run_id] = initial_status
     launch = _RunLaunch(
         self, run_id, q, session_id, gateway_session_key, _declared_selected, user_message,
         conversation_history, session_history_delivery,
@@ -498,6 +610,8 @@ async def _handle_runs(self, request: "web.Request", *, _api_server) -> "web.Res
         request_profile=_api_server._api_request_profile.get(),
         browser_control_principal=_api_server._api_request_browser_control_principal.get(),
         browser_control_transport_family=_api_server._api_request_browser_control_transport_family.get(),
+        browser_control_session_id=browser_control_session_id or session_id,
+        browser_control_run_id=run_id,
         turn_author=turn_author)
     self._activate_admitted_request()
     task = self._active_run_tasks[run_id] = asyncio.create_task(_execute_run(self, launch, _api_server=_api_server))
@@ -536,6 +650,8 @@ def _run_agent_sync(self, run: _RunLaunch, agent, approval_notify, *, _api_serve
                 profile=run.request_profile or "",
                 browser_control_principal=run.browser_control_principal,
                 browser_control_transport_family=run.browser_control_transport_family,
+                browser_control_session_id=run.browser_control_session_id,
+                browser_control_run_id=run.browser_control_run_id,
                 # #98619 audited opt-in: the /v1/runs session id is wake-capable only when its
                 # own continuation path reloads session history — an explicit body/chained
                 # session id or a declared X-Panergos-Session-Key conversation (both load
@@ -552,6 +668,7 @@ def _run_agent_sync(self, run: _RunLaunch, agent, approval_notify, *, _api_serve
                 policy = RoomExecutionPolicy.from_mapping(run.agent_kwargs["room_execution_policy"] or {})
                 resets.append((bind_room_execution_policy(policy), reset_room_execution_policy))
             register_gateway_notify(run.approval_session_key, approval_notify)
+            agent._conversation_history_authoritative = not run.session_history_delivery
             # /v1/runs owns its agent lifecycle (no TurnRunner): record process ownership
             # so stop/cancel reaps only the background processes this run created.
             _api_server._publish_turn_process_ownership(agent, effective_task_id)
@@ -777,7 +894,7 @@ _APPROVAL_CHOICE_ALIASES = {"approve": "once", "approved": "once", "allow": "onc
 async def _handle_run_approval(self, request: "web.Request", *, _api_server) -> "web.Response":
     """POST /v1/runs/{run_id}/approval — resolve a pending run approval."""
     _openai_error = _api_server._openai_error
-    run_id, _, _, _, err = _load_owned_run(
+    run_id, run_status, _, _, err = _load_owned_run(
         self, request, _api_server=_api_server, permission="approve", active_fallback=False)
     if err is not None:
         return err
@@ -785,15 +902,34 @@ async def _handle_run_approval(self, request: "web.Request", *, _api_server) -> 
         body = await request.json()
     except Exception:
         return _json_error(_openai_error, "Invalid JSON", status=400)
+    if not isinstance(body, dict):
+        return _json_error(_openai_error, "Request body must be a JSON object", status=400)
     raw_choice = str(body.get("choice", "")).strip().lower()
     choice = _APPROVAL_CHOICE_ALIASES.get(raw_choice, raw_choice)
     room_scoped = bool(self._room_grant_token(request))
+    request_get = getattr(request, "get", None)
+    extension_scoped = bool(
+        request_get("panergos_extension_grant") if callable(request_get) else None)
     raw_request_id = body.get("request_id")
     request_id = raw_request_id.strip() if isinstance(raw_request_id, str) else ""
     # Room grants may resolve exactly one request and never widen to session/always.
     allowed = {"once", "deny"} if room_scoped else {"once", "session", "always", "deny"}
     resolve_all = any(_api_server._coerce_request_bool(body.get(k), default=False) for k in ("all", "resolve_all"))
     approval_session_key = self._run_approval_sessions.get(run_id)
+    if extension_scoped:
+        pending = run_status.get("approval") if isinstance(run_status, dict) else None
+        expected_request_id = (
+            str(pending.get("request_id") or "").strip()
+            if isinstance(pending, dict) else "")
+        if (set(body) != {"choice", "request_id"}
+                or raw_choice not in {"once", "deny"}
+                or not expected_request_id
+                or not hmac.compare_digest(request_id, expected_request_id)):
+            return _json_error(
+                _openai_error,
+                "Browser-extension approvals require once or deny and the exact pending request_id.",
+                code="extension_approval_payload_invalid", status=400)
+        choice = raw_choice
     for failed, message, code, status in (
         (raw_request_id is not None and (not request_id or len(request_id) > 256),
          "Approval request_id is invalid.", "invalid_approval_request", 400),

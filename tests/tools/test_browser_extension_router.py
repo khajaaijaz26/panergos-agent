@@ -26,8 +26,8 @@ class FakeBroker:
         self.calls.append(("select", scope, action))
         return self.selected
 
-    def dispatch(self, scope, *, action, arguments, tool_call_id=""):
-        self.calls.append(("dispatch", scope, action, arguments, tool_call_id))
+    def dispatch(self, scope, *, action, arguments, tool_call_id="", run_id=None):
+        self.calls.append(("dispatch", scope, action, arguments, tool_call_id, run_id))
         if self.error:
             raise self.error
         return self.result
@@ -52,6 +52,22 @@ def test_feature_off_calls_existing_backend_once_without_touching_broker():
     assert result == "legacy-result"
     assert fallbacks == [{"url": "https://example.test"}]
     assert broker.calls == []
+
+
+def test_feature_off_cannot_escape_an_authoritative_lane_to_legacy_browser():
+    from gateway.browser_control_broker import ControllerUnavailable
+
+    broker = FakeBroker(scope=None, registered=True)
+    fallbacks = []
+    with pytest.raises(ControllerUnavailable):
+        route_browser_tool(
+            "browser_navigate", {"url": "https://example.test"},
+            fallback=lambda: fallbacks.append(True) or "unsafe-legacy-result",
+            broker=broker, enabled=False,
+            session_id="session-fixture", principal_id="principal-fixture",
+            transport_family="local-api",
+        )
+    assert fallbacks == []
 
 
 @pytest.mark.parametrize(
@@ -185,6 +201,7 @@ def test_selected_controller_receives_immutable_arguments_and_context():
         principal_id="principal-fixture",
         transport_family="local-api",
         tool_call_id="tool-call-fixture",
+        run_id="run-fixture",
     )
 
     assert result == '{"ok": true, "source": "browser-extension"}'
@@ -206,6 +223,7 @@ def test_selected_controller_receives_immutable_arguments_and_context():
             "browser_navigate",
             {"url": "https://example.test"},
             "tool-call-fixture",
+            "run-fixture",
         ),
     ]
 
@@ -288,9 +306,11 @@ def test_routed_handler_reads_server_bound_identity_from_session_context(monkeyp
         browser_control_broker, "get_browser_control_broker", lambda: broker
     )
     tokens = set_session_vars(
-        session_id="session-fixture",
+        session_id="rotated-session-tip",
         browser_control_principal="principal-fixture",
         browser_control_transport_family="cloud-ticket-ws",
+        browser_control_session_id="session-fixture",
+        browser_control_run_id="run-fixture",
     )
     try:
         result = routed_browser_handler(
@@ -312,6 +332,7 @@ def test_routed_handler_reads_server_bound_identity_from_session_context(monkeyp
             "transport_family": "cloud-ticket-ws",
         },
     )
+    assert broker.calls[-1][-1] == "run-fixture"
 
 
 def test_routeable_browser_tools_are_available_for_bound_extension_controller(monkeypatch):

@@ -88,7 +88,7 @@ Panergos auto-detects local endpoints and relaxes streaming timeouts (read timeo
 
 ### How much does it cost?
 
-Panergos Agent itself is **free and open-source** under Apache-2.0. You pay only for optional model or service usage from your chosen providers. Local models can run without API fees.
+Panergos Agent itself is **free and open-source** under the MIT License. You pay only for optional model or service usage from your chosen providers. Local models can run without API fees. Bundled third-party components retain their own licenses and notices.
 
 ### Can multiple people use one instance?
 

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Panergos Relay</title>
+    <link rel="stylesheet" href="src/sidepanel.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="masthead">
+        <img class="brand-mark" src="assets/panergos-mark.svg" alt="" width="44" height="44" />
+        <div class="brand-copy">
+          <strong>PANERGOS</strong>
+          <span>Relay</span>
+        </div>
+        <span class="status-pill" id="connection-status" data-state="offline" role="status" aria-live="polite">
+          <i aria-hidden="true"></i><span>Offline</span>
+        </span>
+        <button class="icon-button" id="settings-toggle" type="button" aria-label="Connection settings" aria-expanded="false">•••</button>
+      </header>
+
+      <section class="scope-strip" aria-label="Browser scope">
+        <div>
+          <span class="eyebrow">Browser scope</span>
+          <strong id="scope-title">No page selected</strong>
+          <span id="scope-url">Open a normal web page, then choose Use this page.</span>
+        </div>
+        <button class="quiet-button" id="scope-button" type="button">Use this page</button>
+      </section>
+
+      <section class="settings-panel" id="settings-panel" aria-labelledby="settings-title" hidden>
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">One-time setup</span>
+            <h2 id="settings-title">Pair this browser</h2>
+          </div>
+          <span class="step-chip">Restricted access</span>
+        </div>
+        <label>
+          Panergos API
+          <input id="api-base" type="url" value="http://127.0.0.1:8642" spellcheck="false" autocomplete="url" />
+        </label>
+        <label>
+          Pairing code
+          <input id="pairing-code" type="text" inputmode="text" spellcheck="false" autocomplete="one-time-code" placeholder="Paste the one-time code" />
+        </label>
+        <p class="help-copy">
+          Run this command, paste its one-time code above, then connect:
+        </p>
+        <div class="command-row">
+          <code id="pairing-command">panergos extension pair --origin …</code>
+          <button class="quiet-button" id="copy-pairing-command" type="button">Copy command</button>
+        </div>
+        <div class="origin-row">
+          <span>Extension origin</span>
+          <code id="extension-origin">Loading…</code>
+        </div>
+        <button class="primary-button" id="connect-button" type="button">Pair and connect</button>
+        <button class="text-button" id="disconnect-button" type="button" hidden>Forget this pairing</button>
+      </section>
+
+      <section class="composer" aria-labelledby="goal-label">
+        <label id="goal-label" for="goal">What should Panergos do on this page?</label>
+        <textarea id="goal" rows="5" maxlength="12000" placeholder="Example: compare the available plans, summarize the trade-offs, and stop before purchase."></textarea>
+        <div class="composer-foot">
+          <span><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd></span>
+          <button class="primary-button run-button" id="run-button" type="button" disabled>
+            <span>Run goal</span><span aria-hidden="true">→</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="run-panel" id="run-panel" aria-labelledby="run-title" hidden>
+        <div class="section-heading run-heading">
+          <div>
+            <span class="eyebrow">Live execution</span>
+            <h2 id="run-title">Working</h2>
+          </div>
+          <button class="stop-button" id="stop-button" type="button">Stop</button>
+        </div>
+        <ol class="timeline" id="timeline" aria-live="polite"></ol>
+      </section>
+
+      <section class="approval-card" id="approval-card" role="alert" aria-labelledby="approval-title" hidden>
+        <span class="eyebrow">Your decision</span>
+        <h2 id="approval-title">Approval needed</h2>
+        <p id="approval-description"></p>
+        <pre id="approval-command" hidden></pre>
+        <div class="approval-actions" id="approval-actions"></div>
+      </section>
+
+      <section class="result-panel" id="result-panel" aria-labelledby="result-title" hidden>
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Result</span>
+            <h2 id="result-title">Run output</h2>
+          </div>
+          <button class="quiet-button" id="copy-result" type="button">Copy</button>
+        </div>
+        <pre id="run-output"></pre>
+      </section>
+
+      <p class="error-banner" id="error-banner" role="alert" hidden></p>
+
+      <footer>
+        <span>Approvals stay on · Protected pages and CAPTCHA remain human-only.</span>
+        <button class="text-button" id="dashboard-button" type="button">Open dashboard ↗</button>
+      </footer>
+    </main>
+    <script type="module" src="src/sidepanel.js"></script>
+  </body>
+</html>

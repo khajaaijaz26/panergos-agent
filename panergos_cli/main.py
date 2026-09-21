@@ -364,6 +364,7 @@ from panergos_cli.subcommands.moa import build_moa_parser
 from panergos_cli.subcommands.fallback import build_fallback_parser
 from panergos_cli.subcommands.worktree import build_worktree_parser
 from panergos_cli.subcommands.browser import build_browser_parser
+from panergos_cli.subcommands.extension import build_extension_parser
 from panergos_cli.subcommands.secrets import build_secrets_parser
 from panergos_cli.subcommands.egress import build_egress_parser
 from panergos_cli.subcommands.migrate import build_migrate_parser
@@ -2640,7 +2641,7 @@ _BUILTIN_SUBCOMMANDS = frozenset(
         "skin", "skills", "slack", "status", "sync", "tools", "uninstall", "update",
         "vault",
         "webhook", "whatsapp", "whatsapp-cloud", "worktree", "chat", "secrets", "security",
-        "browser",
+        "browser", "extension",
         "verify",
         # Plugin commands missing from top-level --help is an accepted trade-off.
         "help",
@@ -3206,6 +3207,7 @@ def _build_cli_parser():
     build_fallback_parser(subparsers)
     build_worktree_parser(subparsers)
     build_browser_parser(subparsers)
+    build_extension_parser(subparsers)
     build_secrets_parser(subparsers)
     # OUTBOUND egress firewall; ``panergos proxy`` (gateway group) is the INBOUND one.
     build_egress_parser(subparsers)

@@ -243,17 +243,18 @@ def admit_durable_turn_lease(
     admission = TurnLeaseAdmission(conversation_history=conversation_history)
     if db is None or not session_id:
         return admission
-    # A fresh session id has no durable transcript to race over, and callers may supply an
-    # in-memory seed before the row exists — reloading would erase it. Check the concrete type:
+    # Lease fresh IDs too, so two clients cannot both create the first turn. Preserve a
+    # single caller's in-memory seed unless another holder won first. Check the concrete type:
     # MagicMock-style shims accept any attribute without the protocol.
     if (
         getattr(agent, "_persist_disabled", False)
-        or not _durable_session_exists(db, session_id)
         or not callable(getattr(type(db), "acquire_session_turn_lease", None))
     ):
         return admission
     # Row proven to exist — suppress the redundant create attempt.
-    agent._session_db_created = True
+    durable_exists = _durable_session_exists(db, session_id)
+    if durable_exists:
+        agent._session_db_created = True
     holder = (
         f"pid={os.getpid()}:turn={relay_turn_id}:platform={task_context['platform'] or 'unknown'}"
     )
@@ -282,10 +283,12 @@ def admit_durable_turn_lease(
     agent._active_session_turn_lease_holder = holder
     agent._active_session_turn_lease_ttl_seconds = LEASE_TTL_SECONDS
     try:
-        if waited:
-            agent._emit_status("Session is free; loading the latest transcript...")
-            # The holder may have compressed/rotated the session while we waited: reload only
-            # AFTER admission; an immediate acquisition skips this (needless prompt-cache miss).
+        if ((waited or _durable_session_exists(db, session_id))
+                and not getattr(agent, "_conversation_history_authoritative", False)):
+            if waited:
+                agent._emit_status("Session is free; loading the latest transcript...")
+            # Reload only AFTER admission; even an immediate acquisition can follow a commit
+            # made after the caller's optimistic history read.
             latest_session_id = db.resolve_resume_session_id(session_id)
             if latest_session_id:
                 agent.session_id = latest_session_id

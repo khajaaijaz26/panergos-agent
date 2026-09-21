@@ -115,10 +115,17 @@ class ControllerScope:
     browser_profile_id: Optional[str] = None
     transport_family: Optional[str] = None
     capabilities: frozenset = frozenset()
+    # Present only for restricted browser-extension grants.  The ticket carries
+    # these server-derived fields into the WebSocket; clients cannot supply them.
+    extension_grant_id: Optional[str] = None
+    extension_grant_expires_at: Optional[float] = None
+    extension_origin: Optional[str] = None
 
 
 #: Stable identity fields; negotiated ``capabilities`` are deliberately excluded.
-_IDENTITY_FIELDS = ("principal_id", "profile_id", "session_id", "controller_id", "browser_profile_id", "transport_family")
+_IDENTITY_FIELDS = (
+    "principal_id", "profile_id", "session_id", "controller_id", "browser_profile_id",
+    "transport_family")
 
 
 def _same_scope_identity(first: ControllerScope, second: ControllerScope) -> bool:
@@ -177,6 +184,9 @@ class BrowserControlBroker:
         self._tickets: Dict[str, _TicketRecord] = {}
         self._controllers: Dict[ControllerScope, _Controller] = {}
         self._pending: Dict[str, _PendingCommand] = {}
+        # Server-authenticated lanes that must never escape to a legacy browser
+        # backend when their restricted controller disconnects or is revoked.
+        self._authoritative_lanes: set[tuple[str, str, str]] = set()
         # None defers to live config on every selection (so flipping developer_mode off REVOKES
         # raw CDP/eval from attached controllers without restart); a bool pins the gate.
         self._developer_mode_pinned: Optional[bool] = None if developer_mode is None else developer_mode is True
@@ -225,8 +235,14 @@ class BrowserControlBroker:
                 raise ControllerTicketInvalid("ticket already consumed")
             if now > record.expires_at:
                 raise ControllerTicketInvalid("ticket expired")
+            if not self._scope_authorized(record.scope, now=now):
+                raise ControllerTicketInvalid("controller authorization expired")
             record.consumed = True
             return record.scope
+
+    def _scope_authorized(self, scope: ControllerScope, *, now: Optional[float] = None) -> bool:
+        expires_at = scope.extension_grant_expires_at
+        return expires_at is None or (self._clock() if now is None else now) < expires_at
 
     def _controller_for_identity_locked(self, scope: ControllerScope) -> Optional[_Controller]:
         """Attached controller sharing ``scope``'s stable identity (any capabilities)."""
@@ -237,10 +253,15 @@ class BrowserControlBroker:
             controller = self._controller_for_identity_locked(scope)
         return controller if controller is not None and controller.connected else None
 
-    def attach(self, scope: ControllerScope, send: Callable[[dict], None], *, owner: Any = None) -> None:
+    def attach(
+        self, scope: ControllerScope, send: Callable[[dict], None], *, owner: Any = None,
+        ready: bool = True,
+    ) -> None:
         """Attach or refresh the controller for one stable identity: a same-identity reconnect refreshes send
         and capabilities without cancelling pending work; a different controller/browser profile in the same
         authenticated session lane hard-replaces it."""
+        if not self._scope_authorized(scope):
+            raise ControllerTicketInvalid("controller authorization expired")
         while True:
             with self._lock:
                 existing = self._controller_for_identity_locked(scope)
@@ -250,7 +271,8 @@ class BrowserControlBroker:
                     == (scope.principal_id, scope.profile_id, scope.session_id, scope.transport_family)
                 ]
                 if existing is None and not lane_scopes:
-                    self._controllers[scope] = _Controller(scope=scope, send=send, owner=owner)
+                    self._controllers[scope] = _Controller(
+                        scope=scope, send=send, owner=owner, connected=ready)
                     return
 
             # Hard replacement, not a recoverable reconnect: terminalize the
@@ -268,8 +290,10 @@ class BrowserControlBroker:
                     existing.scope, existing.send, existing.owner, existing.connected = scope, send, owner, False
                     for pending in self._pending_for_scope_locked(scope):
                         pending.scope = scope
-                    deferred, existing.deferred_cancels = existing.deferred_cancels, []
                     self._controllers[scope] = existing
+                    if not ready:
+                        return
+                    deferred, existing.deferred_cancels = existing.deferred_cancels, []
 
                 for index, frame in enumerate(deferred):
                     try:
@@ -286,17 +310,59 @@ class BrowserControlBroker:
                         existing.connected = True
                 return
 
+    def activate(
+        self, scope: ControllerScope, *, owner: Any = _OWNER_UNSET,
+        initial_frame: Optional[dict] = None,
+    ) -> bool:
+        """Publish a prepared controller only after its readiness frame is on the wire."""
+        with self._lock:
+            controller = self._controller_for_identity_locked(scope)
+        if controller is None:
+            return False
+        with controller.send_lock:
+            with self._lock:
+                owned = owner is _OWNER_UNSET or controller.owner is owner
+                if (self._controllers.get(controller.scope) is not controller or not owned
+                        or not self._scope_authorized(controller.scope)):
+                    return False
+                deferred, controller.deferred_cancels = controller.deferred_cancels, []
+                # Dispatch may now select this controller, but it must take send_lock;
+                # the readiness frame below therefore always reaches the wire first.
+                controller.connected = True
+            try:
+                if initial_frame is not None:
+                    controller.send(initial_frame)
+                for index, frame in enumerate(deferred):
+                    controller.send(frame)
+            except Exception:
+                with self._lock:
+                    if self._controllers.get(controller.scope) is controller:
+                        controller.connected = False
+                        controller.deferred_cancels = deferred[index if 'index' in locals() else 0:][
+                            -MAX_DEFERRED_CANCELS:]
+                raise
+            with self._lock:
+                if self._controllers.get(controller.scope) is not controller:
+                    return False
+            return True
+
     def select(self, scope: ControllerScope, capability: str) -> Optional[_Controller]:
         """Connected controller matching identity whose *current* negotiated set holds ``capability`` (the
         caller's set is not authoritative); developer capabilities are also gated on LIVE Developer Mode."""
         if capability in BROWSER_CONTROL_DEVELOPER_CAPABILITIES and not self.developer_mode:
             return None
         controller = self._live_controller(scope)
+        if controller is not None and not self._scope_authorized(controller.scope):
+            self.detach(controller.scope)
+            return None
         return controller if controller is not None and capability in controller.scope.capabilities else None
 
     def is_owner(self, scope: ControllerScope, owner: Any) -> bool:
         """Whether ``owner`` is the exact live transport for ``scope`` (capability-independent)."""
         controller = self._live_controller(scope)
+        if controller is not None and not self._scope_authorized(controller.scope):
+            self.detach(controller.scope, owner=owner)
+            return False
         return controller is not None and controller.owner is owner
 
     def disconnect(self, scope: ControllerScope, *, owner: Any = _OWNER_UNSET) -> bool:
@@ -332,8 +398,18 @@ class BrowserControlBroker:
             if notify_controller:
                 self._emit_cancel_frames(controller, pendings)
 
+    def detach_extension_grant(self, grant_id: str) -> int:
+        """Detach every controller authorized by one revoked extension grant."""
+        with self._lock:
+            scopes = [scope for scope in self._controllers
+                      if scope.extension_grant_id == grant_id]
+        for scope in scopes:
+            self.detach(scope)
+        return len(scopes)
+
     def dispatch(
         self, scope: ControllerScope, *, action: str, arguments: Optional[dict] = None, tool_call_id: Optional[str] = None,
+        run_id: Optional[str] = None,
     ) -> Any:
         """Send one controller command and block for completion; raises ControllerUnavailable/Cancelled/Timeout/
         Rejected. Artifact actions also need an attached store and an approved ``artifact_id`` (only the id travels)."""
@@ -346,7 +422,7 @@ class BrowserControlBroker:
         command_id = secrets.token_hex(16)
         frame = {"method": FRAME_COMMAND, "params": {
             "command_id": command_id, "action": action, "arguments": arguments, "controller_id": scope.controller_id,
-            "browser_profile_id": scope.browser_profile_id, "tool_call_id": tool_call_id,
+            "browser_profile_id": scope.browser_profile_id, "tool_call_id": tool_call_id, "run_id": run_id,
         }}
         pending = _PendingCommand(scope=controller.scope, command_id=command_id, tool_call_id=tool_call_id)
         with controller.send_lock:
@@ -461,6 +537,19 @@ class BrowserControlBroker:
         with self._lock:
             return [s for s in self._controllers if (s.session_id, s.principal_id, s.transport_family) == key]
 
+    def mark_authoritative_lane(
+        self, *, session_id: Optional[str] = None, task_id: Optional[str] = None,
+        principal_id: Optional[str] = None, transport_family: Optional[str] = None,
+    ) -> bool:
+        """Make one server-authenticated lane permanently fail closed for this process."""
+        key = tuple(str(v or "").strip() for v in (
+            session_id or task_id, principal_id, transport_family))
+        if not all(key):
+            return False
+        with self._lock:
+            self._authoritative_lanes.add(key)
+        return True
+
     def scope_for_session(self, *, session_id: Optional[str] = None, task_id: Optional[str] = None,
                           principal_id: Optional[str] = None, transport_family: Optional[str] = None) -> Optional[ControllerScope]:
         """One unambiguous attached scope for a server-owned session (session id is only a hint; the caller
@@ -472,7 +561,12 @@ class BrowserControlBroker:
                         principal_id: Optional[str] = None, transport_family: Optional[str] = None) -> bool:
         """Whether ANY controller (even offline) registered for this lane: "bound but unavailable" fails closed
         vs "never registered" (caller keeps the legacy backend). Ambiguous lanes report True."""
-        return bool(self._lane_scopes(session_id, task_id, principal_id, transport_family))
+        key = tuple(str(v or "").strip() for v in (
+            session_id or task_id, principal_id, transport_family))
+        with self._lock:
+            authoritative = all(key) and key in self._authoritative_lanes
+        return authoritative or bool(
+            self._lane_scopes(session_id, task_id, principal_id, transport_family))
 
     def disconnect_owner(self, owner: Any) -> int:
         """Mark every controller owned by one lost transport offline."""
@@ -488,6 +582,7 @@ class BrowserControlBroker:
             self.detach(scope)
         with self._lock:
             self._tickets.clear()
+            self._authoritative_lanes.clear()
             # Pending entries whose controller a concurrent teardown removed.
             for pending in list(self._pending.values()):
                 self._resolve_pending(pending, cancelled=True)

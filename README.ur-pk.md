@@ -60,4 +60,4 @@ Panergos کسی مقررہ task taxonomy یا لازمی model provider تک م�
 
 ## لائسنس
 
-Apache-2.0۔ [LICENSE](LICENSE)، [NOTICE](NOTICE) اور شامل تیسرے فریق کے نوٹس دیکھیں۔
+Panergos کے اصل بنیادی حصے اور اس کی اپنی تبدیلیاں MIT لائسنس کے تحت ہیں۔ [LICENSE](LICENSE)، [NOTICE](NOTICE) اور شامل تیسرے فریق کے نوٹس دیکھیں؛ تیسرے فریق کے اجزا اپنے لائسنس برقرار رکھتے ہیں۔

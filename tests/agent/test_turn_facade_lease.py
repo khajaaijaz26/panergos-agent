@@ -10,9 +10,10 @@ from agent.turn_facade_lease import (
 
 
 class _Db:
-    def __init__(self, exists=True, acquired=True):
+    def __init__(self, exists=True, acquired=True, history=None):
         self.exists = exists
         self.acquired = acquired
+        self.history = list(history or [])
         self.events = []
 
     def get_session(self, session_id):
@@ -21,6 +22,12 @@ class _Db:
     def acquire_session_turn_lease(self, session_id, holder, **kwargs):
         self.events.append(("acquire", session_id, holder))
         return self.acquired
+
+    def resolve_resume_session_id(self, session_id):
+        return session_id
+
+    def get_messages_as_conversation(self, session_id, **kwargs):
+        return list(self.history)
 
     def refresh_session_turn_lease(self, session_id, holder, **kwargs):
         return True
@@ -59,15 +66,40 @@ def _admit(agent, history=None):
     )
 
 
-def test_no_lease_without_durable_row_or_when_persist_disabled():
+def test_fresh_session_is_leased_but_keeps_seed_and_persist_disabled_skips():
     seed = [{"role": "user", "content": "hi"}]
-    admission = _admit(_agent(_Db(exists=False)), seed)
-    assert admission.lease is None and admission.early_result is None
+    db = _Db(exists=False)
+    admission = _admit(_agent(db), seed)
+    assert isinstance(admission.lease, DurableTurnLease) and admission.early_result is None
     assert admission.conversation_history is seed
+    admission.lease.release()
 
     db = _Db()
     admission = _admit(_agent(db, _persist_disabled=True), seed)
     assert admission.lease is None and db.events == []
+
+
+def test_session_created_between_probe_and_acquire_reloads_after_lease():
+    class _RacingDb(_Db):
+        def acquire_session_turn_lease(self, session_id, holder, **kwargs):
+            self.exists = True
+            return super().acquire_session_turn_lease(session_id, holder, **kwargs)
+
+    durable = [{"role": "assistant", "content": "committed by the first holder"}]
+    seed = [{"role": "user", "content": "stale caller seed"}]
+    admission = _admit(_agent(_RacingDb(exists=False, history=durable)), seed)
+    assert admission.conversation_history == durable
+    admission.lease.release()
+
+    admission = _admit(
+        _agent(
+            _RacingDb(exists=False, history=durable),
+            _conversation_history_authoritative=True,
+        ),
+        seed,
+    )
+    assert admission.conversation_history is seed
+    admission.lease.release()
 
 
 def test_admission_sets_holder_attrs_and_release_clears_them(monkeypatch):

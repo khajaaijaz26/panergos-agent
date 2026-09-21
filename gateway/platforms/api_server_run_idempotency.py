@@ -21,6 +21,9 @@ TERMINAL_STATUSES = frozenset({"completed", "failed", "cancelled", "interrupted"
 _SELECT_BY_KEY = (
     "SELECT fingerprint, run_id, status_json, owner_pid, owner_started, updated_at "
     "FROM run_idempotency WHERE scope=? AND idempotency_key=?")
+_SELECT_BY_RUN_ID = (
+    "SELECT scope, fingerprint, run_id, status_json, owner_pid, owner_started, updated_at "
+    "FROM run_idempotency WHERE run_id=?")
 _EXTEND_RETENTION_BY_KEY = (
     "UPDATE run_idempotency SET retention_until=MAX(retention_until, ?) "
     "WHERE scope=? AND idempotency_key=? AND fingerprint=?")
@@ -144,13 +147,19 @@ class RunIdempotencyStore:
                     self._conn.execute(_EXTEND_RETENTION_BY_KEY, (retention_until, scope, key, fingerprint))
                 self._conn.commit()
                 return _outcome(row, fingerprint)
-            self._conn.execute(
-                "INSERT INTO run_idempotency("
-                "scope,idempotency_key,fingerprint,run_id,status_json,"
-                "owner_pid,owner_started,retention_until,created_at,updated_at"
-                ") VALUES(?,?,?,?,?,?,?,?,?,?)",
-                (scope, key, fingerprint, run_id, encoded, int(owner_pid or 0), int(owner_started or 0),
-                 retention_until, now, now))
+            try:
+                self._conn.execute(
+                    "INSERT INTO run_idempotency("
+                    "scope,idempotency_key,fingerprint,run_id,status_json,"
+                    "owner_pid,owner_started,retention_until,created_at,updated_at"
+                    ") VALUES(?,?,?,?,?,?,?,?,?,?)",
+                    (scope, key, fingerprint, run_id, encoded, int(owner_pid or 0), int(owner_started or 0),
+                     retention_until, now, now))
+            except sqlite3.IntegrityError:
+                collision = self._conn.execute(_SELECT_BY_RUN_ID, (run_id,)).fetchone()
+                self._conn.commit()
+                return "run_id_conflict", ({"scope": collision[0], **_record(*collision[2:])}
+                                           if collision is not None else None)
             self._conn.commit()
             return "created", _record(run_id, encoded, owner_pid, owner_started, now) | {"status": status}
 

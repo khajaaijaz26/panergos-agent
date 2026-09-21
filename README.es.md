@@ -60,4 +60,4 @@ Panergos no impone una taxonomía fija de tareas ni un proveedor de modelos obli
 
 ## Licencia
 
-Apache-2.0. Consulta [LICENSE](LICENSE), [NOTICE](NOTICE) y los avisos de terceros incluidos.
+Licencia MIT para el núcleo original y los cambios de Panergos. Consulta [LICENSE](LICENSE), [NOTICE](NOTICE) y los avisos de terceros incluidos; los componentes de terceros conservan sus propias licencias.
