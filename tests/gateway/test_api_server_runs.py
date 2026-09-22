@@ -489,6 +489,55 @@ class TestStartRun:
         }
         assert fallbacks == []
 
+    @pytest.mark.asyncio
+    async def test_agent_construction_sees_bound_browser_controller_lane(
+        self, auth_adapter, monkeypatch
+    ):
+        from gateway import browser_control_broker as broker_mod
+        from gateway.browser_control_broker import BrowserControlBroker, ControllerScope
+        from tools.browser_extension_router import extension_controller_available
+
+        session_id = "extension-schema-fixture"
+        principal = auth_adapter._derive_browser_control_principal("default")
+        broker = BrowserControlBroker()
+        scope = ControllerScope(
+            principal_id=principal,
+            profile_id="default",
+            session_id=session_id,
+            controller_id="controller-fixture",
+            browser_profile_id="browser-profile-fixture",
+            transport_family="local-api",
+            capabilities=frozenset({"browser_snapshot"}),
+        )
+        broker.attach(scope, lambda _frame: None, owner=object())
+        monkeypatch.setattr(broker_mod, "_GLOBAL_BROKER", broker)
+        monkeypatch.setattr(broker_mod, "browser_control_enabled", lambda _config=None: True)
+
+        captured = {}
+
+        def create_agent(**_kwargs):
+            captured["available"] = extension_controller_available("browser_snapshot")
+            return self._capturing_agent(captured)
+
+        app = web.Application(middlewares=[auth_adapter._make_profile_prefix_middleware()])
+        app.router.add_post("/v1/runs", auth_adapter._handle_runs)
+        app.router.add_get("/v1/runs/{run_id}", auth_adapter._handle_get_run)
+        headers = {"Authorization": "Bearer sk-secret"}
+        async with TestClient(TestServer(app)) as cli:
+            with patch.object(auth_adapter, "_create_agent", side_effect=create_agent):
+                response = await cli.post(
+                    "/v1/runs", json={"input": "snapshot", "session_id": session_id}, headers=headers)
+                assert response.status == 202, await response.text()
+                run_id = (await response.json())["run_id"]
+                for _ in range(40):
+                    status = await (await cli.get(f"/v1/runs/{run_id}", headers=headers)).json()
+                    if status["status"] == "completed":
+                        break
+                    await asyncio.sleep(0.05)
+
+        assert status["status"] == "completed"
+        assert captured["available"] is True
+
 
 # ---------------------------------------------------------------------------
 # GET /v1/runs/{run_id} — poll run status

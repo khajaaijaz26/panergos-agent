@@ -740,10 +740,26 @@ async def _execute_run(self, run: _RunLaunch, *, _api_server) -> None:
         if run_id in self._stopping_run_ids:
             _finish("cancelled")
             return
-        with self._profile_scope(run.request_profile):
-            agent = self._create_agent(
-                stream_delta_callback=_text_cb, tool_progress_callback=self._make_run_event_callback(run_id, loop),
-                **run.agent_kwargs)
+        # Tool schemas are assembled while the agent is constructed.  Bind the
+        # browser-controller lane here as well as in the executor thread below,
+        # otherwise extension tools look unavailable for the whole run.
+        from gateway.session_context import clear_session_vars
+        session_tokens = self._bind_api_server_session(
+            chat_id=run.session_id or "", session_key=run.approval_session_key,
+            session_id=run.session_id or "", profile=run.request_profile or "",
+            browser_control_principal=run.browser_control_principal,
+            browser_control_transport_family=run.browser_control_transport_family,
+            browser_control_session_id=run.browser_control_session_id,
+            browser_control_run_id=run.browser_control_run_id,
+            session_history_delivery="1" if run.session_history_delivery else "")
+        try:
+            with self._profile_scope(run.request_profile):
+                agent = self._create_agent(
+                    stream_delta_callback=_text_cb,
+                    tool_progress_callback=self._make_run_event_callback(run_id, loop),
+                    **run.agent_kwargs)
+        finally:
+            clear_session_vars(session_tokens)
         self._active_run_agents[run_id] = agent
         approval_notify = _make_approval_notify(self, run, _api_server=_api_server)
         result, usage = await loop.run_in_executor(

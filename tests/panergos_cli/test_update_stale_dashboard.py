@@ -321,10 +321,8 @@ class TestDashboardUpdateCleanup:
         assert "stopped during update" not in capsys.readouterr().out
 
 
-class TestWindowsWmicEncoding:
-    """Regression tests for #17049 — the Windows wmic branch must not crash
-    `panergos update` on non-UTF-8 system locales (e.g. cp936 on zh-CN).
-    """
+class TestWindowsProcessScan:
+    """Windows process discovery via legacy wmic or the psutil fallback."""
 
     def test_wmic_routed_through_bounded_probe_run_with_ignore_errors(self):
         """The wmic scan must go through ``bounded_probe_run`` — which owns
@@ -364,13 +362,32 @@ class TestWindowsWmicEncoding:
         )
         assert pids == [12345]
 
-    def test_probe_failure_fails_open_to_empty_list(self):
-        """A spawn failure or timeout (bounded_probe_run → None) must yield
-        an empty scan, not an AttributeError on result.stdout (#87134)."""
-        with patch("sys.platform", "win32"), \
-             patch("panergos_cli._subprocess_compat.bounded_probe_run",
-                   return_value=None):
-            assert _find_stale_dashboard_pids() == []
+    @pytest.mark.windows_only
+    def test_missing_wmic_falls_back_to_psutil(self):
+        """Current Windows installs omit wmic; the exact dashboard argv must
+        still be discoverable through the core psutil dependency."""
+        server = MagicMock()
+        server.info = {
+            "pid": 12345,
+            "cmdline": [
+                sys.executable, "-m", "panergos_cli.main", "dashboard",
+                "--host", "127.0.0.1", "--port", "9119", "--skip-build", "--no-open",
+            ],
+        }
+        status = MagicMock()
+        status.info = {
+            "pid": 12346,
+            "cmdline": [sys.executable, "-m", "panergos_cli.main", "dashboard", "--status"],
+        }
+        script_server = MagicMock()
+        script_server.info = {
+            "pid": 12347,
+            "cmdline": [sys.executable, "panergos_cli/main.py", "serve", "--port", "9119"],
+        }
+        with patch("panergos_cli._subprocess_compat.bounded_probe_run",
+                   return_value=None), \
+             patch("psutil.process_iter", return_value=[server, status, script_server]):
+            assert _find_stale_dashboard_pids() == [12345, 12347]
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX kill + systemd restart")

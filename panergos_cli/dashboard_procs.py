@@ -6,16 +6,11 @@ call time so imports stay one-way (both of those modules import this one lazily)
 
 import contextlib
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
 
-# Cmdline substrings identifying the long-lived server (``serve`` = the headless name Desktop
-# spawns; reaped on update for the same reason).
-_DASHBOARD_PATTERNS = tuple(
-    f"{launcher} {cmd}"
-    for cmd in ("dashboard", "serve")
-    for launcher in ("panergos", "panergos_cli.main", "panergos_cli/main.py"))
 _PS_RUN_KWARGS = dict(capture_output=True, text=True, encoding="utf-8", errors="replace")
 
 
@@ -31,7 +26,7 @@ def _append_row(rows: list[tuple[int, str]], pid_text: str, command: str) -> Non
 
 
 def _iter_process_table() -> list[tuple[int, str]]:
-    """``(pid, cmdline)`` for every process, via wmic (Windows) or ps. Raises on scan failure."""
+    """``(pid, cmdline)`` for every process, via wmic/psutil (Windows) or ps."""
     rows: list[tuple[int, str]] = []
     if sys.platform == "win32":
         # errors="ignore": wmic may emit the system code page. bounded_probe_run, not run():
@@ -51,6 +46,15 @@ def _iter_process_table() -> list[tuple[int, str]]:
             ["wmic", "process", "get", "ProcessId,CommandLine", "/FORMAT:LIST"],
             timeout=10, errors="ignore")
         if result is None or result.returncode != 0 or result.stdout is None:
+            # WMIC is removed from current Windows installs. psutil is a core
+            # dependency and preserves the full argv needed by the matcher.
+            import psutil
+            for process in psutil.process_iter(["pid", "cmdline"]):
+                try:
+                    info = process.info
+                    rows.append((int(info["pid"]), subprocess.list2cmdline(info.get("cmdline") or [])))
+                except (KeyError, TypeError, ValueError, psutil.Error):
+                    continue
             return rows
         current_cmd = ""
         for line in result.stdout.split("\n"):
@@ -70,6 +74,18 @@ def _iter_process_table() -> list[tuple[int, str]]:
     return rows
 
 
+def _is_dashboard_server_command(command: str) -> bool:
+    """True only for a long-lived dashboard/serve command, not a lifecycle probe."""
+    from panergos_cli.update_cmd_windows import _panergos_holder_subcommand
+    if _panergos_holder_subcommand(command) not in ("dashboard", "serve"):
+        return False
+    try:
+        tokens = shlex.split(command, posix=False)
+    except ValueError:
+        tokens = command.split()
+    return not any(token.strip('"') in ("--status", "--stop") for token in tokens)
+
+
 def _scan_dashboard_processes(*, exclude_pids: set[int] | None = None) -> list[tuple[int, str]]:
     """``(pid, cmdline)`` of running ``dashboard``/``serve`` processes; empty on any scan error.
 
@@ -86,11 +102,11 @@ def _scan_dashboard_processes(*, exclude_pids: set[int] | None = None) -> list[t
     skip = {os.getpid(), *(exclude_pids or ())}
     try:
         found = [(pid, cmd) for pid, cmd in _iter_process_table()
-                 if pid not in skip and any(p in cmd for p in _DASHBOARD_PATTERNS)]
+                 if pid not in skip and _is_dashboard_server_command(cmd)]
     except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
         return []
-    # Spawn-ledger augmentation: substring patterns miss profiled launches (`panergos --profile p
-    # serve`); the ledger holds live-verified pids. Unavailable ledger → scan-only.
+    # The ledger augments argv discovery with live-verified process identity.
+    # Unavailable ledger → scan-only.
     with contextlib.suppress(Exception):
         # Every serve/ dashboard registers itself in the machine spawn ledger at startup with live-verified
         # (pid, create_time), so ledger rows are positive identity, not argv guessing. Add any live ledger

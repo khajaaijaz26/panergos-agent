@@ -563,6 +563,19 @@ def _secure_windows_path(path, *, directory: bool) -> None:
         for sid in (owner, system):
             acl.AddAccessAllowedAceEx(
                 win32security.ACL_REVISION, inheritance, ntsecuritycon.FILE_ALL_ACCESS, sid)
+        try:
+            current = win32security.GetNamedSecurityInfo(
+                str(path), win32security.SE_FILE_OBJECT,
+                win32security.DACL_SECURITY_INFORMATION)
+            current_acl = current.GetSecurityDescriptorDacl()
+            if (current.GetSecurityDescriptorControl()[0] & win32security.SE_DACL_PROTECTED
+                    and current_acl is not None
+                    and current_acl.GetAceCount() == acl.GetAceCount()
+                    and all(current_acl.GetAce(i) == acl.GetAce(i)
+                            for i in range(acl.GetAceCount()))):
+                return
+        except Exception:
+            pass
         win32security.SetNamedSecurityInfo(
             str(path), win32security.SE_FILE_OBJECT,
             win32security.DACL_SECURITY_INFORMATION
@@ -667,7 +680,7 @@ def ensure_panergos_home():
     Memoized per home path: this runs on EVERY ``load_config()`` and the ~14 mkdir/chmod syscalls
     made repeated loads the dominant cost of hot read paths."""
     home = get_panergos_home()
-    key = str(home)
+    key = os.path.normcase(os.path.realpath(home))
 
     # Named profiles must be created explicitly. Check tombstones BEFORE the memo so a stale
     # empty shell cannot skip the deleted-profile guard.
@@ -677,6 +690,7 @@ def ensure_panergos_home():
         return
     from panergos_cli.config_home import initialize_home
     initialize_home(home, _PANERGOS_HOME_SUBDIRS, _PANERGOS_HOME_ENSURED)
+    _PANERGOS_HOME_ENSURED.add(key)
 
 
 # ---- Config loading/saving ----

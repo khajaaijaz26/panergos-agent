@@ -230,7 +230,8 @@ def _panergos_holder_subcommand(cmdline: str) -> str | None:
     """The actual Panergos SUBCOMMAND a venv-holder argv runs, or None (callers must NOT guess a label).
 
     Token-based, never substring (``kanban --preserve-cache`` contains "serve"): find the ``panergos_cli.main`` /
-    ``panergos(.exe)`` entry token, return the first following token that isn't a flag or a flag's value.
+    ``panergos_cli/main.py`` / ``panergos(.exe)`` entry token, then return the first following token that
+    isn't a flag or a flag's value.
 
     Profile selectors (``--profile X``, ``-p X``) are skipped like the canonical gateway matcher does. See
     #90778.
@@ -242,8 +243,11 @@ def _panergos_holder_subcommand(cmdline: str) -> str | None:
 
     def _is_entry(i: int, token: str) -> bool:
         low = token.lower().strip('"')
-        return (low.endswith("panergos_cli.main") and i > 0 and tokens[i - 1] == "-m") or (
-            low.rsplit("\\", 1)[-1].rsplit("/", 1)[-1] in ("panergos", "panergos.exe"))
+        return (
+            (low.endswith("panergos_cli.main") and i > 0 and tokens[i - 1] == "-m")
+            or low.replace("\\", "/").endswith("panergos_cli/main.py")
+            or low.rsplit("\\", 1)[-1].rsplit("/", 1)[-1] in ("panergos", "panergos.exe")
+        )
 
     entry_idx = next((i for i, token in enumerate(tokens) if _is_entry(i, token)), None)
     if entry_idx is None:
