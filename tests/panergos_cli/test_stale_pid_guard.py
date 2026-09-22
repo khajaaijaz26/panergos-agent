@@ -187,6 +187,8 @@ class TestKillStaleDashboardProcesses:
         ), mock.patch(
             "gateway.status.get_process_start_time", return_value=123
         ), mock.patch(
+            "gateway.status._pid_exists", return_value=True
+        ), mock.patch(
             "panergos_cli._subprocess_compat.pid_is_panergos", return_value=False
         ), mock.patch.object(dashboard_procs.subprocess, "run") as run:
             result = dashboard_procs._kill_stale_dashboard_processes()
