@@ -298,6 +298,27 @@ class TestKillStaleDashboardWindows:
         assert "✓ stopped PID 12345" in out
         assert "✓ stopped PID 12346" in out
 
+    @pytest.mark.windows_only
+    def test_taskkill_not_found_after_sibling_exit_is_stopped(self):
+        """Killing a worker may make its launcher exit before its turn."""
+        def fake_run(args, *a, **kw):
+            return MagicMock(
+                returncode=0 if args[2] == "12345" else 128,
+                stdout="",
+                stderr="ERROR: The process was not found.",
+            )
+
+        with patch("panergos_cli.main_dashboard._find_stale_dashboard_pids",
+                   return_value=[12345, 12346]), \
+             patch("gateway.status.get_process_start_time", return_value=123), \
+             patch("gateway.status._pid_exists", return_value=False), \
+             patch("panergos_cli._subprocess_compat.pid_is_panergos", return_value=True), \
+             patch("subprocess.run", side_effect=fake_run):
+            result = _kill_stale_dashboard_processes()
+
+        assert result["killed"] == [12345, 12346]
+        assert result["failed"] == []
+
 
 class TestBackCompatAlias:
     """``_warn_stale_dashboard_processes`` is kept as an alias for the
@@ -336,6 +357,7 @@ class TestWindowsProcessScan:
         to the Windows-only CI job.
         """
         with patch("sys.platform", "win32"), \
+             patch("shutil.which", return_value="wmic"), \
              patch("panergos_cli._subprocess_compat.bounded_probe_run") as mock_probe:
             mock_probe.return_value = subprocess.CompletedProcess(
                 args=["wmic"],
@@ -369,25 +391,44 @@ class TestWindowsProcessScan:
         server = MagicMock()
         server.info = {
             "pid": 12345,
-            "cmdline": [
-                sys.executable, "-m", "panergos_cli.main", "dashboard",
-                "--host", "127.0.0.1", "--port", "9119", "--skip-build", "--no-open",
-            ],
+            "name": "python.exe",
         }
+        server.cmdline.return_value = [
+            sys.executable, "-m", "panergos_cli.main", "dashboard",
+            "--host", "127.0.0.1", "--port", "9119", "--skip-build", "--no-open",
+        ]
         status = MagicMock()
         status.info = {
             "pid": 12346,
-            "cmdline": [sys.executable, "-m", "panergos_cli.main", "dashboard", "--status"],
+            "name": "python.exe",
         }
+        status.cmdline.return_value = [
+            sys.executable, "-m", "panergos_cli.main", "dashboard", "--status",
+        ]
         script_server = MagicMock()
         script_server.info = {
             "pid": 12347,
-            "cmdline": [sys.executable, "panergos_cli/main.py", "serve", "--port", "9119"],
+            "name": "python.exe",
         }
-        with patch("panergos_cli._subprocess_compat.bounded_probe_run",
-                   return_value=None), \
-             patch("psutil.process_iter", return_value=[server, status, script_server]):
+        script_server.cmdline.return_value = [
+            sys.executable, "panergos_cli/main.py", "serve", "--port", "9119",
+        ]
+        shell_parent = MagicMock()
+        shell_parent.info = {
+            "pid": 12348,
+            "name": "powershell.exe",
+        }
+        shell_parent.cmdline.return_value = [
+            "powershell.exe", "-Command",
+            f'& "{sys.executable}" -m panergos_cli.main dashboard --status',
+        ]
+        with patch("shutil.which", return_value=None), \
+             patch("panergos_cli._subprocess_compat.bounded_probe_run") as probe, \
+             patch("psutil.process_iter",
+                   return_value=[server, status, script_server, shell_parent]):
             assert _find_stale_dashboard_pids() == [12345, 12347]
+        probe.assert_not_called()
+        shell_parent.cmdline.assert_not_called()
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX kill + systemd restart")

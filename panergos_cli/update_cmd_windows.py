@@ -226,6 +226,47 @@ def _holder_value_flags() -> frozenset:
     return _holder_value_flags_cache
 
 
+def _is_panergos_launcher_token(token: str) -> bool:
+    executable = re.split(r"[\\/]", token.lower().strip('"'))[-1]
+    return executable in ("panergos", "panergos.exe") or bool(re.fullmatch(
+        r"pythonw?(?:\d+(?:\.\d+)*)?(?:\.exe)?", executable))
+
+
+def _python_panergos_entry_index(tokens: list[str]) -> int | None:
+    """Panergos module/script only when it is Python's direct execution target."""
+    no_value_flags = {
+        "-b", "-bb", "-B", "-d", "-E", "-i", "-I", "-O", "-OO", "-P", "-q", "-R",
+        "-s", "-S", "-u", "-v", "-x",
+    }
+    i = 1
+    while i < len(tokens):
+        token = tokens[i].strip('"')
+        if token == "-m":
+            return i + 1 if i + 1 < len(tokens) and tokens[i + 1].strip('"') == "panergos_cli.main" else None
+        if token == "-c":
+            return None
+        if token == "--":
+            i += 1
+            break
+        if token in no_value_flags or re.fullmatch(r"-v+", token):
+            i += 1
+            continue
+        if token in ("-W", "-X", "--check-hash-based-pycs"):
+            i += 2
+            continue
+        if ((token.startswith("-W") or token.startswith("-X")) and len(token) > 2
+                or token.startswith("--check-hash-based-pycs=")):
+            i += 1
+            continue
+        break
+    if i < len(tokens):
+        target = tokens[i].strip('"').lower().replace("\\", "/")
+        if target.endswith("panergos_cli/main.py") or target.rsplit("/", 1)[-1] in (
+                "panergos", "panergos.exe"):
+            return i
+    return None
+
+
 def _panergos_holder_subcommand(cmdline: str) -> str | None:
     """The actual Panergos SUBCOMMAND a venv-holder argv runs, or None (callers must NOT guess a label).
 
@@ -240,16 +281,10 @@ def _panergos_holder_subcommand(cmdline: str) -> str | None:
         tokens = shlex.split(cmdline, posix=False)
     except Exception:
         tokens = cmdline.split()
-
-    def _is_entry(i: int, token: str) -> bool:
-        low = token.lower().strip('"')
-        return (
-            (low.endswith("panergos_cli.main") and i > 0 and tokens[i - 1] == "-m")
-            or low.replace("\\", "/").endswith("panergos_cli/main.py")
-            or low.rsplit("\\", 1)[-1].rsplit("/", 1)[-1] in ("panergos", "panergos.exe")
-        )
-
-    entry_idx = next((i for i, token in enumerate(tokens) if _is_entry(i, token)), None)
+    if not tokens or not _is_panergos_launcher_token(tokens[0]):
+        return None
+    launcher = re.split(r"[\\/]", tokens[0].lower().strip('"'))[-1]
+    entry_idx = 0 if launcher in ("panergos", "panergos.exe") else _python_panergos_entry_index(tokens)
     if entry_idx is None:
         return None
     value_flags = _holder_value_flags()

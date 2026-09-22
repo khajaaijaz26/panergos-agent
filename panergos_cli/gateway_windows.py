@@ -1111,7 +1111,7 @@ def _print_start_attestation_warning() -> None:
         print(warning)
 
 
-def _report_gateway_start(via: str) -> None:
+def _report_gateway_start(via: str) -> list[int]:
     pids = _wait_for_gateway_ready()
     if pids:
         print(f"✓ Gateway started via {via} (PID: {', '.join(map(str, pids))})")
@@ -1124,6 +1124,7 @@ def _report_gateway_start(via: str) -> None:
         print("  (The process may have been created and then killed — e.g. by a parent Job Object, #91675.)")
         print(f"  Check the log for startup errors:\n    type {_panergos_home()}\\logs\\gateway.log\n    type {_panergos_home()}\\logs\\gateway-stdio.log")
         _print_task_run_hint("  Recovery: schtasks /Run /TN {}   (starts the gateway outside any Job Object)")
+    return pids
 
 
 def _print_next_steps() -> None:
@@ -1368,14 +1369,14 @@ def status(deep: bool = False) -> None:
         print("\nTo install:\n  panergos gateway install")
 
 
-def start() -> None:
+def start() -> list[int]:
     """Start the gateway using the canonical detached Windows launch path."""
     _assert_windows()
     _print_start_attestation_warning()   # once: the LAST start's ✓ turned out to be false
     running_pids = _gateway_pids()
     if running_pids:
         _report_already_running(running_pids)
-        return
+        return running_pids
 
     if not is_task_registered() and not is_startup_entry_installed():
         from panergos_cli.setup import prompt_yes_no
@@ -1383,17 +1384,17 @@ def start() -> None:
         print("✗ Gateway service is not installed")
         if not prompt_yes_no("  Install it now so the gateway starts on login?", True):
             print("  Run: panergos gateway install")
-            return
+            return []
         install(force=False)
         if not is_task_registered() and not is_startup_entry_installed():
             print("⚠ Gateway install did not complete in this process.")
             print("  If a UAC prompt opened, approve it, then run: panergos gateway start")
-            return
+            return []
 
     # Manual starts use the same console-less direct spawn as restart() and install --start-now;
     # Scheduled Task / Startup entries are only login persistence.
     pid = _spawn_detached()
-    _report_gateway_start(f"direct spawn (PID {pid})")
+    return _report_gateway_start(f"direct spawn (PID {pid})")
 
 
 def _drain_gateway_pid(pid: int, drain_timeout: float) -> bool:
@@ -1541,9 +1542,8 @@ def restart() -> None:
             )
 
     time.sleep(1.0)   # let Windows release the listening port
-    start()
-
-    if not _wait_for_gateway_ready(timeout_s=15.0):
+    started = start()
+    if not started and not _wait_for_gateway_ready(timeout_s=15.0):
         raise RuntimeError(
             "Gateway restart did not produce a running gateway process. "
             "Check logs/gateway.log and run `panergos gateway status`."

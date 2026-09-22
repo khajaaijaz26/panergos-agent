@@ -109,6 +109,58 @@ def test_report_gateway_start_failure_is_loud_not_checkmark(monkeypatch, tmp_pat
     assert "schtasks /Run /TN Panergos_Gateway_x" in out
 
 
+def test_restart_reuses_start_readiness_result(monkeypatch):
+    """A verified direct spawn must not be contradicted by a second flaky process scan."""
+    readiness_calls = []
+
+    monkeypatch.setattr(gateway_windows, "_assert_windows", lambda: None)
+    monkeypatch.setattr(gateway_windows, "stop", lambda: None)
+    monkeypatch.setattr(gateway_windows, "_wait_for_gateway_absent", lambda **_kwargs: True)
+    monkeypatch.setattr(gateway_windows.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(gateway_windows, "_print_start_attestation_warning", lambda: None)
+    monkeypatch.setattr(gateway_windows, "_gateway_pids", lambda: [])
+    monkeypatch.setattr(gateway_windows, "is_task_registered", lambda: False)
+    monkeypatch.setattr(gateway_windows, "is_startup_entry_installed", lambda: True)
+    monkeypatch.setattr(gateway_windows, "_spawn_detached", lambda: 7336)
+    monkeypatch.setattr(gateway_windows, "_write_start_attestation", lambda *_args: None)
+
+    def _ready(*_args, **_kwargs):
+        readiness_calls.append(True)
+        return [5388] if len(readiness_calls) == 1 else []
+
+    monkeypatch.setattr(gateway_windows, "_wait_for_gateway_ready", _ready)
+
+    gateway_windows.restart()
+
+    assert len(readiness_calls) == 1
+
+
+def test_restart_retries_readiness_after_slow_cold_start(monkeypatch):
+    """A missed short start probe still gets restart's longer recovery window."""
+    readiness = iter(([], [5388]))
+    readiness_calls = []
+
+    monkeypatch.setattr(gateway_windows, "_assert_windows", lambda: None)
+    monkeypatch.setattr(gateway_windows, "stop", lambda: None)
+    monkeypatch.setattr(gateway_windows, "_wait_for_gateway_absent", lambda **_kwargs: True)
+    monkeypatch.setattr(gateway_windows.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(gateway_windows, "_print_start_attestation_warning", lambda: None)
+    monkeypatch.setattr(gateway_windows, "_gateway_pids", lambda: [])
+    monkeypatch.setattr(gateway_windows, "is_task_registered", lambda: False)
+    monkeypatch.setattr(gateway_windows, "is_startup_entry_installed", lambda: True)
+    monkeypatch.setattr(gateway_windows, "_spawn_detached", lambda: 7336)
+
+    def _ready(*_args, **_kwargs):
+        readiness_calls.append(True)
+        return next(readiness)
+
+    monkeypatch.setattr(gateway_windows, "_wait_for_gateway_ready", _ready)
+
+    gateway_windows.restart()
+
+    assert len(readiness_calls) == 2
+
+
 # ---------------------------------------------------------------------------
 # Start attestation: report-async-death on the next CLI invocation
 # ---------------------------------------------------------------------------

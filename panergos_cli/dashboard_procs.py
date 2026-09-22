@@ -7,6 +7,7 @@ call time so imports stay one-way (both of those modules import this one lazily)
 import contextlib
 import os
 import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -42,17 +43,20 @@ def _iter_process_table() -> list[tuple[int, str]]:
         # pythonw.exe desktop/gateway backend during an update, where a bare wmic spawn would pop a console
         # window.
         from panergos_cli._subprocess_compat import bounded_probe_run
-        result = bounded_probe_run(
-            ["wmic", "process", "get", "ProcessId,CommandLine", "/FORMAT:LIST"],
-            timeout=10, errors="ignore")
+        wmic = shutil.which("wmic")
+        result = (bounded_probe_run(
+            [wmic, "process", "get", "ProcessId,CommandLine", "/FORMAT:LIST"],
+            timeout=10, errors="ignore") if wmic else None)
         if result is None or result.returncode != 0 or result.stdout is None:
             # WMIC is removed from current Windows installs. psutil is a core
             # dependency and preserves the full argv needed by the matcher.
             import psutil
-            for process in psutil.process_iter(["pid", "cmdline"]):
+            from panergos_cli.update_cmd_windows import _is_panergos_launcher_token
+            for process in psutil.process_iter(["pid", "name"]):
                 try:
                     info = process.info
-                    rows.append((int(info["pid"]), subprocess.list2cmdline(info.get("cmdline") or [])))
+                    if _is_panergos_launcher_token(str(info.get("name") or "")):
+                        rows.append((int(info["pid"]), subprocess.list2cmdline(process.cmdline())))
                 except (KeyError, TypeError, ValueError, psutil.Error):
                     continue
             return rows
@@ -270,7 +274,7 @@ def _exclude_pids_from_env() -> set[int]:
 
 def _kill_pids_windows(pids: list[int], killed: list[int], failed: list[tuple[int, str]]) -> None:
     """``taskkill /F`` each PID after re-verifying its identity."""
-    from gateway.status import get_process_start_time
+    from gateway.status import _pid_exists, get_process_start_time
     from panergos_cli._subprocess_compat import pid_is_panergos, windows_hide_flags
     # Identity captured right after discovery: a PID reused before the kill fails the check.
     pid_start_times = {pid: get_process_start_time(pid) for pid in pids}
@@ -278,15 +282,21 @@ def _kill_pids_windows(pids: list[int], killed: list[int], failed: list[tuple[in
         try:
             expected_start_time = pid_start_times.get(pid)
             if expected_start_time is None:
-                failed.append((pid, "could not verify process identity"))
+                if _pid_exists(pid):
+                    failed.append((pid, "could not verify process identity"))
+                else:
+                    killed.append(pid)
             elif not pid_is_panergos(pid, expected_start_time=expected_start_time):
-                failed.append((pid, "not panergos-owned or process identity changed"))
+                if _pid_exists(pid):
+                    failed.append((pid, "not panergos-owned or process identity changed"))
+                else:
+                    killed.append(pid)
             else:
                 result = subprocess.run(
                     ["taskkill", "/PID", str(pid), "/F"], stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE, stdin=subprocess.DEVNULL, text=True, encoding="utf-8",
                     errors="replace", timeout=10, creationflags=windows_hide_flags())
-                if result.returncode == 0:
+                if result.returncode == 0 or not _pid_exists(pid):
                     killed.append(pid)
                 else:
                     failed.append((pid, (result.stderr or result.stdout or "").strip()))

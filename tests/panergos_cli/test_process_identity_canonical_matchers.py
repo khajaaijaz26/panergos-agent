@@ -17,7 +17,10 @@ LOOPBACK = "--host 127.0.0.1 --port 0"
 # a user-launched `panergos serve` / `panergos dashboard` is refused on, never tree-killed.
 CMDLINES = [
     ("python -m panergos_cli.main serve " + LOOPBACK, "serve", True, True),
+    ("python -u -X dev -W ignore -m panergos_cli.main serve " + LOOPBACK, "serve", True, False),
     ("python -m panergos_cli.main dashboard", "dashboard", False, True),
+    (r"python -B C:\repo\panergos_cli\main.py dashboard", "dashboard", False, False),
+    ("python3 /venv/bin/panergos dashboard", "dashboard", False, False),
     ("/venv/bin/panergos serve --isolated --host=127.0.0.1 --port=0 --ssh-owner-nonce abc", "serve", True, False),
     (r"C:\panergos\.venv\Scripts\panergos.exe serve --host 100.106.105.2 --port 9119", "serve", False, False),
     ("panergos.exe dashboard", "dashboard", False, False),
@@ -28,6 +31,9 @@ CMDLINES = [
     ("panergos gateway run --replace", "gateway", False, False),
     ("panergos chat --model serve", "chat", False, False),
     ("python observer.py serve " + LOOPBACK, None, False, False),
+    (r"python observer.py C:\repo\panergos_cli\main.py dashboard", None, False, False),
+    ("python observer.py /venv/bin/panergos dashboard", None, False, False),
+    ('powershell.exe -Command "python -m panergos_cli.main dashboard --status"', None, False, False),
 ]
 
 
