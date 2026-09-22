@@ -395,11 +395,14 @@ def _resolve_managed_chromium_cdp(env: dict, task_id: Optional[str], session_nam
     the agent-browser daemon's idle timer, which never sees the harness's direct CDP traffic."""
     try:
         from tools.browser_tool_session import _run_browser_command
-        from tools.browser_tool import _get_open_command_timeout
+        from tools.browser_tool import _LOCAL_SUFFIX, _get_open_command_timeout
     except Exception as e:  # pragma: no cover — stubbed browser_tool in tests
         logger.debug("managed chromium resolution unavailable: %s", e)
         return None
-    res = _run_browser_command(_backend_cache_key(task_id, session_name), "get", ["cdp-url"],
+    # This resolver means isolated managed Chromium. The local-sidecar suffix is
+    # the existing session-layer signal to skip the consented real-profile path.
+    key = f"{_backend_cache_key(task_id, session_name)}{_LOCAL_SUFFIX}"
+    res = _run_browser_command(key, "get", ["cdp-url"],
                                timeout=_get_open_command_timeout(first_open=True))
     cdp = str(((res or {}).get("data") or {}).get("cdpUrl") or "") if (res or {}).get("success") else ""
     if not cdp:
@@ -475,8 +478,8 @@ def _resolve_real_profile_cdp(env: dict, force_local: bool) -> Optional[str]:
     profile, panergos_cli.browser_connect) when consented. Two ways in: the effective backend is already local
     (no provider, CDP override, or legacy BU cloud config) → silent upgrade; or ``force_local`` (consent-gated
     ``local`` arg) → the user's browser even under a cloud backend. Operator overrides (BU_CDP_* env,
-    /browser connect, ``browser.cdp_url``) own the session either way. Fail closed: a launch error is
-    returned so a consented user is never silently downgraded."""
+    /browser connect, ``browser.cdp_url``) own the session either way. Explicit ``local`` requests fail
+    closed; an implicit upgrade may fall back to isolated Chromium when the real profile is locked."""
     if not _real_profile_consented() or _has_cdp_env(env):
         return None
     try:
@@ -523,7 +526,16 @@ def _route_backend(env: dict, session: str, task_id: Optional[str], local: bool)
     provider backends additionally keys its own cloud browser."""
     rp_err = _resolve_real_profile_cdp(env, force_local=local)
     if rp_err:
-        return rp_err
+        # An explicit local=True promises the user's logged-in profile, so it must
+        # remain fail-closed.  Only the implicit local upgrade may safely fall back
+        # to Panergos' isolated browser when the source profile is busy.
+        if local or not rp_err.startswith("[profile-locked] "):
+            return rp_err
+        managed_err = _resolve_managed_chromium_cdp(env, task_id, session)
+        if managed_err:
+            return f"{rp_err} Panergos also tried an isolated managed browser, but that failed: {managed_err}"
+        logger.info("browser_exec: real profile is locked; using an isolated managed browser")
+        return None
     # local=True is only served by the real-profile route; consent off must not pretend.
     if local and not _has_cdp_env(env) and not _real_profile_consented():
         return ("local=true was requested but browser.use_real_profile is off. Enable it in config.yaml "
@@ -590,6 +602,19 @@ def _run_cli_killing_process_group(cmd, code, env, timeout):
             proc.communicate(timeout=_POST_KILL_DRAIN_S)
         raise
     return subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
+
+
+def _stop_cli_session(session: str, timeout_s: int = 10) -> None:
+    """Stop one named Browser Use daemon; used by bounded one-shot probes."""
+    cmd = _find_cli()
+    if not cmd or not _SESSION_RE.match(session):
+        return
+    env = _base_subprocess_env()
+    env["BU_NAME"] = session
+    try:
+        _run_cli_killing_process_group([*cmd, "--reload"], "", env, timeout_s)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        logger.debug("browser-use session %s cleanup failed: %s", session, exc)
 
 
 def browser_exec(code: str, session: str = "", timeout_s: int = _DEFAULT_TIMEOUT_S,
@@ -746,7 +771,7 @@ def _dynamic_schema_overrides() -> dict:
     return overrides
 
 
-BROWSER_EXEC_SCHEMA = {
+BROWSER_EXEC_SCHEMA: Dict[str, Any] = {
     "name": "browser_exec",
     # Static fallback description, used only when the CLI (and uvx) is unavailable
     "description": (_HEADER_BASE + _HELPERS_DIGEST

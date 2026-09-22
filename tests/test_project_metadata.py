@@ -153,6 +153,14 @@ def test_pyproject_pins_match_lazy_deps_pins():
     )
 
 
+def test_wake_extra_covers_sherpa_lazy_dependencies():
+    """Desktop's eager wake install must cover everything sherpa lazy-installs."""
+    from tools.lazy_deps import LAZY_DEPS
+
+    wake = set(_load_optional_dependencies()["wake"])
+    assert set(LAZY_DEPS["wake.sherpa"]) <= wake
+
+
 
 
 

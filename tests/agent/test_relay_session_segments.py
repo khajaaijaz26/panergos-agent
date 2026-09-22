@@ -17,6 +17,8 @@ consumed at the next begin_turn before the turn scope pushes.
 
 from __future__ import annotations
 
+import os
+import sys
 import threading
 from typing import Any
 
@@ -112,18 +114,16 @@ def _fast_scope_timeout(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _default_config(monkeypatch):
+def _default_config(monkeypatch, tmp_path):
     """No config on disk by default; tests override _segments_config directly."""
-    monkeypatch.setattr(
-        "gateway.run._load_gateway_config", lambda: {}, raising=False
-    )
+    monkeypatch.setenv("PANERGOS_HOME", str(tmp_path))
     relay_runtime._reset_segments_config_for_tests()
 
 
 def _set_segments(monkeypatch, *, on_compaction=False, max_turns=0):
     monkeypatch.setattr(
-        "gateway.run._load_gateway_config",
-        lambda: {
+        "panergos_cli.config_effective.load_user_config_effective",
+        lambda path: {
             "gateway": {
                 "telemetry": {
                     "session_segments": {
@@ -136,6 +136,25 @@ def _set_segments(monkeypatch, *, on_compaction=False, max_turns=0):
         raising=False,
     )
     relay_runtime._reset_segments_config_for_tests()
+
+
+def test_segment_config_load_preserves_cli_working_directory(tmp_path, monkeypatch):
+    project = tmp_path / "project"
+    project.mkdir()
+    (tmp_path / "config.yaml").write_text(
+        "gateway:\n  telemetry:\n    session_segments:\n      max_turns: 7\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("PANERGOS_HOME", str(tmp_path))
+    monkeypatch.setenv("TERMINAL_CWD", str(project))
+    monkeypatch.delitem(sys.modules, "gateway.run", raising=False)
+
+    assert relay_runtime._load_segments_config() == {
+        "on_compaction": False,
+        "max_turns": 7,
+    }
+    assert os.environ["TERMINAL_CWD"] == str(project)
+    assert "gateway.run" not in sys.modules
 
 
 @pytest.fixture()

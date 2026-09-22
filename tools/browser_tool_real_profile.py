@@ -138,11 +138,10 @@ def _real_profile_unsupported_reason(browser) -> Optional[str]:
 
 
 def _real_profile_snapshot_error(err: str) -> str:
-    """User-facing message for a failed profile snapshot; a locked profile adds the approved-close
-    command, which the agent must ASK the user about first (it quits their browser)."""
+    """User-facing snapshot error; keep the lock tag so callers can safely fall back."""
     from panergos_cli.browser_connect import _PROFILE_LOCKED_PREFIX
     if err and err.startswith(_PROFILE_LOCKED_PREFIX):
-        return (err[len(_PROFILE_LOCKED_PREFIX):] + " To close it (only after the user approves — it "
+        return (err + " To close it (only after the user approves — it "
                 "quits their browser and loses unsaved tabs), run: `panergos browser close-profile`, then retry.")
     return f"{_RP}{err}"
 

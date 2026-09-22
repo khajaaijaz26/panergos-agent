@@ -408,6 +408,7 @@ def _graph_records(
 ) -> tuple[dict[str, list[str]], int]:
     if not isinstance(document, dict):
         raise ValueError("graph JSON root must be an object")
+    document = cast(dict[str, Any], document)
     links = document.get("links", document.get("edges", []))
     groups = {
         "nodes": (

@@ -12,106 +12,106 @@ exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for 
 exclude-newer-span = "P14D"
 
 [options.exclude-newer-package]
-elevenlabs = false
-setuptools = false
-modal = false
-pyyaml = false
-maturin = false
-numpy = false
-pvporcupine = false
-google-auth = false
-aiohttp = false
-starlette = false
-mistralai = false
-firecrawl-py = false
-parallel-web = false
-markdown = false
-opentelemetry-sdk = false
-prompt-toolkit = false
-fastapi = false
-anthropic = false
-pathspec = false
-openwakeword = false
-defusedxml = false
-ruff = false
-exa-py = false
-mcp = false
-python-olm = false
-wheel = false
-websockets = false
-pytest = false
-pillow = false
-setuptools-rust = false
-tenacity = false
-pyjwt = false
-slack-bolt = false
-fal-client = false
-asyncpg = false
-boto3 = false
-anyio = false
-ruamel-yaml = false
-huggingface-hub = false
-sherpa-onnx = false
-pytest-asyncio = false
-google-cloud-pubsub = false
-slack-sdk = false
-discord-py = false
-honcho-ai = false
-faster-whisper = false
-certifi = false
-debugpy = false
-packaging = false
-rich = false
-supermemory = false
-unpaddedbase64 = false
-h2 = false
-youtube-transcript-api = false
-edge-tts = false
-microsoft-teams-apps = false
-aiohttp-socks = false
+agent-client-protocol = false
 ai-edge-litert = false
-onnxruntime = false
-croniter = false
-opentelemetry-exporter-otlp-proto-http = false
-azure-identity = false
-lark-oapi = false
-sentencepiece = false
-firecrawl-anydoc = false
-google-api-python-client = false
-brotlicffi = false
-mem0ai = false
-qrcode = false
-vercel = false
+aiohttp = false
+aiohttp-socks = false
 aiosqlite = false
-tzdata = false
-python-dotenv = false
+alibabacloud-dingtalk = false
+anthropic = false
+anyio = false
+asyncpg = false
+azure-identity = false
+boto3 = false
+brotlicffi = false
+certifi = false
+concurrent-log-handler = false
+croniter = false
+cryptography = false
 daytona = false
-uvicorn = false
-nemo-relay = false
-requests = false
+debugpy = false
+defusedxml = false
+dingtalk-stream = false
+discord-py = false
+edge-tts = false
+elevenlabs = false
+exa-py = false
+fal-client = false
+fastapi = false
+faster-whisper = false
+fire = false
+firecrawl-anydoc = false
+firecrawl-py = false
+google-api-python-client = false
+google-auth = false
+google-auth-httplib2 = false
+google-auth-oauthlib = false
+google-cloud-pubsub = false
+h2 = false
+hindsight-client = false
+honcho-ai = false
 httplib2 = false
 httpx = false
-pyasn1 = false
-snowballstemmer = false
-concurrent-log-handler = false
-cryptography = false
-pydantic = false
-agent-client-protocol = false
-fire = false
 httpx2 = false
-google-auth-oauthlib = false
-python-multipart = false
-ty = false
-openai = false
-mautrix = false
-google-auth-httplib2 = false
-python-telegram-bot = false
-psutil = false
+huggingface-hub = false
 jinja2 = false
-hindsight-client = false
+lark-oapi = false
+markdown = false
+maturin = false
+mautrix = false
+mcp = false
+mem0ai = false
+microsoft-teams-apps = false
+mistralai = false
+modal = false
+nemo-relay = false
+numpy = false
+onnxruntime = false
+openai = false
+opentelemetry-exporter-otlp-proto-http = false
+opentelemetry-sdk = false
+openwakeword = false
+packaging = false
+parallel-web = false
+pathspec = false
+pillow = false
+prompt-toolkit = false
+psutil = false
+pvporcupine = false
+pyasn1 = false
+pydantic = false
+pyjwt = false
+pytest = false
+pytest-asyncio = false
+python-dotenv = false
+python-multipart = false
+python-olm = false
+python-telegram-bot = false
+pyyaml = false
+qrcode = false
+requests = false
+rich = false
+ruamel-yaml = false
+ruff = false
+sentencepiece = false
+setuptools = false
+setuptools-rust = false
+sherpa-onnx = false
+slack-bolt = false
+slack-sdk = false
+snowballstemmer = false
 sounddevice = false
-alibabacloud-dingtalk = false
-dingtalk-stream = false
+starlette = false
+supermemory = false
+tenacity = false
+ty = false
+tzdata = false
+unpaddedbase64 = false
+uvicorn = false
+vercel = false
+websockets = false
+wheel = false
+youtube-transcript-api = false
 
 [manifest]
 overrides = [
@@ -3115,8 +3115,10 @@ wake = [
     { name = "onnxruntime" },
     { name = "openwakeword" },
     { name = "pvporcupine" },
+    { name = "pypinyin" },
     { name = "sentencepiece" },
     { name = "sherpa-onnx" },
+    { name = "sherpa-onnx-core" },
     { name = "sounddevice" },
 ]
 web = [
@@ -3239,6 +3241,7 @@ requires-dist = [
     { name = "pyasn1", marker = "extra == 'google-chat'", specifier = "==0.6.4" },
     { name = "pydantic", specifier = "==2.13.4" },
     { name = "pyjwt", extras = ["crypto"], specifier = "==2.13.0" },
+    { name = "pypinyin", marker = "extra == 'wake'", specifier = "==0.55.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "==9.1.1" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = "==1.3.0" },
     { name = "python-dotenv", specifier = "==1.2.2" },
@@ -3259,6 +3262,7 @@ requires-dist = [
     { name = "sentencepiece", marker = "extra == 'wake'", specifier = "==0.2.2" },
     { name = "setuptools", marker = "extra == 'dev'", specifier = "==83.0.0" },
     { name = "sherpa-onnx", marker = "extra == 'wake'", specifier = "==1.13.4" },
+    { name = "sherpa-onnx-core", marker = "extra == 'wake'", specifier = "==1.13.4" },
     { name = "slack-bolt", marker = "extra == 'messaging'", specifier = "==1.30.0" },
     { name = "slack-bolt", marker = "extra == 'slack'", specifier = "==1.30.0" },
     { name = "slack-sdk", marker = "extra == 'messaging'", specifier = "==3.44.1" },
@@ -3793,6 +3797,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f3/91/9c6ee907786a473bf81c5f53cf703ba0957b23ab84c264080fb5a450416f/pyparsing-3.3.2.tar.gz", hash = "sha256:c777f4d763f140633dcb6d8a3eda953bf7a214dc4eff598413c070bcdc117cbc", size = 6851574, upload-time = "2026-01-21T03:57:59.36Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/10/bd/c038d7cc38edc1aa5bf91ab8068b63d4308c66c4c8bb3cbba7dfbc049f9c/pyparsing-3.3.2-py3-none-any.whl", hash = "sha256:850ba148bd908d7e2411587e247a1e4f0327839c40e2e5e6d05a007ecc69911d", size = 122781, upload-time = "2026-01-21T03:57:55.912Z" },
+]
+
+[[package]]
+name = "pypinyin"
+version = "0.55.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b4/a4/784cf98c09e0dc22776b0d7d8a4a5b761218bcae4608c2416ce1e167c8af/pypinyin-0.55.0.tar.gz", hash = "sha256:b5711b3a0c6f76e67408ec6b2e3c4987a3a806b7c528076e7c7b86fcf0eaa66b", size = 839836, upload-time = "2025-07-20T12:01:50.657Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b9/7b/4cabc76fcc21c3c7d5c671d8783984d30ac9d3bb387c4ba784fca3cdfa3a/pypinyin-0.55.0-py2.py3-none-any.whl", hash = "sha256:d53b1e8ad2cdb815fb2cb604ed3123372f5a28c6f447571244aca36fc62a286f", size = 840203, upload-time = "2025-07-20T12:01:48.535Z" },
 ]
 
 [[package]]
@@ -4452,6 +4465,21 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/db/47/da3ea14ab647a4f6580227853fe29353e1173ff77064d42c0bb31d01b453/sherpa_onnx-1.13.4-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:88af596be24eac32982dd64fcac30af99d9130ca498bfa1a0064189c8498195b", size = 4358385, upload-time = "2026-07-07T13:10:10.265Z" },
     { url = "https://files.pythonhosted.org/packages/44/90/84205ff383ba9335c3821c2cd6d514350f52199cb640ec094517f1f911a0/sherpa_onnx-1.13.4-cp313-cp313-win32.whl", hash = "sha256:0cabb508a15be22138f9fb7695d7ec5f3893ecd088ee419b9df559fed7e8f649", size = 1929707, upload-time = "2026-07-07T12:51:53.196Z" },
     { url = "https://files.pythonhosted.org/packages/82/40/ee8a0a8c83fc6d7f5245a5a031e471d3b115e20cce867e7abb2f9d4185c9/sherpa_onnx-1.13.4-cp313-cp313-win_amd64.whl", hash = "sha256:17050fdfb48d37ae996364f697c554a1399740d18e5a56b143c011d00cfed3e0", size = 2244504, upload-time = "2026-07-07T12:32:59.882Z" },
+]
+
+[[package]]
+name = "sherpa-onnx-core"
+version = "1.13.4"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ad/69/ae33a8cb1ecc30e0c4638d76772e56161162d57bef748380790e1257841f/sherpa_onnx_core-1.13.4-py3-none-macosx_10_15_universal2.whl", hash = "sha256:737099a817998e4d74379dcd44d8d1b332a3fa1822780be174334c3d1d1e2451", size = 36025264, upload-time = "2026-07-07T11:41:37.506Z" },
+    { url = "https://files.pythonhosted.org/packages/2a/8c/a1336beab226d228f62bdbe1cacf1439a2f6cf8714baac98f1f031dd2f60/sherpa_onnx_core-1.13.4-py3-none-macosx_10_15_x86_64.whl", hash = "sha256:674ea57eb6458002dab4e39749d21a7364b2f962f4a4958a3ee4c351b093cafd", size = 19325474, upload-time = "2026-07-07T11:31:03.394Z" },
+    { url = "https://files.pythonhosted.org/packages/a2/26/d0d6bebea4ef8b7de6eed1a335235d1acce9197425c08eecb57ef107904d/sherpa_onnx_core-1.13.4-py3-none-macosx_11_0_arm64.whl", hash = "sha256:7820183581b711a68e30281a4fb36c0af8ef5615bfc789234fb259439824a014", size = 16897650, upload-time = "2026-07-07T11:42:28.755Z" },
+    { url = "https://files.pythonhosted.org/packages/81/29/15859e896574230d5377738ef27e8647cbd19fa325d75b1a00074791798d/sherpa_onnx_core-1.13.4-py3-none-manylinux2014_aarch64.whl", hash = "sha256:b4e4d17eb0d5c569bf4c9effcbc3daef57cf7e2b8418e07ae90f90c9b60b35d5", size = 13023017, upload-time = "2026-07-07T11:41:30.935Z" },
+    { url = "https://files.pythonhosted.org/packages/41/be/38c57721d71ee74d984b1ca21720a8ca8477d6d341026af24ff658866ef9/sherpa_onnx_core-1.13.4-py3-none-manylinux2014_x86_64.whl", hash = "sha256:367aa06cee90b3fd7959d4e071d6fc821710b859af399b4987e5c3119ee6ae2a", size = 10338839, upload-time = "2026-07-07T12:21:33.627Z" },
+    { url = "https://files.pythonhosted.org/packages/7e/17/949ee6d5cff4ec9e2dcda014276a798b814e2eb80d35d820884e6e0614ff/sherpa_onnx_core-1.13.4-py3-none-manylinux_2_35_armv7l.whl", hash = "sha256:3b9cc7da5ce4a2333a9ae211f39c34dee981b13f2c9c8680fbf2d9636e87d617", size = 9889942, upload-time = "2026-07-07T14:25:04.94Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/71/e2fb4b965b86bd3ee6ca35d81999e9edad47c20d2c8fc4e03db8083494bc/sherpa_onnx_core-1.13.4-py3-none-win32.whl", hash = "sha256:ba9de2f463ae67ee2947f1bd9b981a1e39e6b831e281bf5088068251b8ec4dde", size = 13832564, upload-time = "2026-07-07T11:49:11.781Z" },
+    { url = "https://files.pythonhosted.org/packages/95/b0/c3d59ac76f3db873e41bd0cb4fc30b352a278da3289217985aaae3650211/sherpa_onnx_core-1.13.4-py3-none-win_amd64.whl", hash = "sha256:0a6949cf0fd83adb9fbcfdf5c27b8907a57f7b48626db703c7f6037be9b61764", size = 16450053, upload-time = "2026-07-07T12:03:05.196Z" },
 ]
 
 [[package]]

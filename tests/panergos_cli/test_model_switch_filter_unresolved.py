@@ -24,10 +24,10 @@ def _rows_with_env(monkeypatch, env_name: str, provider: str) -> list[dict]:
 
 
 def test_models_dev_only_provider_is_not_selectable(monkeypatch):
-    rows = _rows_with_env(monkeypatch, "MISTRAL_API_KEY", "mistral")
+    rows = _rows_with_env(monkeypatch, "COHERE_API_KEY", "cohere")
 
-    assert all(row["slug"] != "mistral" for row in rows)
-    assert not is_runtime_provider_routable("mistral")
+    assert all(row["slug"] != "cohere" for row in rows)
+    assert not is_runtime_provider_routable("cohere")
 
 
 def test_special_runtime_provider_does_not_require_registry_membership():

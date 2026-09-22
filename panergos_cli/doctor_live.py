@@ -6,7 +6,10 @@ trivial amount of quota. They run ONLY when the user passes ``panergos doctor --
 
 from __future__ import annotations
 
+import json
+import math
 import os
+import uuid
 from dataclasses import dataclass
 from typing import Callable, List, Optional
 
@@ -16,7 +19,7 @@ from panergos_cli.doctor_report import check_fail, check_ok, check_warn
 DEFAULT_PROBE_TIMEOUT = 10.0
 
 # Metadata-only endpoints (none spend generation credits): name -> (url, env var, auth scheme).
-_KEYED_PROBES = {
+_KEYED_PROBES: dict[str, tuple[str, str, str]] = {
     "Firecrawl": ("https://api.firecrawl.dev/v2/team/credit-usage", "FIRECRAWL_API_KEY", "Bearer"),
     "FAL": ("https://fal.ai/api/models?page=1", "FAL_KEY", "Key"),
 }
@@ -72,19 +75,41 @@ def _browser_available() -> bool:
 
 
 def _launch_browser_probe(timeout: float) -> tuple:
-    """Launch a browser, open about:blank, close. Returns (ok, detail). Uses Playwright directly (what
-    agent-browser drives underneath) so the probe owns the full lifecycle and always cleans up."""
+    """Probe the built-in browser through the same agent-browser runtime used by tools."""
+    from tools.browser_tool_lifecycle import cleanup_browser
+    from tools.browser_tool_session import _run_browser_command
+
+    task_id = f"doctor-live-{os.getpid()}"
     try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        return (False, "playwright not installed")
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True, timeout=timeout * 1000)
-        try:
-            browser.new_page().goto("about:blank", timeout=timeout * 1000)
-        finally:
-            browser.close()
-    return (True, "launched + about:blank + closed")
+        result = _run_browser_command(task_id, "get", ["cdp-url"], timeout=math.ceil(timeout))
+    finally:
+        cleanup_browser(task_id)
+    cdp_url = str(((result or {}).get("data") or {}).get("cdpUrl") or "")
+    if (result or {}).get("success") and cdp_url:
+        return (True, "configured backend ready")
+    return (False, str((result or {}).get("error") or "configured backend probe failed"))
+
+
+def _launch_browser_use_probe(timeout: float) -> tuple:
+    """Exercise Browser Use's configured backend in an isolated, disposable session."""
+    from tools.browser_tool_cdp import _stop_cdp_supervisor
+    from tools.browser_tool_lifecycle import cleanup_browser
+    from tools.browser_use_cli import _backend_cache_key, _stop_cli_session, browser_exec
+
+    session = f"doctor-{os.getpid()}-{uuid.uuid4().hex[:8]}"
+    task_id = session
+    try:
+        result = json.loads(browser_exec(
+            "# Checking the configured browser backend\nprint(page_info())\nprint('PANERGOS_BROWSER_READY')",
+            session=session, timeout_s=math.ceil(timeout), task_id=task_id,
+        ))
+    finally:
+        _stop_cdp_supervisor(task_id)
+        _stop_cli_session(session)
+        cleanup_browser(_backend_cache_key(task_id, session))
+    if result.get("success") and "PANERGOS_BROWSER_READY" in str(result.get("output") or ""):
+        return (True, "Browser Use configured backend ready")
+    return (False, str(result.get("error") or result.get("stderr") or "Browser Use configured backend probe failed"))
 
 
 def _probe_mcp_server(name: str, config: dict, timeout: float):
@@ -112,9 +137,14 @@ def _keyed_probe(name: str, url: str, env_var: str, scheme: str, timeout: float)
 
 
 def _probe_browser(timeout: float) -> ProbeResult:
-    if not _browser_available():
+    from tools.browser_use_cli import is_browser_use_cli_mode
+
+    if is_browser_use_cli_mode():
+        ok, detail = _launch_browser_use_probe(timeout)
+    elif not _browser_available():
         return ProbeResult("Browser", "skip", "(not configured)")
-    ok, detail = _launch_browser_probe(timeout)
+    else:
+        ok, detail = _launch_browser_probe(timeout)
     return ProbeResult("Browser", "pass" if ok else "fail", f"({detail})")
 
 
@@ -176,7 +206,9 @@ def run_live_checks(issues: List[str]) -> List[ProbeResult]:
     timeout = max(1.0, timeout)
     _section("Live Backend Probes (opt-in, real calls)")
     results: List[ProbeResult] = [
-        _run_one(name, lambda n=name, spec=spec: _keyed_probe(n, *spec, timeout), issues)
+        _run_one(name, lambda n=name, spec=spec: _keyed_probe(
+            n, spec[0], spec[1], spec[2], timeout,
+        ), issues)
         for name, spec in _KEYED_PROBES.items()
     ]
     results.append(_run_one("Browser", lambda: _probe_browser(timeout), issues))

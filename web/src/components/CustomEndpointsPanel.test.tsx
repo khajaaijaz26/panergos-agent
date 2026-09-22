@@ -339,7 +339,7 @@ describe("CustomEndpointsPanel", () => {
       },
       endpoints: [
         {
-          api_key_preview: null,
+          api_key_preview: "",
           base_url: "https://default.example.test/v1",
           discover_models: true,
           has_api_key: false,

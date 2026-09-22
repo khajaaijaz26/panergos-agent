@@ -65,6 +65,20 @@ def test_ready_poll_confirms_stable_gateway(monkeypatch):
     assert pids == [4242]
 
 
+def test_ready_poll_does_not_count_preexisting_gateway_toward_relaunches(monkeypatch):
+    _install_pid_sequence(monkeypatch, [[10, 20]])
+    monkeypatch.setattr(gateway_windows.time, "sleep", lambda s: None)
+
+    pids = gateway_windows._wait_for_gateway_ready(
+        timeout_s=0.05,
+        interval_s=0.01,
+        confirm_s=0.01,
+        exclude_pids={10},
+        min_count=2,
+    )
+    assert pids == []
+
+
 def test_ready_poll_recovers_when_gateway_respawns_within_deadline(monkeypatch):
     """Death during confirmation resumes polling; a later stable gateway wins."""
     # hit → dead (confirmation fails) → nothing → new stable pid

@@ -52,10 +52,6 @@ def _kv_flag(label: str, ok, on: str, off: str) -> None:
     _kv(label, f"{check_mark(bool(ok))} {on if ok else off}")
 
 
-def _configured(ok) -> str:
-    return "configured" if ok else "not configured"
-
-
 def _first_env_value(names) -> str:
     """Return the first non-empty env value among ``names`` (a str or tuple of names)."""
     return next((v for v in (get_env_value(n) or "" for n in ((names,) if isinstance(names, str) else names)) if v), "")
@@ -111,17 +107,6 @@ _TERMINAL_ENV_ROWS = {
     "docker": (("Docker Image:", "TERMINAL_DOCKER_IMAGE", "python:3.11-slim", False),),
     "daytona": (("Daytona Image:", "TERMINAL_DAYTONA_IMAGE", "nikolaik/python-nodejs:python3.11-nodejs20", False),),
 }
-
-_PLATFORMS = {  # name -> (token env var, home-channel env var or None)
-    "Telegram": ("TELEGRAM_BOT_TOKEN", "TELEGRAM_HOME_CHANNEL"),
-    "Discord": ("DISCORD_BOT_TOKEN", "DISCORD_HOME_CHANNEL"), "WhatsApp": ("WHATSAPP_ENABLED", None),
-    "Signal": ("SIGNAL_HTTP_URL", "SIGNAL_HOME_CHANNEL"),
-    "Slack": ("SLACK_BOT_TOKEN", None), "Email": ("EMAIL_ADDRESS", "EMAIL_HOME_ADDRESS"),
-    "SMS": ("TWILIO_ACCOUNT_SID", "SMS_HOME_CHANNEL"), "DingTalk": ("DINGTALK_CLIENT_ID", None),
-    "Feishu": ("FEISHU_APP_ID", "FEISHU_HOME_CHANNEL"), "WeCom": ("WECOM_BOT_ID", "WECOM_HOME_CHANNEL"),
-    "WeCom Callback": ("WECOM_CALLBACK_CORP_ID", None), "Weixin": ("WEIXIN_ACCOUNT_ID", "WEIXIN_HOME_CHANNEL"),
-    "BlueBubbles": ("BLUEBUBBLES_SERVER_URL", "BLUEBUBBLES_HOME_CHANNEL"), "QQBot": ("QQ_APP_ID", "QQ_HOME_CHANNEL"),
-    "Yuanbao": ("YUANBAO_APP_ID", "YUANBAO_HOME_CHANNEL")}
 
 # Gateway manager label when the runtime snapshot is unavailable, keyed by platform.
 _GATEWAY_FALLBACK = {"termux": ("unknown", "Termux / manual process"), "linux": ("unknown", "systemd/manual"),
@@ -197,23 +182,22 @@ def _render_terminal(ctx):
 
 def _render_platforms(ctx):
     _section("Messaging Platforms")
-    for name, (token_var, home_var) in _PLATFORMS.items():
-        has_token = bool(os.getenv(token_var, ""))
-        home_channel = os.getenv(home_var, "") if home_var else ""
-        _row(name, has_token, _configured(has_token) + (f" (home: {home_channel})" if home_channel else ""))
-
-    try:  # Plugin-registered platforms
-        from gateway.platform_registry import platform_registry
-        for entry in platform_registry.plugin_entries():
-            # Per-entry guard: one raising probe must not abort the listing of every remaining
-            # plugin platform (matches the other check_fn sites).
-            try:
-                configured = bool(entry.check_fn())
-            except Exception:
-                configured = False
-            _row(entry.label, configured, f"{_configured(configured)} (plugin)")
+    try:
+        from panergos_cli.connectors import connector_snapshot
+        rows, _gateway_running = connector_snapshot()
     except Exception:
-        pass
+        _kv("Connectors:", "(status unavailable)")
+        return
+
+    for row in rows:
+        readiness = row["readiness"]
+        runtime = row["runtime"]
+        if readiness == "needs setup":
+            _row(row["name"], False, "available; needs setup")
+        elif readiness == "disabled":
+            _row(row["name"], False, "configured; disabled")
+        else:
+            _row(row["name"], runtime in {"connected", "running", "ok"}, f"configured; {runtime}")
 
 
 def _render_gateway(ctx):

@@ -13,6 +13,7 @@ Covers the three seams the integration relies on:
 """
 import json
 import os
+import shutil
 import stat
 import subprocess
 import sys
@@ -24,6 +25,8 @@ import tools.browser_use_cli as bu_cli
 from tools import browser_tool_install as bt_install
 from tools import browser_tool_cloud as bt_cloud
 from tools import browser_tool_session as bt_session
+
+_TEST_SHELL = shutil.which("sh") or shutil.which("bash")
 
 
 @pytest.fixture(autouse=True)
@@ -64,12 +67,35 @@ def _fake_supervisor_registry(monkeypatch):
     return attached
 
 
-def _fake_cli(tmp_path, body):
-    """Write an executable fake browser-use CLI and return its path."""
-    script = tmp_path / "browser-use"
+def _fake_executable(path, body=""):
+    """Write a shell fake and return a host-runnable executable path."""
+    script = path
     script.write_text("#!/bin/sh\n" + body, encoding="utf-8")
     script.chmod(script.stat().st_mode | stat.S_IXUSR)
+    if os.name == "nt":
+        assert _TEST_SHELL, "Git Bash is required by scripts/run_tests.sh"
+        launcher = script.with_name(script.name + ".CMD")
+        launcher.write_text(f'@"{_TEST_SHELL}" "{script}" %*\n', encoding="utf-8")
+        return str(launcher)
     return str(script)
+
+
+def _fake_cli(tmp_path, body):
+    """Write an executable fake browser-use CLI and return its path."""
+    return _fake_executable(tmp_path / "browser-use", body)
+
+
+def test_stop_cli_session_targets_only_named_daemon(monkeypatch):
+    seen = []
+    monkeypatch.setattr(bu_cli, "_find_cli", lambda: ["browser-use"])
+    monkeypatch.setattr(
+        bu_cli, "_run_cli_killing_process_group",
+        lambda cmd, code, env, timeout: seen.append((cmd, code, env["BU_NAME"], timeout)),
+    )
+
+    bu_cli._stop_cli_session("doctor-123")
+
+    assert seen == [(["browser-use", "--reload"], "", "doctor-123", 10)]
 
 
 class TestModeDetection:
@@ -279,7 +305,9 @@ class TestVaultSupervisorAttach:
         result = json.loads(bu_cli.browser_exec("print(1)", task_id="t-vault"))
 
         assert result["success"] is True
-        assert _fake_supervisor_registry == [("t-vault", "ws://127.0.0.1:47000/devtools/browser/t-vault")]
+        assert _fake_supervisor_registry == [
+            ("t-vault", "ws://127.0.0.1:47000/devtools/browser/t-vault::local")
+        ]
 
 
 class TestFindCli:
@@ -475,12 +503,12 @@ class TestBackendCdpResolution:
         monkeypatch.setattr(bt_cloud, "_get_cloud_provider", lambda: None)
         env = self._env()
         assert bu_cli._resolve_backend_cdp(env, "t1") is None
-        assert env["BU_CDP_WS"] == "ws://127.0.0.1:47000/devtools/browser/t1"
+        assert env["BU_CDP_WS"] == "ws://127.0.0.1:47000/devtools/browser/t1::local"
         assert env[bu_cli._PRIVATE_BROWSER_SENTINEL] == "1"
-        assert _fake_managed_chromium == [("t1", "get", ("cdp-url",))]
+        assert _fake_managed_chromium == [("t1::local", "get", ("cdp-url",))]
         env = self._env()
         assert bu_cli._resolve_backend_cdp(env, "t1", session_name="r7k2") is None
-        assert _fake_managed_chromium[-1][0] == "bu-named-r7k2"  # named session → its own Chromium
+        assert _fake_managed_chromium[-1][0] == "bu-named-r7k2::local"  # named session → its own Chromium
 
     def test_packaged_chromium_launch_failure_is_an_error(self, monkeypatch):
         monkeypatch.setattr("tools.browser_tool_cdp._get_cdp_override", lambda: "")
@@ -502,6 +530,24 @@ class TestBackendCdpResolution:
         monkeypatch.setattr(bt_session, "_get_session_info", boom)
         err = bu_cli._resolve_backend_cdp(self._env(), "t1")
         assert err and "api down" in err
+
+    def test_locked_real_profile_retries_once_with_isolated_browser(
+        self, monkeypatch, _fake_managed_chromium,
+    ):
+        lock_error = "[profile-locked] edge is running and has its profile locked, so its login data can't be copied."
+        monkeypatch.setattr(bu_cli, "_resolve_real_profile_cdp", lambda env, force_local: lock_error)
+
+        env = self._env()
+        assert bu_cli._route_backend(env, "research", "task-1", local=False) is None
+        assert env["BU_CDP_WS"].endswith("/bu-named-research::local")
+        assert _fake_managed_chromium == [("bu-named-research::local", "get", ("cdp-url",))]
+
+        monkeypatch.setattr(bt_session, "_run_browser_command",
+                            lambda *a, **k: {"success": False, "error": "managed Chromium unavailable"})
+        err = bu_cli._route_backend(self._env(), "research", "task-1", local=False)
+        assert lock_error in err and "managed Chromium unavailable" in err
+
+        assert bu_cli._route_backend(self._env(), "research", "task-1", local=True) == lock_error
 
     def test_provider_without_cdp_returns_error(self, monkeypatch):
 
@@ -812,7 +858,7 @@ class TestNativeScreenshots:
         kinds = [part["type"] for part in result["content"]]
         assert kinds == ["text", "image_url"]
         assert result["meta"]["screenshot_path"] == shot
-        assert shot in result["text_summary"]
+        assert json.loads(result["text_summary"])["screenshot_path"] == shot
 
     def test_text_only_model_gets_plain_result_with_path(self, tmp_path, monkeypatch):
         shot = self._shot(tmp_path)
@@ -982,24 +1028,25 @@ class TestFindCliManagedBin:
         """Pin HOME so the ~/.local/bin probe can't leak the host's real
         user-level installs into these real-PATH-probing tests."""
         monkeypatch.setenv("HOME", str(tmp_path / "userhome"))
+        monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
         monkeypatch.setenv("PANERGOS_HOME", str(tmp_path / "home"))
         monkeypatch.setenv("PATH", str(tmp_path / "empty"))
+
+    @staticmethod
+    def _user_bin(tmp_path):
+        return tmp_path / ("appdata/uv/bin" if os.name == "nt" else "userhome/.local/bin")
 
     def test_managed_bin_browser_use_found(self, tmp_path, monkeypatch):
         bin_dir = tmp_path / "home" / "bin"
         bin_dir.mkdir(parents=True)
-        bu = bin_dir / "browser-use"
-        bu.write_text("#!/bin/sh\n", encoding="utf-8")
-        bu.chmod(bu.stat().st_mode | stat.S_IXUSR)
-        assert bu_cli._find_cli_unpatched() == [str(bu)]
+        bu = _fake_executable(bin_dir / "browser-use")
+        assert bu_cli._find_cli_unpatched() == [bu]
 
     def test_managed_bin_uvx_fallback(self, tmp_path, monkeypatch):
         bin_dir = tmp_path / "home" / "bin"
         bin_dir.mkdir(parents=True)
-        uvx = bin_dir / "uvx"
-        uvx.write_text("#!/bin/sh\n", encoding="utf-8")
-        uvx.chmod(uvx.stat().st_mode | stat.S_IXUSR)
-        assert bu_cli._find_cli_unpatched() == [str(uvx), "browser-use"]
+        uvx = _fake_executable(bin_dir / "uvx")
+        assert bu_cli._find_cli_unpatched() == [uvx, "browser-use"]
 
     def test_nothing_found(self, tmp_path, monkeypatch):
         assert bu_cli._find_cli_unpatched() is None
@@ -1008,44 +1055,34 @@ class TestFindCliManagedBin:
         """#83788: Desktop/TUI workers spawn with a minimal PATH that omits
         ~/.local/bin, where `uv tool install browser-use` links the binary
         by default — _find_cli must probe it explicitly."""
-        cli_dir = tmp_path / "userhome" / ".local" / "bin"
+        cli_dir = self._user_bin(tmp_path)
         cli_dir.mkdir(parents=True)
-        cli = cli_dir / "browser-use"
-        cli.write_text("#!/bin/sh\n", encoding="utf-8")
-        cli.chmod(cli.stat().st_mode | stat.S_IXUSR)
-        assert bu_cli._find_cli_unpatched() == [str(cli)]
+        cli = _fake_executable(cli_dir / "browser-use")
+        assert bu_cli._find_cli_unpatched() == [cli]
 
     def test_managed_bin_precedes_user_local_bin(self, tmp_path, monkeypatch):
         """MANAGED-FIRST: Panergos' managed copy wins over a user-level side
         install — every backend selection provisions/updates the managed
         copy, so resolution must land on the binary we control (no version
         drift from stray `uv tool install` runs)."""
-        user_dir = tmp_path / "userhome" / ".local" / "bin"
+        user_dir = self._user_bin(tmp_path)
         user_dir.mkdir(parents=True)
-        user_cli = user_dir / "browser-use"
-        user_cli.write_text("#!/bin/sh\n", encoding="utf-8")
-        user_cli.chmod(user_cli.stat().st_mode | stat.S_IXUSR)
+        _fake_executable(user_dir / "browser-use")
         managed_dir = tmp_path / "home" / "bin"
         managed_dir.mkdir(parents=True)
-        managed_cli = managed_dir / "browser-use"
-        managed_cli.write_text("#!/bin/sh\n", encoding="utf-8")
-        managed_cli.chmod(managed_cli.stat().st_mode | stat.S_IXUSR)
-        assert bu_cli._find_cli_unpatched() == [str(managed_cli)]
+        managed_cli = _fake_executable(managed_dir / "browser-use")
+        assert bu_cli._find_cli_unpatched() == [managed_cli]
 
     def test_managed_bin_precedes_path(self, tmp_path, monkeypatch):
         """MANAGED-FIRST: the managed copy also wins over one on PATH."""
         path_dir = tmp_path / "onpath"
         path_dir.mkdir()
-        path_cli = path_dir / "browser-use"
-        path_cli.write_text("#!/bin/sh\n", encoding="utf-8")
-        path_cli.chmod(path_cli.stat().st_mode | stat.S_IXUSR)
+        _fake_executable(path_dir / "browser-use")
         monkeypatch.setenv("PATH", str(path_dir))
         managed_dir = tmp_path / "home" / "bin"
         managed_dir.mkdir(parents=True)
-        managed_cli = managed_dir / "browser-use"
-        managed_cli.write_text("#!/bin/sh\n", encoding="utf-8")
-        managed_cli.chmod(managed_cli.stat().st_mode | stat.S_IXUSR)
-        assert bu_cli._find_cli_unpatched() == [str(managed_cli)]
+        managed_cli = _fake_executable(managed_dir / "browser-use")
+        assert bu_cli._find_cli_unpatched() == [managed_cli]
 
     def test_managed_uvx_precedes_path_browser_use(self, tmp_path, monkeypatch):
         """A stale PATH shim must not shadow Panergos' managed zero-install runner."""
@@ -1066,12 +1103,10 @@ class TestFindCliManagedBin:
         assert bu_cli._find_cli_unpatched() == [managed_uvx, "browser-use"]
 
     def test_user_local_bin_uvx_fallback(self, tmp_path, monkeypatch):
-        cli_dir = tmp_path / "userhome" / ".local" / "bin"
+        cli_dir = self._user_bin(tmp_path)
         cli_dir.mkdir(parents=True)
-        uvx = cli_dir / "uvx"
-        uvx.write_text("#!/bin/sh\n", encoding="utf-8")
-        uvx.chmod(uvx.stat().st_mode | stat.S_IXUSR)
-        assert bu_cli._find_cli_unpatched() == [str(uvx), "browser-use"]
+        uvx = _fake_executable(cli_dir / "uvx")
+        assert bu_cli._find_cli_unpatched() == [uvx, "browser-use"]
 
 
 class TestInstallCli:
@@ -1096,9 +1131,7 @@ class TestInstallCli:
     def test_already_installed_in_managed_bin(self, tmp_path, monkeypatch):
         bin_dir = tmp_path / "home" / "bin"
         bin_dir.mkdir(parents=True)
-        cli = bin_dir / "browser-use"
-        cli.write_text("#!/bin/sh\n", encoding="utf-8")
-        cli.chmod(cli.stat().st_mode | stat.S_IXUSR)
+        _fake_executable(bin_dir / "browser-use")
         monkeypatch.setenv("PANERGOS_HOME", str(tmp_path / "home"))
         monkeypatch.setenv("PATH", str(tmp_path / "empty"))
         ok, msg = bu_cli.install_cli()
@@ -1128,34 +1161,31 @@ class TestInstallCli:
         monkeypatch.setattr(bu_cli, "_find_cli", bu_cli._find_cli_unpatched)
         # fake uv: `uv tool install browser-use` drops a binary into UV_TOOL_BIN_DIR.
         # Absolute /bin/chmod: PATH is emptied above, so bare chmod won't resolve.
-        uv = tmp_path / "uv"
-        uv.write_text(
-            "#!/bin/sh\n"
-            'target="$UV_TOOL_BIN_DIR/browser-use"\n'
+        target_name = "browser-use.CMD" if os.name == "nt" else "browser-use"
+        uv = _fake_executable(
+            tmp_path / "uv",
+            f'target="$UV_TOOL_BIN_DIR/{target_name}"\n'
             'echo "#!/bin/sh" > "$target"\n'
             '/bin/chmod +x "$target"\n'
-        , encoding="utf-8")
-        uv.chmod(uv.stat().st_mode | stat.S_IXUSR)
+        )
         import sys as _sys
         import types as _types
         fake = _types.ModuleType("panergos_cli.managed_uv")
-        fake.ensure_uv = lambda **kw: str(uv)
+        fake.ensure_uv = lambda **kw: uv
         monkeypatch.setitem(_sys.modules, "panergos_cli.managed_uv", fake)
         ok, msg = bu_cli.install_cli()
         assert ok is True, msg
-        assert (bin_dir / "browser-use").exists()
+        assert (bin_dir / target_name).exists()
 
     def test_failed_install_surfaces_stderr_tail(self, tmp_path, monkeypatch):
         home = tmp_path / "home"
         monkeypatch.setenv("PANERGOS_HOME", str(home))
         monkeypatch.setenv("PATH", str(tmp_path / "empty"))
-        uv = tmp_path / "uv"
-        uv.write_text('#!/bin/sh\necho "no network" >&2\nexit 1\n', encoding="utf-8")
-        uv.chmod(uv.stat().st_mode | stat.S_IXUSR)
+        uv = _fake_executable(tmp_path / "uv", 'echo "no network" >&2\nexit 1\n')
         import sys as _sys
         import types as _types
         fake = _types.ModuleType("panergos_cli.managed_uv")
-        fake.ensure_uv = lambda **kw: str(uv)
+        fake.ensure_uv = lambda **kw: uv
         monkeypatch.setitem(_sys.modules, "panergos_cli.managed_uv", fake)
         ok, msg = bu_cli.install_cli()
         assert ok is False

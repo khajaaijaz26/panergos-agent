@@ -137,9 +137,14 @@ class TestResumeLivenessGate:
         exact #48820 3rd/4th-repro hole: spawn succeeded, gateway died
         within seconds, success was reported, platforms were offline for
         12.5 hours."""
-        monkeypatch.setattr(
-            gateway_windows, "_wait_for_gateway_ready", lambda **_kw: []
-        )
+        monkeypatch.setattr(gateway, "find_gateway_pids", lambda **_kw: [555])
+        wait_kwargs = {}
+
+        def fake_wait(**kwargs):
+            wait_kwargs.update(kwargs)
+            return []
+
+        monkeypatch.setattr(gateway_windows, "_wait_for_gateway_ready", fake_wait)
         token = _token({"default": 1111})
         printed = []
         with patch("builtins.print", side_effect=lambda *a, **k: printed.append(a)):
@@ -152,6 +157,8 @@ class TestResumeLivenessGate:
         # The profile stays on the token so retry/reporting still sees it.
         assert token["profiles"] == {"default": 1111}
         assert token["resume_needed"] is True
+        assert wait_kwargs["exclude_pids"] == {555}
+        assert wait_kwargs["min_count"] == 1
 
     def test_live_respawn_prints_check_and_writes_attestation(self, monkeypatch):
         monkeypatch.setattr(

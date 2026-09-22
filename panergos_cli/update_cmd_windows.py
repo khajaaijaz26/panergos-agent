@@ -1050,7 +1050,7 @@ def _refresh_bootstrap_cache_scripts(branch: str = DISTRIBUTION_BRANCH) -> None:
             print("  ✓ Refreshed installer bootstrap-cache script(s): " + ", ".join(sorted(refreshed)))
 
 
-def _resume_windows_services(token: dict) -> None:
+def _resume_windows_services(token: dict) -> list[str]:
     """Restart the SCM services recorded on *token*; failed ones stay on the token so a retry sees them."""
     from panergos_cli.update_cmd import _start_windows_gateway_service
     services = list(token.get("services") or [])
@@ -1074,6 +1074,7 @@ def _resume_windows_services(token: dict) -> None:
         raise RuntimeError("Could not restart Windows gateway service(s): " + ", ".join(failed_services))
     if restarted_services:
         print("\n  ✓ Restarted Windows gateway service(s): " + ", ".join(restarted_services))
+    return restarted_services
 
 
 def _relaunch_paused_gateways(token: dict, profiles: dict, unmapped: list) -> tuple[list[str], int]:
@@ -1118,7 +1119,14 @@ def _relaunch_paused_gateways(token: dict, profiles: dict, unmapped: list) -> tu
     return relaunched, unmapped_relaunched
 
 
-def _verify_relaunched_gateways_alive(token: dict, profiles: dict, unmapped: list) -> None:
+def _verify_relaunched_gateways_alive(
+    token: dict,
+    profiles: dict,
+    unmapped: list,
+    *,
+    preexisting_pids: set[int],
+    expected_count: int,
+) -> None:
     """Gate success on the shared liveness poll: a truthy launch only proves the watcher was created.
 
     A parent Job Object denying CREATE_BREAKAWAY_FROM_JOB can kill the gateway on updater teardown;
@@ -1126,7 +1134,12 @@ def _verify_relaunched_gateways_alive(token: dict, profiles: dict, unmapped: lis
     is reported by the next CLI invocation (best-effort)."""
     with _abort_on_error("Could not load Windows gateway liveness helpers"):
         from panergos_cli import gateway_windows
-    ready_pids = gateway_windows._wait_for_gateway_ready(timeout_s=30.0, all_profiles=True)
+    ready_pids = gateway_windows._wait_for_gateway_ready(
+        timeout_s=30.0,
+        all_profiles=True,
+        exclude_pids=preexisting_pids,
+        min_count=expected_count,
+    )
     if not ready_pids:
         token["profiles"] = dict(profiles)
         token["unmapped"] = list(unmapped)
@@ -1151,9 +1164,14 @@ def _resume_windows_gateways_after_update(token: dict | None) -> None:
     # Regenerate launcher scripts before respawning so a legacy pythonw-era
     # autostart entry comes back on the current design at next login too.
     _m()._refresh_windows_gateway_launchers()
-    _resume_windows_services(token)
     profiles = token.get("profiles") or {}
     unmapped = token.get("unmapped") or []
+    preexisting_pids: set[int] = set()
+    if profiles or any(u.get("argv") for u in unmapped):
+        with _abort_on_error("Could not snapshot pre-existing Windows gateways"):
+            from panergos_cli.gateway import find_gateway_pids
+            preexisting_pids = set(find_gateway_pids(all_profiles=True))
+    restarted_services = _resume_windows_services(token)
     if not profiles and not any(u.get("argv") for u in unmapped):
         if token.get("cold_start_if_installed"):
             if not _m()._cold_start_windows_gateway_after_update(token):
@@ -1163,7 +1181,13 @@ def _resume_windows_gateways_after_update(token: dict | None) -> None:
         return
     relaunched, unmapped_relaunched = _relaunch_paused_gateways(token, profiles, unmapped)
     if relaunched or unmapped_relaunched:
-        _verify_relaunched_gateways_alive(token, profiles, unmapped)
+        _verify_relaunched_gateways_alive(
+            token,
+            profiles,
+            unmapped,
+            preexisting_pids=preexisting_pids,
+            expected_count=len(restarted_services) + len(relaunched) + unmapped_relaunched,
+        )
     token["resume_needed"] = False
     if relaunched:
         print(f"\n  ✓ Restarting Windows gateway profile(s): {', '.join(relaunched)}")

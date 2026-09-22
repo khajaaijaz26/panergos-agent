@@ -6,7 +6,7 @@ import sys
 from types import ModuleType, SimpleNamespace
 
 from gateway.config import GatewayConfig, Platform, PlatformConfig
-from panergos_cli.connectors import _connect_account, _connector_rows, _setup_connector
+from panergos_cli.connectors import _connect_account, _connector_rows, _read_state, _setup_connector
 from panergos_cli.subcommands.gateway import build_gateway_parser
 
 
@@ -55,6 +55,51 @@ def test_connector_rows_are_complete_enough_to_act_on_and_never_include_secret_v
     assert rows[1]["readiness"] == "needs setup"
     assert rows[1]["missing"] == ["SIGNAL_HTTP_URL", "SIGNAL_ACCOUNT"]
     assert "top-secret-token" not in json.dumps(rows)
+
+
+def test_connector_rows_accept_legacy_runtime_status():
+    config = GatewayConfig(platforms={
+        Platform.TELEGRAM: PlatformConfig(enabled=True, token="configured"),
+    })
+    rows = _connector_rows(
+        ({"id": "telegram", "name": "Telegram", "required_env": ()},),
+        config, {"platforms": {"telegram": {"status": "RUNNING"}}}, True,
+        lambda _key: None,
+    )
+
+    assert rows[0]["runtime"] == "running"
+
+
+def test_read_state_projects_platforms_for_profile_served_by_multiplexer(monkeypatch, tmp_path):
+    from gateway import config as gateway_config
+    from gateway import status as gateway_status
+
+    profile_home = tmp_path / "profiles" / "school"
+    profile_home.mkdir(parents=True)
+    multiplexer_runtime = {
+        "gateway_state": "running",
+        "platforms": {
+            "school:telegram": {"state": "connected"},
+            "other:telegram": {"state": "retrying"},
+        },
+    }
+    expected_config = GatewayConfig()
+    monkeypatch.setenv("PANERGOS_HOME", str(profile_home))
+    monkeypatch.setattr(gateway_config, "load_gateway_config", lambda: expected_config)
+    monkeypatch.setattr(gateway_status, "read_runtime_status", lambda: None)
+    monkeypatch.setattr(gateway_status, "get_running_pid_cached", lambda: None)
+    monkeypatch.setattr(gateway_status, "get_runtime_status_running_pid", lambda _runtime: None)
+    monkeypatch.setattr(
+        gateway_status,
+        "multiplexer_liveness_for_profile",
+        lambda home: (321, multiplexer_runtime) if home == profile_home else None,
+    )
+
+    config, runtime, running = _read_state()
+
+    assert config is expected_config
+    assert running is True
+    assert runtime["platforms"] == {"telegram": {"state": "connected"}}
 
 
 def test_named_setup_delegates_to_existing_platform_handler(monkeypatch):

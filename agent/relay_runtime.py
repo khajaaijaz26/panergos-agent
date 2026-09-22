@@ -161,8 +161,12 @@ def _load_segments_config() -> dict[str, Any]:
     on_compaction = False
     max_turns = 0
     try:
-        from gateway.run import _load_gateway_config  # late import
-        telemetry = (_load_gateway_config().get("gateway") or {}).get("telemetry") or {}
+        from panergos_cli.config_effective import load_user_config_effective
+
+        # Agent turns also run outside the gateway; importing gateway.run here applies
+        # gateway process bootstrap (including its cwd fallback) to those callers.
+        config = load_user_config_effective(get_panergos_home() / "config.yaml")
+        telemetry = (config.get("gateway") or {}).get("telemetry") or {}
         segments = telemetry.get("session_segments") or {}
         on_compaction = bool(segments.get("on_compaction", False))
         try:

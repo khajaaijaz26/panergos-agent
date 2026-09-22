@@ -85,6 +85,19 @@ class TestBrowserCleanup:
         assert browser_tool._recording_sessions == set()
         assert browser_tool._cleanup_done is True
 
+    def test_cleanup_all_stops_supervisors_before_browser_backends(self):
+        events = []
+        with (
+            patch("tools.browser_supervisor.SUPERVISOR_REGISTRY.stop_all",
+                  side_effect=lambda: events.append("supervisors")),
+            patch("tools.browser_tool_lifecycle.cleanup_browser",
+                  side_effect=lambda task_id: events.append(task_id)),
+        ):
+            self.browser_tool._active_sessions["browser-1"] = {}
+            bt_lifecycle.cleanup_all_browsers()
+
+        assert events[:2] == ["supervisors", "browser-1"]
+
 
 class TestInactivityJanitorMultiplex:
     """#86402 / #100738: the process-global janitor thread has no profile scope."""

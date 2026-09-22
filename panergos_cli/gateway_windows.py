@@ -811,7 +811,15 @@ def install(
     raise RuntimeError(f"Windows gateway install failed: {detail}")
 
 
-def _confirm_gateway_stable(initial_pids: list[int], confirm_s: float, interval_s: float, all_profiles: bool = False) -> list[int]:
+def _confirm_gateway_stable(
+    initial_pids: list[int],
+    confirm_s: float,
+    interval_s: float,
+    all_profiles: bool = False,
+    *,
+    exclude_pids: set[int] | None = None,
+    min_count: int = 1,
+) -> list[int]:
     """Re-check a freshly detected gateway for ``confirm_s`` seconds: one process-table hit proves
     the child was *created*, not that it survived startup (or a parent Job Object teardown).
 
@@ -825,28 +833,44 @@ def _confirm_gateway_stable(initial_pids: list[int], confirm_s: float, interval_
         return initial_pids
     from panergos_cli.gateway import find_gateway_pids
 
+    excluded = exclude_pids or set()
     pids = initial_pids
     confirm_deadline = time.monotonic() + confirm_s
     while time.monotonic() < confirm_deadline:
         time.sleep(interval_s)
-        pids = list(find_gateway_pids(all_profiles=all_profiles))
-        if not pids:
+        pids = [pid for pid in find_gateway_pids(all_profiles=all_profiles) if pid not in excluded]
+        if len(pids) < min_count:
             return []
     return pids
 
 
 def _wait_for_gateway_ready(
-    timeout_s: float = 6.0, interval_s: float = 0.4, confirm_s: float = 2.0, all_profiles: bool = False,
+    timeout_s: float = 6.0,
+    interval_s: float = 0.4,
+    confirm_s: float = 2.0,
+    all_profiles: bool = False,
+    *,
+    exclude_pids: set[int] | None = None,
+    min_count: int = 1,
 ) -> list[int]:
     """Poll for a live gateway for up to ``timeout_s``; a first hit is provisional until the gateway
     stays visible for ``confirm_s`` more seconds (a child that dies right after spawn earns no ✓)."""
     from panergos_cli.gateway import find_gateway_pids
 
+    excluded = exclude_pids or set()
+    required = max(int(min_count), 1)
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
-        pids = list(find_gateway_pids(all_profiles=all_profiles))
-        if pids:
-            confirmed = _confirm_gateway_stable(pids, confirm_s, interval_s, all_profiles=all_profiles)
+        pids = [pid for pid in find_gateway_pids(all_profiles=all_profiles) if pid not in excluded]
+        if len(pids) >= required:
+            confirmed = _confirm_gateway_stable(
+                pids,
+                confirm_s,
+                interval_s,
+                all_profiles=all_profiles,
+                exclude_pids=excluded,
+                min_count=required,
+            )
             if confirmed:
                 return confirmed
             continue  # died during confirmation — keep polling until deadline

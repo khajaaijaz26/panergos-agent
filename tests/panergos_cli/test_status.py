@@ -4,6 +4,28 @@ from panergos_cli.status import show_status
 import subprocess
 
 
+def test_platform_status_uses_connector_configuration_and_runtime_truth(monkeypatch, capsys):
+    from panergos_cli import connectors, status as status_mod
+
+    monkeypatch.setattr(connectors, "connector_snapshot", lambda: ([
+        {"name": "Bundled Adapter", "readiness": "needs setup", "runtime": "not started"},
+        {"name": "Live Connected", "readiness": "ready", "runtime": "connected"},
+        {"name": "Live Running", "readiness": "ready", "runtime": "running"},
+        {"name": "Live OK", "readiness": "ready", "runtime": "ok"},
+        {"name": "Off Adapter", "readiness": "disabled", "runtime": "gateway stopped"},
+    ], True))
+
+    status_mod._render_platforms(SimpleNamespace())
+
+    lines = capsys.readouterr().out.splitlines()
+    bundled = next(line for line in lines if "Bundled Adapter" in line)
+    assert "available; needs setup" in bundled and "configured" not in bundled
+    for name, state in (("Live Connected", "connected"), ("Live Running", "running"), ("Live OK", "ok")):
+        live = next(line for line in lines if name in line)
+        assert "✓" in live and f"configured; {state}" in live
+    assert "configured; disabled" in next(line for line in lines if "Off Adapter" in line)
+
+
 def test_show_status_all_does_not_print_keenable_key_value(monkeypatch, capsys, tmp_path):
     monkeypatch.setenv("PANERGOS_HOME", str(tmp_path))
     sentinel = "NONSECRET_SENTINEL_VALUE_DO_NOT_PRINT_123456"

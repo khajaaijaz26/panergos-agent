@@ -2442,6 +2442,10 @@ OPTIONAL_ENV_VARS = {
         password=False),
     "XAI_API_KEY": _prov("xAI API key", "xAI API key", "https://console.x.ai/"),
     "XAI_BASE_URL": _base_url("xAI"),
+    "MISTRAL_API_KEY": _prov(
+        "Mistral API key for chat models, Voxtral TTS, and transcription (STT)",
+        "Mistral API key", "https://console.mistral.ai/api-keys/",
+        tools=["mistral_tts", "voice_transcription"]),
     "NVIDIA_API_KEY": _prov("NVIDIA NIM API key (build.nvidia.com or local NIM endpoint)",
         "NVIDIA NIM API key", "https://build.nvidia.com/"),
     "NVIDIA_BASE_URL": _prov(
@@ -2596,8 +2600,6 @@ OPTIONAL_ENV_VARS = {
         "ElevenLabs API key for premium text-to-speech voices and Scribe transcription",
         "ElevenLabs API key", "https://elevenlabs.io/",
         tools=["elevenlabs_tts", "voice_transcription"]),
-    "MISTRAL_API_KEY": _tool("Mistral API key for Voxtral TTS and transcription (STT)",
-        "Mistral API key", "https://console.mistral.ai/"),
     "PORCUPINE_ACCESS_KEY": _tool(
         "Picovoice access key for the Porcupine wake word engine (optional; "
         "openWakeWord is the free default)", "Picovoice access key",

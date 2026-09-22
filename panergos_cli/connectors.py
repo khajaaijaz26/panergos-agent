@@ -20,10 +20,22 @@ def _catalog() -> tuple[dict[str, Any], ...]:
 
 def _read_state() -> tuple[Any, dict[str, Any], bool]:
     from gateway.config import load_gateway_config
-    from gateway.status import read_runtime_status, resolve_gateway_liveness
+    from gateway.status import (
+        profile_platforms_from_multiplexer,
+        read_runtime_status,
+        resolve_gateway_liveness,
+    )
+    from panergos_constants import get_process_panergos_home, profile_name_for_home
 
     runtime = read_runtime_status() or {}
-    return load_gateway_config(), runtime, resolve_gateway_liveness(runtime=runtime).running
+    liveness = resolve_gateway_liveness(runtime=runtime)
+    if liveness.runtime is not None:
+        profile = profile_name_for_home(get_process_panergos_home()) or ""
+        runtime = {
+            **liveness.runtime,
+            "platforms": profile_platforms_from_multiplexer(liveness.runtime, profile),
+        }
+    return load_gateway_config(), runtime, liveness.running
 
 
 def _connector_rows(
@@ -58,7 +70,11 @@ def _connector_rows(
             missing = ["guided setup"]
 
         runtime_entry = runtime_platforms.get(connector_id, {})
-        runtime_state = runtime_entry.get("state") if isinstance(runtime_entry, dict) else None
+        runtime_state = (
+            runtime_entry.get("state") or runtime_entry.get("status")
+            if isinstance(runtime_entry, dict) else None
+        )
+        runtime_state = str(runtime_state).strip().lower() if runtime_state else None
         readiness = "ready" if enabled and configured else "disabled" if configured else "needs setup"
         rows.append({
             "id": connector_id,

@@ -681,16 +681,18 @@ def _cleanup_single_browser_session(task_id: str) -> None:
 
 def cleanup_all_browsers() -> None:
     """Clean up all active browser sessions (shutdown) and reset cached lookups."""
-    with _bt._cleanup_lock:
-        task_ids = list(_bt._active_sessions.keys())
-    for task_id in task_ids:
-        cleanup_browser(task_id)
-
-    try:  # tear down CDP supervisors so background threads exit
+    # Supervisors hold CDP sockets into the browsers below. Stop them first so
+    # teardown never races a reconnect against an endpoint it just closed.
+    try:
         from tools.browser_supervisor import SUPERVISOR_REGISTRY  # type: ignore[import-not-found]
         SUPERVISOR_REGISTRY.stop_all()
     except Exception:
         pass
+
+    with _bt._cleanup_lock:
+        task_ids = list(_bt._active_sessions.keys())
+    for task_id in task_ids:
+        cleanup_browser(task_id)
 
     _install._discover_homebrew_node_dirs.cache_clear()
     # Each resolved flag flips BEFORE its cache is nulled so a concurrent reader never

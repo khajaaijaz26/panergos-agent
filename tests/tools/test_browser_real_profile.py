@@ -236,6 +236,22 @@ class TestRealProfileCdpLaunch:
         assert cdp is None
         assert err and "boom" in err
 
+    def test_snapshot_lock_keeps_machine_readable_tag(self, tmp_path):
+        import panergos_cli.browser_connect as bc
+
+        self._reset()
+        locked = bc._PROFILE_LOCKED_PREFIX + "edge is running"
+        with patch.object(bt_cloud, "_use_real_profile", return_value=True), \
+             patch("panergos_cli.browser_connect.detect_default_chromium", return_value="edge"), \
+             patch("panergos_cli.browser_connect.real_profile_copy_dir", return_value=str(tmp_path)), \
+             patch("panergos_cli.browser_connect.snapshot_real_profile", return_value=(None, locked)), \
+             patch.object(bt_real_profile, "_agent_browser_get_cdp", return_value=None), \
+             patch.object(bt_real_profile, "_surviving_chrome_cdp", return_value=None):
+            cdp, err = bt_real_profile._real_profile_cdp()
+        assert cdp is None
+        assert err and err.startswith(bc._PROFILE_LOCKED_PREFIX)
+        assert "panergos browser close-profile" in err
+
     def test_launch_returns_http_cdp(self, tmp_path):
         import tools.browser_tool as bt
         self._reset()
