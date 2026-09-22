@@ -455,14 +455,9 @@ async def test_grant_expiry_stops_its_run_after_controller_socket_closed(monkeyp
         expiry_task = adapter._browser_extension_expiry_tasks[scope.extension_grant_id]
 
         await ws.close()
-        for _ in range(100):
-            if adapter._browser_control_broker.select(scope, "controller.noop") is None:
-                break
-            await asyncio.sleep(0.01)
-        assert adapter._browser_control_broker.select(scope, "controller.noop") is None
-
         expiry_gate.set()
         await asyncio.wait_for(expiry_task, timeout=2.0)
+        assert adapter._browser_control_broker.select(scope, "controller.noop") is None
         assert adapter._run_statuses[run_id]["status"] == "stopping"
         assert run_id in adapter._stopping_run_ids
         denied = await client.get("/v1/capabilities", headers=headers)
