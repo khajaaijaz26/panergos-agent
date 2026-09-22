@@ -145,6 +145,62 @@ async def test_pairing_is_origin_bound_single_use_scoped_and_revocable():
 
 
 @pytest.mark.asyncio
+async def test_restricted_token_accepts_explicit_origin_only_on_loopback():
+    adapter = APIServerAdapter(PlatformConfig(enabled=True, extra={"key": API_KEY}))
+    async with TestClient(TestServer(_app(adapter))) as client:
+        credential = await (await _exchange(client, await _mint(client))).json()
+        authorization = {"Authorization": f"Bearer {credential['access_token']}"}
+
+        missing = await client.get("/v1/capabilities", headers=authorization)
+        assert missing.status == 401
+
+        correct = await client.get(
+            "/v1/capabilities",
+            headers={**authorization, "X-Panergos-Extension-Origin": ORIGIN},
+        )
+        assert correct.status == 200
+
+        wrong = await client.get(
+            "/v1/capabilities",
+            headers={**authorization, "X-Panergos-Extension-Origin": OTHER_ORIGIN},
+        )
+        assert wrong.status == 401
+
+        existing_origin = await client.get(
+            "/v1/capabilities", headers={**authorization, "Origin": ORIGIN})
+        assert existing_origin.status == 200
+
+        conflicting_origin = await client.get(
+            "/v1/capabilities",
+            headers={
+                **authorization,
+                "Origin": OTHER_ORIGIN,
+                "X-Panergos-Extension-Origin": ORIGIN,
+            },
+        )
+        assert conflicting_origin.status == 401
+
+        non_loopback = await client.get(
+            "/v1/capabilities",
+            headers={
+                **authorization,
+                "Host": "attacker.example",
+                "X-Panergos-Extension-Origin": ORIGIN,
+            },
+        )
+        assert non_loopback.status == 401
+
+        owner_token = await client.get(
+            "/v1/capabilities",
+            headers={
+                "Authorization": f"Bearer {API_KEY}",
+                "X-Panergos-Extension-Origin": ORIGIN,
+            },
+        )
+        assert owner_token.status == 401
+
+
+@pytest.mark.asyncio
 async def test_pairing_rejects_owner_key_from_extension_and_query_secrets():
     adapter = APIServerAdapter(PlatformConfig(enabled=True, extra={"key": API_KEY}))
     async with TestClient(TestServer(_app(adapter))) as client:
@@ -180,6 +236,7 @@ async def test_pairing_rejects_owner_key_from_extension_and_query_secrets():
         )
         assert preflight.status == 200
         assert preflight.headers["Access-Control-Allow-Origin"] == ORIGIN
+        assert "X-Panergos-Extension-Origin" in preflight.headers["Access-Control-Allow-Headers"]
         malformed_origin = await client.options(
             "/v1/capabilities", headers={"Origin": f"{ORIGIN}/"})
         assert malformed_origin.status == 403

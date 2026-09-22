@@ -147,8 +147,6 @@ _cached_browser_engine: Optional[str] = None  # agent-browser v0.25.3+ ``--engin
 _browser_engine_resolved = False
 _auto_local_for_private_urls_resolved = False
 _cached_auto_local_for_private_urls: bool = True
-_cached_headed_mode: Optional[bool] = None
-_headed_mode_resolved = False
 _cached_chromium_installed: Optional[bool] = None
 _chromium_autoinstall_attempted = False  # one-shot: a failed 170MB download must not retry per call
 

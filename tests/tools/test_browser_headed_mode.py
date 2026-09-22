@@ -8,23 +8,7 @@ import os
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-import pytest
 from tools import browser_tool_session as bt_session
-
-
-def _reset_headed_cache():
-    """Reset the module-level headed-mode cache so tests start clean."""
-    import tools.browser_tool as bt
-    bt._cached_headed_mode = None
-    bt._headed_mode_resolved = False
-
-
-@pytest.fixture(autouse=True)
-def _clean_headed_cache():
-    _reset_headed_cache()
-    yield
-    _reset_headed_cache()
-
 
 # ---------------------------------------------------------------------------
 # _is_headed_mode resolution
@@ -45,13 +29,16 @@ class TestIsHeadedMode:
             assert _is_headed_mode() is True
 
 
-    def test_caching(self):
+    def test_config_toggle_applies_without_restart(self):
         from tools.browser_tool_cloud import _is_headed_mode
-        cfg = {"browser": {"headed": True}}
-        with patch("panergos_cli.config.read_raw_config", return_value=cfg) as mock_read:
+        configs = [
+            {"browser": {"headed": False}},
+            {"browser": {"headed": True}},
+        ]
+        with patch("panergos_cli.config.read_raw_config", side_effect=configs) as mock_read:
+            assert _is_headed_mode() is False
             assert _is_headed_mode() is True
-            assert _is_headed_mode() is True
-            assert mock_read.call_count == 1
+            assert mock_read.call_count == 2
 
 
 # ---------------------------------------------------------------------------
@@ -136,12 +123,11 @@ class TestHeadedFlagInjection:
     @patch("tools.browser_tool_cloud._get_cloud_provider", return_value=None)
     @patch("tools.browser_tool_cdp._get_cdp_override", return_value="")
     @patch("tools.browser_tool._is_camofox_mode", return_value=False)
+    @patch("tools.browser_tool_cloud._is_headed_mode", return_value=True)
     def test_headed_flag_added_in_local_mode(
-        self, _camofox, _cdp, _cloud, _chromium, _local, _find, _session
+        self, _headed, _camofox, _cdp, _cloud, _chromium, _local, _find, _session
     ):
         import tools.browser_tool as bt
-        bt._cached_headed_mode = True
-        bt._headed_mode_resolved = True
         _session.return_value = {"session_name": "test-sess"}
 
         captured = self._run_and_capture(bt)
@@ -156,13 +142,12 @@ class TestHeadedFlagInjection:
     @patch("tools.browser_tool_cloud._get_cloud_provider", return_value=None)
     @patch("tools.browser_tool_cdp._get_cdp_override", return_value="")
     @patch("tools.browser_tool._is_camofox_mode", return_value=False)
+    @patch("tools.browser_tool_cloud._is_headed_mode", return_value=True)
     def test_headed_flag_not_added_in_cloud_mode(
-        self, _camofox, _cdp, _cloud, _chromium, _local, _find, _session
+        self, _headed, _camofox, _cdp, _cloud, _chromium, _local, _find, _session
     ):
         """Cloud (CDP) sessions never get --headed — it's a local-only flag."""
         import tools.browser_tool as bt
-        bt._cached_headed_mode = True
-        bt._headed_mode_resolved = True
         _session.return_value = {
             "session_name": "test-sess",
             "cdp_url": "wss://example.invalid/cdp",

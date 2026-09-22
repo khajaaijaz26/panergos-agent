@@ -545,8 +545,36 @@ def _chown_to_panergos_uid(path) -> None:
         pass
 
 
+def _secure_windows_path(path, *, directory: bool) -> None:
+    """Give only the current user and SYSTEM access; Windows has no POSIX owner mode bits."""
+    import ntsecuritycon
+    import pywintypes
+    import win32api
+    import win32con
+    import win32security
+
+    try:
+        token = win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY)
+        owner = win32security.GetTokenInformation(token, win32security.TokenUser)[0]
+        system = win32security.ConvertStringSidToSid("S-1-5-18")
+        inheritance = (win32security.OBJECT_INHERIT_ACE | win32security.CONTAINER_INHERIT_ACE
+                       if directory else 0)
+        acl = win32security.ACL()
+        for sid in (owner, system):
+            acl.AddAccessAllowedAceEx(
+                win32security.ACL_REVISION, inheritance, ntsecuritycon.FILE_ALL_ACCESS, sid)
+        win32security.SetNamedSecurityInfo(
+            str(path), win32security.SE_FILE_OBJECT,
+            win32security.DACL_SECURITY_INFORMATION
+            | win32security.PROTECTED_DACL_SECURITY_INFORMATION,
+            None, None, acl, None)
+    except (pywintypes.error, pywintypes.com_error) as exc:
+        raise OSError(str(exc)) from exc
+
+
 def _secure_dir(path):
-    """chmod a directory owner-only (0700) and apply PANERGOS_UID/GID ownership. No-op when managed;
+    """Make a directory owner-only and apply PANERGOS_UID/GID ownership. No-op when managed;
+    uses 0700 on POSIX and a protected owner+SYSTEM DACL on Windows. When
     in a container only an explicit PANERGOS_HOME_MODE is applied. PANERGOS_HOME_MODE (e.g. 0701)
     overrides the mode so a web server can traverse PANERGOS_HOME to a served subdirectory without
     directory listings.
@@ -569,7 +597,10 @@ def _secure_dir(path):
     except ValueError:
         mode = 0o700
     try:
-        os.chmod(path, mode)
+        if sys.platform == "win32":
+            _secure_windows_path(path, directory=True)
+        else:
+            os.chmod(path, mode)
     except (OSError, NotImplementedError):
         pass
     _chown_to_panergos_uid(path)
@@ -591,13 +622,19 @@ def _is_container() -> bool:
 
 
 def _secure_file(path):
-    """chmod a file 0600. Skipped when managed (activation sets 0640 group-readable) or in a
-    container (mounts often need broader permissions)."""
+    """Make a file owner-only (0600 or a protected Windows DACL).
+
+    Skipped when managed (activation sets 0640 group-readable) or in a container
+    (mounts often need broader permissions).
+    """
     if is_managed() or _is_container():
         return
     try:
         if os.path.exists(str(path)):
-            os.chmod(path, 0o600)
+            if sys.platform == "win32":
+                _secure_windows_path(path, directory=False)
+            else:
+                os.chmod(path, 0o600)
     except (OSError, NotImplementedError):
         pass
 

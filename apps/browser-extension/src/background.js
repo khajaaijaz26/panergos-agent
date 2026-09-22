@@ -28,6 +28,7 @@ import {
 
 const PAIR_EXCHANGE_PATH = '/v1/browser-extension/pair/exchange'
 const TOKEN_PATH = '/v1/browser-extension/token'
+const EXTENSION_ORIGIN_HEADER = 'X-Panergos-Extension-Origin'
 const CONTROLLER_PROTOCOL = 'panergos-browser-control-v1'
 const TICKET_PROTOCOL_PREFIX = 'panergos-browser-control-ticket.'
 const RECONNECT_DELAYS = [500, 1_000, 2_000, 4_000, 8_000]
@@ -180,6 +181,7 @@ async function requestJson(path, { method = 'GET', json, headers: extraHeaders, 
   if (!credential?.token) throw new Error('Pair this browser with Panergos first.')
   const headers = new Headers(extraHeaders)
   headers.set('Authorization', `${credential.tokenType} ${credential.token}`)
+  headers.set(EXTENSION_ORIGIN_HEADER, extensionOrigin)
   if (json !== undefined) headers.set('Content-Type', 'application/json')
   const response = await fetch(apiUrl(credential.apiBase, path), {
     method,
@@ -811,7 +813,11 @@ async function streamRun(runId) {
   runAbort = controller
   try {
     const response = await fetch(apiUrl(auth.apiBase, `/v1/runs/${encodeURIComponent(runId)}/events`), {
-      headers: { Authorization: `${auth.tokenType} ${auth.token}`, Accept: 'text/event-stream' },
+      headers: {
+        Authorization: `${auth.tokenType} ${auth.token}`,
+        [EXTENSION_ORIGIN_HEADER]: extensionOrigin,
+        Accept: 'text/event-stream',
+      },
       credentials: 'omit',
       cache: 'no-store',
       referrerPolicy: 'no-referrer',

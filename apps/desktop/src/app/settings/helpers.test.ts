@@ -331,6 +331,24 @@ describe('settings helpers', () => {
   })
 
   describe('sectionFieldEntries', () => {
+    it('shows browser visibility, real-profile, and extension controls together', () => {
+      const schema = {
+        'browser.headed': { type: 'boolean' as const },
+        'browser.use_real_profile': { type: 'boolean' as const },
+        'browser.extension_control.enabled': { type: 'boolean' as const }
+      }
+
+      const config: PanergosConfigRecord = {
+        browser: { headed: false, use_real_profile: false, extension_control: { enabled: false } }
+      }
+
+      const keys = (sectionFieldEntries(schema, config).get('browser') ?? []).map(([key]) => key)
+
+      expect(keys).toEqual(
+        expect.arrayContaining(['browser.headed', 'browser.use_real_profile', 'browser.extension_control.enabled'])
+      )
+    })
+
     it('renders memory.provider from config even when the backend schema omits it', () => {
       const schema = { 'memory.memory_enabled': { type: 'boolean' as const } }
       const config: PanergosConfigRecord = { memory: { memory_enabled: true, provider: '' } }

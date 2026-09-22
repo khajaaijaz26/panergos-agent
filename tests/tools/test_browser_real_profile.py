@@ -33,6 +33,70 @@ def _auth_db(path, value=None):
         return conn.execute("select value from marker").fetchone()[0]
 
 
+def _private_access_offenders(path):
+    """Return broad POSIX mode bits or Windows allow-ACEs on a secret path."""
+    if os.name != "nt":
+        import stat
+
+        mode = stat.S_IMODE(os.stat(path).st_mode)
+        return [oct(mode)] if mode & 0o077 else []
+
+    import win32api
+    import win32con
+    import win32security
+
+    token = win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY)
+    owner = win32security.GetTokenInformation(token, win32security.TokenUser)[0]
+    allowed = {
+        win32security.ConvertSidToStringSid(owner),
+        "S-1-5-18",  # SYSTEM
+    }
+    descriptor = win32security.GetNamedSecurityInfo(
+        str(path), win32security.SE_FILE_OBJECT,
+        win32security.OWNER_SECURITY_INFORMATION | win32security.DACL_SECURITY_INFORMATION)
+    control = descriptor.GetSecurityDescriptorControl()[0]
+    offenders = [] if control & win32security.SE_DACL_PROTECTED else ["inherited DACL"]
+    dacl = descriptor.GetSecurityDescriptorDacl()
+    if dacl is None:
+        return offenders + ["null DACL"]
+    allow_types = {
+        win32security.ACCESS_ALLOWED_ACE_TYPE,
+        win32security.ACCESS_ALLOWED_OBJECT_ACE_TYPE,
+        getattr(win32security, "ACCESS_ALLOWED_CALLBACK_ACE_TYPE", 9),
+        getattr(win32security, "ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE", 11),
+    }
+    granted = set()
+    for index in range(dacl.GetAceCount()):
+        ace = dacl.GetAce(index)
+        if ace[0][0] in allow_types and ace[1]:
+            sid = win32security.ConvertSidToStringSid(ace[-1])
+            granted.add(sid)
+            if sid not in allowed:
+                offenders.append(sid)
+    if not allowed.issubset(granted):
+        offenders.append("missing owner/SYSTEM access")
+    return offenders
+
+
+def _make_broadly_readable(path):
+    if os.name != "nt":
+        os.chmod(path, 0o644)
+        return
+
+    import ntsecuritycon
+    import win32security
+
+    descriptor = win32security.GetNamedSecurityInfo(
+        str(path), win32security.SE_FILE_OBJECT, win32security.DACL_SECURITY_INFORMATION)
+    dacl = descriptor.GetSecurityDescriptorDacl()
+    dacl.AddAccessAllowedAceEx(
+        win32security.ACL_REVISION, 0, ntsecuritycon.FILE_GENERIC_READ,
+        win32security.ConvertStringSidToSid("S-1-1-0"))  # Everyone
+    win32security.SetNamedSecurityInfo(
+        str(path), win32security.SE_FILE_OBJECT, win32security.DACL_SECURITY_INFORMATION,
+        None, None, dacl, None)
+
+
 class TestRealProfileResolvers:
     def test_data_dir_windows(self):
         import panergos_cli.browser_connect as bc
@@ -159,14 +223,12 @@ class TestSnapshotRealProfile:
         assert err and "was not found" in err
 
     def test_snapshot_files_are_owner_only(self, tmp_path, monkeypatch):
-        """Every copied file must be 0600 and every dir 0700 (#96729).
+        """Every copied path must be owner-only (#96729).
 
         copy2 preserves Chrome's 0644 source modes and sqlite-backup files
-        land umask-wide, so without explicit reconciliation the user's
-        session-cookie copies are group/world-readable.
+        land umask-wide on POSIX; Windows inherits directory ACLs. Without
+        explicit reconciliation the user's session-cookie copies can be broad.
         """
-        import stat
-
         import panergos_cli.browser_connect as bc
         src = self._make_profile(tmp_path / "real")
         home = tmp_path / "panergos-home"
@@ -180,19 +242,15 @@ class TestSnapshotRealProfile:
         offenders = []
         for root, dirs, files in os.walk(dst):
             for d in dirs:
-                mode = stat.S_IMODE(os.stat(os.path.join(root, d)).st_mode)
-                if mode & 0o077:
-                    offenders.append((os.path.join(root, d), oct(mode)))
+                path = os.path.join(root, d)
+                offenders.extend((path, reason) for reason in _private_access_offenders(path))
             for f in files:
-                mode = stat.S_IMODE(os.stat(os.path.join(root, f)).st_mode)
-                if mode & 0o077:
-                    offenders.append((os.path.join(root, f), oct(mode)))
+                path = os.path.join(root, f)
+                offenders.extend((path, reason) for reason in _private_access_offenders(path))
         assert not offenders, f"group/world-accessible snapshot entries: {offenders}"
 
     def test_existing_lax_snapshot_heals_on_refresh(self, tmp_path, monkeypatch):
-        """A snapshot left 0644 by an older build tightens on the next pass."""
-        import stat
-
+        """A broadly readable snapshot from an older build tightens on refresh."""
         import panergos_cli.browser_connect as bc
         src = self._make_profile(tmp_path / "real")
         home = tmp_path / "panergos-home"
@@ -200,10 +258,10 @@ class TestSnapshotRealProfile:
         dst, err = bc.snapshot_real_profile("chrome", src=str(src))
         assert err is None and dst
         cookies = os.path.join(dst, "Default", "Cookies")
-        os.chmod(cookies, 0o644)  # simulate the pre-fix on-disk state
+        _make_broadly_readable(cookies)  # simulate the pre-fix on-disk state
         dst2, err2 = bc.snapshot_real_profile("chrome", src=str(src))
         assert err2 is None and dst2 == dst
-        assert stat.S_IMODE(os.stat(cookies).st_mode) == 0o600
+        assert not _private_access_offenders(cookies)
 
 
 class TestRealProfileCdpLaunch:

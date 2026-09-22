@@ -23,7 +23,7 @@ def _memo(_bt, resolved_attr: str, cache_attr: str, compute: Callable[[], object
 
     Under a routed profile (PANERGOS_HOME override, multiplexed gateway) the slot is NOT consulted: every
     ``_memo`` here caches a ``browser.*`` config read, and one process-wide slot would hand the launch
-    profile's engine/headed/private-URL policy to every other profile (same rule as ``_allow_private_urls``).
+    profile's engine/private-URL policy to every other profile (same rule as ``_allow_private_urls``).
     """
     if get_panergos_home_override() is not None:
         return compute()
@@ -201,12 +201,14 @@ def _get_browser_engine() -> str:
 
 
 def _is_headed_mode() -> bool:
-    """True when the browser should launch headed: ``browser.headed``, else ``AGENT_BROWSER_HEADED``; cached."""
+    """True when the browser should launch headed: ``browser.headed``, else ``AGENT_BROWSER_HEADED``.
+
+    Read on every call so changing the user-facing visibility toggle does not
+    require restarting a long-lived gateway.
+    """
     _bt = _origin()
-    def compute() -> bool:
-        headed = _bt._browser_cfg("headed", False, lambda v: False if v is None else str(v).strip().lower() in ("true", "1", "yes"), "browser.headed from config")
-        return headed or os.environ.get("AGENT_BROWSER_HEADED", "").strip().lower() in ("true", "1", "yes")
-    return _memo(_bt, "_headed_mode_resolved", "_cached_headed_mode", compute)
+    headed = _bt._browser_cfg("headed", False, lambda v: False if v is None else str(v).strip().lower() in ("true", "1", "yes"), "browser.headed from config")
+    return headed or os.environ.get("AGENT_BROWSER_HEADED", "").strip().lower() in ("true", "1", "yes")
 
 
 def _should_inject_engine(engine: str) -> bool:

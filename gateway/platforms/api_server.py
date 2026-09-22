@@ -790,7 +790,8 @@ _CORS_HEADERS = {
     "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": (
         "Authorization, Content-Type, Idempotency-Key, X-Artifact-Filename, "
-        "X-Panergos-Session-Id, X-Panergos-Session-Key")}
+        "X-Panergos-Extension-Origin, X-Panergos-Session-Id, X-Panergos-Session-Key")}
+_BROWSER_EXTENSION_ORIGIN_HEADER = "X-Panergos-Extension-Origin"
 _SECURITY_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
@@ -1424,12 +1425,17 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
         profile = _api_request_profile.get()
         auth_header = request.headers.get("Authorization", "")
         token = auth_header[7:].strip() if auth_header.startswith("Bearer ") else ""
-        if (token.startswith("pxe_")
-                and valid_extension_origin(request.headers.get("Origin", ""))):
+        origin = request.headers.get("Origin", "")
+        if token.startswith("pxe_") and not origin:
+            claimed_origin = request.headers.get(_BROWSER_EXTENSION_ORIGIN_HEADER, "")
+            if (valid_extension_origin(claimed_origin)
+                    and self._browser_extension_loopback_error(request) is None):
+                origin = claimed_origin
+        if token.startswith("pxe_") and valid_extension_origin(origin):
             try:
                 grant = self._browser_extension_auth.authenticate(
                     token=token,
-                    origin=request.headers.get("Origin", ""),
+                    origin=origin,
                     profile=profile or "default",
                     method=request.method,
                     path=request.path,
@@ -1458,7 +1464,9 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
             return self._auth_failed_response()
         # An extension page must pair for a scoped token; never admit the owner key
         # through a browser-extension origin.
-        if valid_extension_origin(request.headers.get("Origin", "")):
+        if (valid_extension_origin(request.headers.get("Origin", ""))
+                or valid_extension_origin(
+                    request.headers.get(_BROWSER_EXTENSION_ORIGIN_HEADER, ""))):
             return self._auth_failed_response()
         if token:
             # Compare as bytes: compare_digest raises TypeError on non-ASCII str, and the

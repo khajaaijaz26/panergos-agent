@@ -348,7 +348,9 @@ test('service worker pairs with a session-only token and publishes the side-pane
   const authenticated = requests.filter(request => !request.path.endsWith('/pair/exchange'))
   assert.ok(authenticated.length >= 6)
   for (const request of authenticated) {
-    assert.equal(new Headers(request.options.headers).get('Authorization'), 'Bearer pxe_restricted-test-token')
+    const headers = new Headers(request.options.headers)
+    assert.equal(headers.get('Authorization'), 'Bearer pxe_restricted-test-token')
+    assert.equal(headers.get('X-Panergos-Extension-Origin'), `chrome-extension://${'a'.repeat(32)}`)
   }
 
   port.onMessage.emit({ type: 'disconnect' })
