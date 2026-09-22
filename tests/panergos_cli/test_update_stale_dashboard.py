@@ -77,6 +77,14 @@ def _ps_runner(stdout: str):
     return _side_effect
 
 
+def test_dashboard_runtime_accepts_installed_windows_shim():
+    command = (
+        r'"C:\Python\python.exe" "C:\Users\me\panergos.exe" dashboard '
+        r'--host 127.0.0.1 --port 9119'
+    )
+    assert main_dashboard._parse_dashboard_runtime(command) == ("dashboard", "127.0.0.1", 9119)
+
+
 def _write_valid_ssh_backend_lock(tmp_path, monkeypatch) -> int:
     pid = 4242
     ownership_id = "a" * 32

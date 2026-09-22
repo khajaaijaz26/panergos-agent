@@ -26,13 +26,10 @@ def _find_stale_dashboard_pids(*, exclude_pids: set[int] | None = None) -> list[
 
 def _parse_dashboard_runtime(command: str) -> tuple[str, str, int] | None:
     """Best-effort parse of a dashboard/server cmdline into mode, host, and port."""
-    mode = None
-    for candidate in ("dashboard", "serve"):
-        patterns = (f"panergos {candidate}", f"panergos_cli.main {candidate}", f"panergos_cli/main.py {candidate}")
-        if any(pattern in command for pattern in patterns):
-            mode = candidate
-            break
-    if mode is None:
+    from panergos_cli.update_cmd_windows import _panergos_holder_subcommand
+
+    mode = _panergos_holder_subcommand(command)
+    if mode not in ("dashboard", "serve"):
         return None
 
     port = 9119
