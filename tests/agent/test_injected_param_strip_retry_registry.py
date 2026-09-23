@@ -279,3 +279,29 @@ class TestAuxiliaryPathStripRetryWalk:
                     messages=[{"role": "user", "content": "hi"}],
                 )
         assert len(client.calls) == 1, "must not retry an unknown-param 400"
+
+    def test_reasoning_mandatory_route_retries_without_disable(self):
+        """A router may choose a reasoning-mandatory backend after request construction."""
+        client = _FlakyClient(MockAPIError(
+            "Reasoning is mandatory for this endpoint and cannot be disabled.",
+            status_code=400,
+        ))
+        with patch(
+            "agent.auxiliary_client._resolve_task_provider_model",
+            return_value=("openrouter", "openrouter/free", None, None, None),
+        ), patch(
+            "agent.auxiliary_client._get_cached_client",
+            return_value=(client, "openrouter/free"),
+        ), patch(
+            "agent.auxiliary_client._validate_llm_response",
+            side_effect=lambda resp, _task, **_kw: resp,
+        ):
+            result = call_llm(
+                task="title_generation",
+                messages=[{"role": "user", "content": "hi"}],
+                reasoning_config={"enabled": False},
+            )
+
+        assert result == {"ok": True}
+        assert client.calls[0]["extra_body"]["reasoning"] == {"enabled": False}
+        assert "reasoning" not in client.calls[1].get("extra_body", {})

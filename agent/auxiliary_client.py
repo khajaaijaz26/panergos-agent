@@ -1959,11 +1959,11 @@ _paid_lane_warned: set = set()
 
 
 def _is_free_model(model: Optional[str]) -> bool:
-    """True when ``model`` is a free SKU (``:free`` suffix or ``stealth/`` prefix) — naming-convention trust."""
+    """True for OpenRouter's free router or a free SKU inferred from its name."""
     if not model:
         return False
     normalized = str(model).strip()
-    return normalized.endswith(":free") or normalized.startswith("stealth/")
+    return normalized == "openrouter/free" or normalized.endswith(":free") or normalized.startswith("stealth/")
 
 
 def _aux_openrouter_settings() -> Tuple[bool, str]:
@@ -2911,6 +2911,28 @@ def _without_structured_output_format(kwargs: dict) -> Optional[dict]:
         else:
             retry_kwargs.pop("extra_body", None)
         changed = True
+    return retry_kwargs if changed else None
+
+
+def _without_reasoning_disable(kwargs: dict) -> Optional[dict]:
+    """Copy *kwargs* without an explicit reasoning disable; None when absent."""
+    retry_kwargs = dict(kwargs)
+    changed = False
+    for key in ("reasoning", "_reasoning_config"):
+        value = retry_kwargs.get(key)
+        if isinstance(value, dict) and (value.get("enabled") is False or value.get("effort") == "none"):
+            retry_kwargs.pop(key)
+            changed = True
+    extra_body = retry_kwargs.get("extra_body")
+    if isinstance(extra_body, dict):
+        value = extra_body.get("reasoning")
+        if isinstance(value, dict) and (value.get("enabled") is False or value.get("effort") == "none"):
+            remaining = {k: v for k, v in extra_body.items() if k != "reasoning"}
+            if remaining:
+                retry_kwargs["extra_body"] = remaining
+            else:
+                retry_kwargs.pop("extra_body", None)
+            changed = True
     return retry_kwargs if changed else None
 
 
@@ -6502,9 +6524,22 @@ _LadderRoute = NamedTuple("_LadderRoute", [
 def _ladder_parameter_rungs(
     first_err: Exception, route: _LadderRoute, kwargs: Dict[str, Any], max_tokens: Optional[int],
 ):
-    """Rungs 1-3: retry without temperature / structured-output format / max_tokens.
+    """Retry after stripping a provider-rejected request control.
     Returns ``(response, None, kwargs)`` or ``(None, narrowed_err, stripped_kwargs)``."""
     client, task, tag = route.client, route.task, route.tag
+    from agent.error_classifier import FailoverReason, classify_api_error
+    if classify_api_error(
+        first_err, provider=route.resolved_provider, model=route.final_model or route.resolved_model or "",
+    ).reason == FailoverReason.reasoning_mandatory:
+        retry_kwargs = _without_reasoning_disable(kwargs)
+        if retry_kwargs is not None:
+            logger.info("Auxiliary %s%s: route requires reasoning; retrying once without the disable",
+                        task or "call", tag)
+            resp, first_err = yield from _rung(
+                _LadderStep("call", (client, retry_kwargs)), _param_rung_accepts)
+            if first_err is None:
+                return resp, None, retry_kwargs
+            kwargs = retry_kwargs
     if "temperature" in kwargs and _is_unsupported_parameter_error(first_err, "temperature"):
         retry_kwargs = {k: v for k, v in kwargs.items() if k != "temperature"}
         logger.info("Auxiliary %s%s: provider rejected temperature; retrying once without it",
