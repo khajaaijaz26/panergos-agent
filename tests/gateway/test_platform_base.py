@@ -23,6 +23,11 @@ from gateway.platforms.base import (
 from gateway.platforms.event import MessageEvent
 
 
+def _set_test_home(monkeypatch, path):
+    monkeypatch.setenv("HOME", str(path))
+    monkeypatch.setenv("USERPROFILE", str(path))
+
+
 def test_media_delivery_denies_encrypted_bitwarden_cache(tmp_path, monkeypatch):
     """Encrypted Bitwarden cache is covered by the media credential guard."""
     import gateway.platforms.base as base
@@ -560,7 +565,7 @@ class TestMediaDeliveryPathValidation:
         ssh_dir.mkdir(parents=True)
         secret = ssh_dir / "id_rsa.txt"
         secret.write_bytes(b"-----BEGIN ...")  # mtime = now
-        monkeypatch.setenv("HOME", str(fake_home))
+        _set_test_home(monkeypatch, fake_home)
 
         assert BasePlatformAdapter.validate_media_delivery_path(str(secret)) is None
 
@@ -623,7 +628,7 @@ class TestMediaDeliveryDefaultMode:
         (panergos_dir / "mcp-tokens").mkdir(parents=True)
         secret = panergos_dir / rel
         secret.write_text('{"access_token": "live-bearer-abc123"}')
-        monkeypatch.setenv("HOME", str(fake_home))
+        _set_test_home(monkeypatch, fake_home)
         monkeypatch.setattr(
             "gateway.platforms.base._PANERGOS_HOME",
             panergos_dir,
@@ -650,7 +655,7 @@ class TestMediaDeliveryDefaultMode:
         panergos_dir.mkdir(parents=True)
         token = panergos_dir / "google_token.json"
         token.write_text('{"access_token": "***", "refresh_token": "***"}')
-        monkeypatch.setenv("HOME", str(fake_home))
+        _set_test_home(monkeypatch, fake_home)
         monkeypatch.setattr("gateway.platforms.base._PANERGOS_HOME", panergos_dir)
         monkeypatch.setattr("gateway.platforms.base._PANERGOS_ROOT", panergos_dir)
 
@@ -672,7 +677,7 @@ class TestMediaDeliveryDefaultMode:
         panergos_dir.mkdir(parents=True)
         artifact = panergos_dir / "adhoc_report.pdf"
         artifact.write_bytes(b"%PDF-1.4")  # fresh mtime
-        monkeypatch.setenv("HOME", str(fake_home))
+        _set_test_home(monkeypatch, fake_home)
         monkeypatch.setattr("gateway.platforms.base._PANERGOS_HOME", panergos_dir)
         monkeypatch.setattr("gateway.platforms.base._PANERGOS_ROOT", panergos_dir)
 
@@ -689,7 +694,7 @@ class TestMediaDeliveryDefaultMode:
         fake_home = tmp_path / "home"
         panergos_dir = fake_home / ".panergos"
         panergos_dir.mkdir(parents=True)
-        monkeypatch.setenv("HOME", str(fake_home))
+        _set_test_home(monkeypatch, fake_home)
         monkeypatch.setattr("gateway.platforms.base._PANERGOS_HOME", panergos_dir)
         monkeypatch.setattr("gateway.platforms.base._PANERGOS_ROOT", panergos_dir)
         board = panergos_dir / "kanban" / "boards" / "team-a"
@@ -717,7 +722,7 @@ class TestMediaDeliveryDefaultMode:
         fake_home = tmp_path / "home"
         panergos_root = fake_home / ".panergos"
         profile_b = panergos_root / "profiles" / "beta"
-        monkeypatch.setenv("HOME", str(fake_home))
+        _set_test_home(monkeypatch, fake_home)
         monkeypatch.setattr("gateway.platforms.base._PANERGOS_HOME", panergos_root)
         monkeypatch.setattr("gateway.platforms.base._PANERGOS_ROOT", panergos_root)
 
@@ -767,7 +772,7 @@ class TestMediaDeliveryDefaultMode:
         workdir.mkdir(parents=True)
         doc = workdir / "proposal.docx"
         doc.write_bytes(b"PK\x03\x04")
-        monkeypatch.setenv("HOME", str(fake_home))
+        _set_test_home(monkeypatch, fake_home)
         # $HOME is itself on the denied-prefix list, mirroring /root.
         monkeypatch.setattr(
             "gateway.platforms.base._MEDIA_DELIVERY_DENIED_PREFIXES",
@@ -802,7 +807,7 @@ class TestMediaDeliveryDefaultMode:
         # $HOME is NOT the denied prefix (mirrors HOME=/opt/data/home).
         fake_home = tmp_path / "opt" / "data" / "home"
         fake_home.mkdir(parents=True)
-        monkeypatch.setenv("HOME", str(fake_home))
+        _set_test_home(monkeypatch, fake_home)
         monkeypatch.setattr(
             "gateway.platforms.base._MEDIA_DELIVERY_DENIED_PREFIXES",
             (str(denied_root),),
@@ -832,7 +837,7 @@ class TestMediaDeliveryDefaultMode:
         workdir.mkdir()
         link = workdir / "innocent.pdf"
         link.symlink_to(key)
-        monkeypatch.setenv("HOME", str(fake_home))
+        _set_test_home(monkeypatch, fake_home)
         monkeypatch.setattr(
             "gateway.platforms.base._MEDIA_DELIVERY_DENIED_PREFIXES",
             (str(fake_home),),

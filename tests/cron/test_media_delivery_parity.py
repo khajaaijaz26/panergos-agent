@@ -232,7 +232,7 @@ class TestMediaPolicyEnvBridge:
         (home / "config.yaml").write_text(
             "gateway:\n"
             "  strict: true\n"
-            f"  media_delivery_allow_dirs: [{str(allow_dir)!r}]\n"
+            f"  media_delivery_allow_dirs: [{allow_dir.as_posix()!r}]\n"
             "  trust_recent_files: false\n"
         )
         monkeypatch.setenv("PANERGOS_HOME", str(home))
@@ -248,7 +248,7 @@ class TestMediaPolicyEnvBridge:
         apply_media_policy_env()
 
         assert os.environ.get("PANERGOS_MEDIA_DELIVERY_STRICT") == "1"
-        assert str(allow_dir) in os.environ.get("PANERGOS_MEDIA_ALLOW_DIRS", "")
+        assert allow_dir.as_posix() in os.environ.get("PANERGOS_MEDIA_ALLOW_DIRS", "")
         assert os.environ.get("PANERGOS_MEDIA_TRUST_RECENT_FILES") == "0"
 
     def test_standalone_filter_honors_bridged_allowlist(self, monkeypatch, tmp_path):

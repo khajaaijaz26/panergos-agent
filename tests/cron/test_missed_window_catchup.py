@@ -55,8 +55,10 @@ def slot_env(tmp_path, monkeypatch):
     S._running_futures.clear()
 
     counter = home / "fires.txt"
+    from tools.environments.local import _bash_safe_path
+
     (home / "scripts" / "fire.sh").write_text(
-        f"#!/bin/sh\necho fired >> {counter}\necho fired\n", encoding="utf-8")
+        f"#!/bin/sh\necho fired >> {_bash_safe_path(str(counter))}\necho fired\n", encoding="utf-8")
     (home / "scripts" / "fire.sh").chmod(0o755)
     job = J.create_job(prompt=None, schedule="every 1h", name="slot", script="fire.sh",
                        no_agent=True, deliver="local")

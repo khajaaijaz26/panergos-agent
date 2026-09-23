@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from gateway.platforms.base import (
-    BasePlatformAdapter, SendResult,
+    BasePlatformAdapter, SendResult, _file_uri_to_path,
     cache_document_from_bytes, cache_image_from_bytes,
 )
 from gateway.platforms.helpers import cancel_task
@@ -726,14 +726,13 @@ class EmailAdapter(BasePlatformAdapter):
         """One email per batch: local files attached, URL images linked in the body (no remote download); base-class fallback on failure."""
         if not images:
             return SendResult(success=False, error="no images to send")
-        from urllib.parse import unquote as _unquote
         body_parts, local_paths = [], []
         for image_url, alt_text in images:
             if alt_text:
                 body_parts.append(alt_text)
             if not image_url.startswith("file://"):
                 body_parts.append(f"Image: {image_url}")  # parity with send_image
-            elif Path(local_path := _unquote(image_url[7:])).exists():
+            elif Path(local_path := _file_uri_to_path(image_url)).exists():
                 local_paths.append(local_path)
             else:
                 logger.warning("[Email] Skipping missing image: %s", local_path)

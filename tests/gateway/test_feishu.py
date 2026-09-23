@@ -13,6 +13,8 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Dict
 from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
+
 from gateway.platforms.event import ProcessingOutcome
 
 if TYPE_CHECKING:
@@ -23,6 +25,30 @@ try:
     _HAS_LARK_OAPI = True
 except ImportError:
     _HAS_LARK_OAPI = False
+
+
+@pytest.fixture(autouse=True)
+def _preserve_windows_runtime_env(monkeypatch):
+    """Keep Windows usable while ``patch.dict(clear=True)`` isolates connector vars."""
+    if os.name != "nt":
+        yield
+        return
+    environ_type = type(os.environ)
+    clear = environ_type.clear
+    essential = {
+        key: value for key, value in os.environ.items()
+        if key.upper() in {
+            "SYSTEMROOT", "WINDIR", "USERPROFILE", "HOMEDRIVE", "HOMEPATH",
+            "APPDATA", "LOCALAPPDATA", "TEMP", "TMP",
+        }
+    }
+
+    def clear_except_runtime(env):
+        clear(env)
+        env.update(essential)
+
+    monkeypatch.setattr(environ_type, "clear", clear_except_runtime)
+    yield
 
 
 class _FakeRequestContent:
@@ -2549,5 +2575,3 @@ class TestChatLockEviction(unittest.TestCase):
 
         adapter = self._make_adapter()
         self.assertIsInstance(adapter._chat_locks, _collections.OrderedDict)
-
-

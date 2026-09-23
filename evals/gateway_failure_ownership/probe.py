@@ -7,7 +7,10 @@ ROOT = Path(sys.argv[1]).resolve()
 RECEIPT = Path(sys.argv[2]).resolve()
 HOME = Path(tempfile.mkdtemp(prefix="panergos-104653-state-"))
 # Discard inherited credentials/config, preserve only interpreter essentials.
-keep = {k: v for k, v in os.environ.items() if k in ("PATH", "LANG", "LC_ALL", "TZ")}
+keep_names = {"PATH", "LANG", "LC_ALL", "TZ"}
+if os.name == "nt":
+    keep_names.update({"SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT", "OS", "TEMP", "TMP"})
+keep = {k: v for k, v in os.environ.items() if k.upper() in {name.upper() for name in keep_names}}
 os.environ.clear()
 os.environ.update(keep)
 os.environ.update(
@@ -16,6 +19,8 @@ os.environ.update(
     PANERGOS_DISABLE_PLUGINS="1",
     NO_PROXY="127.0.0.1,localhost",
 )
+if os.name == "nt":
+    os.environ["USERPROFILE"] = str(HOME)
 sys.path.insert(0, str(ROOT))
 os.chdir(HOME)
 (HOME / "config.yaml").write_text(

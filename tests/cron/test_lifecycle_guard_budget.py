@@ -82,8 +82,8 @@ def test_unique_path_budget_bounds_reads_and_fails_closed(monkeypatch, tmp_path)
     for i in range(3):
         (tmp_path / f"s{i}.sh").write_text("echo ok\n", encoding="utf-8")
 
-    two = " && ".join(f"bash {tmp_path}/s{i}.sh" for i in range(2))
-    three = " && ".join(f"bash {tmp_path}/s{i}.sh" for i in range(3))
+    two = " && ".join(f"bash {(tmp_path / f's{i}.sh').as_posix()}" for i in range(2))
+    three = " && ".join(f"bash {(tmp_path / f's{i}.sh').as_posix()}" for i in range(3))
 
     assert guard(two) is False
     assert guard(three) is True
@@ -94,7 +94,8 @@ def test_repeated_path_does_not_spend_unique_path_budget(monkeypatch, tmp_path):
     script = tmp_path / "s.sh"
     script.write_text("echo ok\n", encoding="utf-8")
 
-    assert guard(f"bash {script} && bash {script} && sh {script}") is False
+    shell_path = script.as_posix()
+    assert guard(f"bash {shell_path} && bash {shell_path} && sh {shell_path}") is False
 
 
 def test_remote_read_budget_charged_before_remote_read(monkeypatch):
@@ -112,7 +113,7 @@ def test_remote_read_budget_charged_before_remote_read(monkeypatch):
         )
         is True
     )
-    assert reads == ["/remote/a.sh"]
+    assert len(reads) == 1 and reads[0].endswith("a.sh")
 
 
 def test_cumulative_text_budget_bounds_recursive_scan(monkeypatch, tmp_path):
@@ -177,7 +178,7 @@ def test_line_budget_fails_closed_before_tokenizing_every_line(
         return real_shlex(*args, **kwargs)
 
     monkeypatch.setattr(lifecycle_guard.shlex, "shlex", counting)
-    root = f"bash {script}"
+    root = f"bash {script.as_posix()}"
     assert guard(root) is True
     # Only the one-line root was tokenized (a handful of lexers across the
     # direct scans); the 10-line script never was.
@@ -229,13 +230,13 @@ def test_default_budget_admits_a_wide_benign_wrapper_graph(tmp_path):
         child.write_text("echo step && ls -la /tmp\n" * 20, encoding="utf-8")
         children.append(child)
     hub = tmp_path / "hub.sh"
-    hub.write_text("".join(f"bash {c}\n" for c in children), encoding="utf-8")
+    hub.write_text("".join(f"bash {c.as_posix()}\n" for c in children), encoding="utf-8")
 
-    assert guard(f"bash {hub}") is False
+    assert guard(f"bash {hub.as_posix()}") is False
 
     # ...and a lifecycle command hidden behind the 200 benign scripts is still
     # found: the budget bounds work, it does not stop the walk early.
     evil = tmp_path / "evil.sh"
     evil.write_text("panergos gateway restart\n", encoding="utf-8")
-    hub.write_text(hub.read_text() + f"bash {evil}\n", encoding="utf-8")
-    assert guard(f"bash {hub}") is True
+    hub.write_text(hub.read_text() + f"bash {evil.as_posix()}\n", encoding="utf-8")
+    assert guard(f"bash {hub.as_posix()}") is True

@@ -619,6 +619,7 @@ class TestCliErrorContract:
             "x" * 100_000,
             json.dumps({"error": "relay_error", "message": "x" * 100_000}),
         ],
+        ids=("plain", "json"),
     )
     def test_bounds_untrusted_cli_error_output(self, stderr):
         msg = _cli_error_message(stderr, 2)
@@ -2771,7 +2772,7 @@ class TestInboundMediaLocalisation:
         assert event.message_type == MessageType.DOCUMENT
         assert event.media_types == ["application/pdf"]
         assert len(event.media_urls) == 1
-        assert "/cache/documents/" in event.media_urls[0]
+        assert "/cache/documents/" in Path(event.media_urls[0]).as_posix()
 
     @pytest.mark.asyncio
     async def test_download_failure_preserves_caption_and_alt_text(
@@ -3062,36 +3063,31 @@ class TestInboundMediaAuthorizationGate:
         assert result.raw_response is None
 
     @pytest.mark.asyncio
-    async def test_live_media_redacts_long_path_before_bounding(self, tmp_path):
+    async def test_live_media_redacts_long_path_before_bounding(self):
         # Invariant: the host path is redacted BEFORE the 900-char bound is applied,
         # so a path long enough to straddle the cut never leaks in fragments. The
-        # path must therefore exceed the bound, but stay under PATH_MAX (1024 on
-        # macOS; 4096 on Linux) so the directory can actually be created.
-        parent = tmp_path
+        # path need not exist: _send_result is the live media result boundary.
+        parent = Path("/private")
         private_parts = []
         while len(str(parent)) < _MAX_CLI_MESSAGE_CHARS:
             part = f"private-{len(private_parts)}-" + ("x" * 80)
             private_parts.append(part)
             parent = parent / part
-            parent.mkdir()
         media = parent / "handoff.txt"
-        assert _MAX_CLI_MESSAGE_CHARS < len(str(media)) < 1024
-        media.write_text("safe handoff", encoding="utf-8")
+        assert _MAX_CLI_MESSAGE_CHARS < len(str(media))
         adapter = _make_adapter()
-        adapter._run_cli = AsyncMock(
-            return_value=(
-                2,
-                "",
-                json.dumps(
-                    {
-                        "error": "network",
-                        "message": f"upload failed for {media}: " + ("z" * 1_000),
-                    }
-                ),
-            )
+        result = adapter._send_result(
+            CHANNEL,
+            2,
+            "",
+            json.dumps(
+                {
+                    "error": "network",
+                    "message": f"upload failed for {media}: " + ("z" * 1_000),
+                }
+            ),
+            redact_path=media,
         )
-
-        result = await adapter.send_document(CHANNEL, str(media))
 
         assert result.success is False
         assert all(part not in result.error for part in private_parts)

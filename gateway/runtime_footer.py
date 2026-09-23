@@ -21,10 +21,15 @@ def _home_relative_cwd(cwd: str) -> str:
     if not cwd:
         return ""
     try:
-        home = os.path.expanduser("~")
+        if os.name == "nt" and cwd.startswith("/") and not cwd.startswith("//"):
+            return cwd
+        home = os.path.abspath(os.path.expanduser("~"))
         p = os.path.abspath(cwd)
-        if home and (p == home or p.startswith(home + os.sep)):
-            return "~" + p[len(home):]
+        home_key = os.path.normcase(home)
+        p_key = os.path.normcase(p)
+        home_prefix = home_key if home_key.endswith(os.sep) else home_key + os.sep
+        if home and (p_key == home_key or p_key.startswith(home_prefix)):
+            return ("~" + p[len(home):]).replace(os.sep, "/")
         return p
     except Exception:
         return cwd

@@ -45,6 +45,7 @@ from gateway.platforms.base import (
     gateway_trust_env, BasePlatformAdapter, ExecApprovalPrompt,
     SendResult, SUPPORTED_DOCUMENT_TYPES, SUPPORTED_VIDEO_TYPES, _TEXT_INJECT_EXTENSIONS,
     is_host_excluded_by_no_proxy, resolve_proxy_url, safe_url_for_log, _ssrf_redirect_guard,
+    _file_uri_to_path,
     cache_document_from_bytes_async, cache_video_from_bytes_async,
 )
 from gateway.platforms.event import MessageEvent, MessageType, ProcessingOutcome
@@ -2784,7 +2785,6 @@ class SlackAdapter(BasePlatformAdapter):
             return SendResult(success=False, error="no images to send")
         chat_id = await self._dm_target(chat_id, metadata)
         try:
-            from urllib.parse import unquote as _unquote
             from tools.url_safety import create_ssrf_safe_async_client, is_safe_url as _is_safe_url
         except Exception:
             return await super().send_multiple_images(chat_id, images, metadata, human_delay)
@@ -2797,7 +2797,7 @@ class SlackAdapter(BasePlatformAdapter):
                 await asyncio.sleep(human_delay)
             try:
                 file_uploads, initial_comment_parts = await self._collect_image_uploads(
-                    chunk, _unquote, _is_safe_url, create_ssrf_safe_async_client)
+                    chunk, _file_uri_to_path, _is_safe_url, create_ssrf_safe_async_client)
                 if not file_uploads:
                     continue
                 initial_comment = "\n".join(initial_comment_parts) if initial_comment_parts else ""
@@ -2820,7 +2820,7 @@ class SlackAdapter(BasePlatformAdapter):
 
     @staticmethod
     async def _collect_image_uploads(
-        chunk: List[Tuple[str, str]], unquote_fn, is_safe_url_fn, client_factory
+        chunk: List[Tuple[str, str]], file_uri_to_path_fn, is_safe_url_fn, client_factory
     ) -> Tuple[List[Dict[str, Any]], List[str]]:
         """``files_upload_v2`` entries for one batch: ``file://`` by path, remote via the SSRF-safe
         client (unsafe/failed skipped). Returns ``(file_uploads, alt_texts)``."""
@@ -2833,7 +2833,7 @@ class SlackAdapter(BasePlatformAdapter):
                 if alt_text:
                     initial_comment_parts.append(alt_text)
                 if image_url.startswith("file://"):
-                    local_path = unquote_fn(image_url[7:])
+                    local_path = file_uri_to_path_fn(image_url)
                     if not os.path.exists(local_path):
                         logger.warning("[Slack] Skipping missing image: %s", local_path)
                         continue

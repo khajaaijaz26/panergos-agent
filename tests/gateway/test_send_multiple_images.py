@@ -13,6 +13,7 @@ Signal's native implementation is covered by test_signal.py.
 """
 
 import asyncio
+import os
 import sys
 import types
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -20,7 +21,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from gateway.config import PlatformConfig
-from gateway.platforms.base import BasePlatformAdapter
+from gateway.platforms.base import BasePlatformAdapter, _file_uri_to_path
 
 
 def _run(coro):
@@ -72,6 +73,16 @@ class _StubAdapter(BasePlatformAdapter):
 
 
 class TestBaseDefaultLoop:
+    def test_file_uri_uses_native_path(self, tmp_path):
+        path = tmp_path / "image with spaces.png"
+        assert _file_uri_to_path(path.as_uri()) == os.path.normpath(str(path))
+
+    @pytest.mark.windows_only
+    def test_file_uri_preserves_unc_share(self):
+        assert _file_uri_to_path("file://server/share/image%20one.png") == os.path.normpath(
+            r"\\server\share\image one.png"
+        )
+
     def test_loops_per_image_by_default(self):
         a = _StubAdapter()
         images = [
@@ -404,5 +415,3 @@ class TestEmailMultiImage:
         assert to_addr == "user@example.com"
         assert len(file_paths) == 3
         assert "alt 0" in body
-
-

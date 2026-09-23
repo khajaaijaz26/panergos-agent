@@ -25,6 +25,7 @@ def test_notify_supports_systemd_abstract_socket(monkeypatch):
         receiver.close()
 
 
+@pytest.mark.linux_only
 def test_notify_uses_nonblocking_datagram_send(monkeypatch):
     calls: list[object] = []
 
@@ -61,6 +62,7 @@ async def test_watchdog_sends_ready_heartbeat_and_stopping(monkeypatch):
 
     import gateway.systemd_notify as notify_mod
 
+    monkeypatch.setattr(notify_mod, "_notify_socket", lambda: "/tmp/panergos-test-notify")
     monkeypatch.setattr(
         notify_mod, "notify", lambda message: calls.append(message) or True
     )
@@ -75,5 +77,3 @@ async def test_watchdog_sends_ready_heartbeat_and_stopping(monkeypatch):
     assert "WATCHDOG=1" in calls
     assert calls[-1] == "STOPPING=1"
     assert watchdog.unhealthy is False
-
-

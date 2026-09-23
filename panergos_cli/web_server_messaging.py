@@ -9,7 +9,7 @@ import threading
 from dataclasses import dataclass
 from fastapi import HTTPException
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 from panergos_cli import __version__
 from panergos_cli.config import OPTIONAL_ENV_VARS, write_platform_config_field
 from panergos_cli.setup_hidden_env import is_setup_hidden_env as _is_setup_hidden_env
@@ -86,8 +86,8 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     "sms": {
         "name": "SMS (Twilio)", "description": "Send and receive text messages via Twilio.",
         "docs_url": "https://www.twilio.com/console",
-        "env_vars": ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN"),
-        "required_env": ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN"),
+        "env_vars": ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"),
+        "required_env": ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"),
     },
     "dingtalk": {
         "name": "DingTalk", "description": "Connect Panergos to DingTalk groups (钉钉).",
@@ -106,11 +106,17 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     "google_chat": {
         "name": "Google Chat", "description": "Connect Panergos to Google Chat via Cloud Pub/Sub.",
         "docs_url": "https://khajaaijaz26.github.io/panergos-agent/docs/user-guide/messaging/google_chat",
+        "required_env": ("GOOGLE_CHAT_SERVICE_ACCOUNT_JSON",),
+        "required_env_alternatives": (
+            ("GOOGLE_CHAT_HTTP_EVENTS_URL",),
+            ("GOOGLE_CHAT_PROJECT_ID", "GOOGLE_CHAT_SUBSCRIPTION_NAME"),
+        ),
     },
     "wecom": {
         "name": "WeCom (group bot)", "description": "Send-only WeCom group bot via webhook.",
         "docs_url": "https://developer.work.weixin.qq.com/document/path/91770",
-        "env_vars": ("WECOM_BOT_ID", "WECOM_SECRET"), "required_env": ("WECOM_BOT_ID",),
+        "env_vars": ("WECOM_BOT_ID", "WECOM_SECRET"),
+        "required_env": ("WECOM_BOT_ID", "WECOM_SECRET"),
     },
     "wecom_callback": {
         "name": "WeCom (app)", "description": "Two-way WeCom integration via callback app.",
@@ -326,7 +332,20 @@ def _build_catalog_entry(platform_id: str, plugin_entry: Any | None = None) -> d
         "docs_url": override.get("docs_url", ""),
         "env_vars": _merge_platform_env_vars(platform_id, override, plugin_entry),
         "required_env": required_env,
+        "required_env_alternatives": tuple(override.get("required_env_alternatives", ())),
     }
+
+
+def _messaging_requirement_state(
+    entry: dict[str, Any], env_value: Callable[[str], Any],
+) -> tuple[bool, list[str]]:
+    """Return whether declared env requirements are met and a secret-free missing-key list."""
+    required = tuple(entry.get("required_env", ()))
+    alternatives = tuple(entry.get("required_env_alternatives", ()))
+    missing = [key for key in required if not env_value(key)]
+    if alternatives and not any(all(env_value(key) for key in option) for option in alternatives):
+        missing.append(" or ".join(" + ".join(option) for option in alternatives))
+    return bool(required or alternatives) and not missing, missing
 
 
 def _write_platform_enabled(platform_id: str, enabled: bool) -> None:

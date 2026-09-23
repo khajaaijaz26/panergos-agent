@@ -37,6 +37,19 @@ def load_skills_guard():
     return module
 
 
+def test_backup_existing_uses_target_relative_path(tmp_path: Path):
+    mod = load_module()
+    target = tmp_path / ".panergos"
+    original = target / "config.yaml"
+    original.parent.mkdir()
+    original.write_text("model: old\n", encoding="utf-8")
+
+    backup = mod.backup_existing(original, target / "migration" / "backups", target)
+
+    assert backup == target / "migration" / "backups" / "config.yaml"
+    assert backup.read_text(encoding="utf-8") == "model: old\n"
+
+
 def test_extract_markdown_entries_promotes_heading_context():
     mod = load_module()
     text = """# MEMORY.md - Long-Term Memory
@@ -741,6 +754,5 @@ def test_messaging_settings_handles_invalid_utf8_in_telegram_allowlist(tmp_path:
     assert items and items[0]["status"] == "migrated"
     env_text = (target / ".env").read_text(encoding="utf-8")
     assert "123456789" in env_text
-
 
 

@@ -1682,15 +1682,12 @@ async def test_hygiene_does_not_wait_ceiling_after_fence_cancel(
             if commit_fence is not None:
                 commit_fence.try_cancel_before_commit()
             worker_started.set()
-            # Keep the worker alive (and keep reporting "progress") so a
-            # host that still extends to the 600s ceiling would stall here.
-            deadline = time.monotonic() + 2.0
-            while time.monotonic() < deadline:
+            # Keep the worker alive (and keep reporting "progress") until the
+            # test releases it, so completion proves the host did not wait.
+            while not release_worker.is_set():
                 if commit_fence is not None:
                     commit_fence.touch_progress()
-                if release_worker.is_set():
-                    break
-                time.sleep(0.02)
+                release_worker.wait(0.02)
             return (messages, None)
 
     db = SessionDB(db_path=tmp_path / "state.db")
@@ -1699,15 +1696,13 @@ async def test_hygiene_does_not_wait_ceiling_after_fence_cancel(
         runner, adapter, event = _make_cooldown_runner(
             monkeypatch, tmp_path, HungAfterFenceCancelAgent, db, session_id
         )
-        started = time.monotonic()
-        result = await runner._handle_message(event)
-        elapsed = time.monotonic() - started
+        result = await asyncio.wait_for(runner._handle_message(event), timeout=15)
 
         assert result == "ok"
         assert worker_started.wait(timeout=2)
-        assert elapsed < 2.0, (
-            f"hygiene host waited {elapsed:.1f}s after fence cancel — "
-            "must not extend toward the 600s ceiling (#96953)"
+        assert not cleanup_done.is_set(), (
+            "hygiene host waited for the worker after fence cancel instead "
+            "of proceeding with the live turn (#96953)"
         )
         assert runner._run_agent.await_count == 1
         state = db.get_compression_failure_cooldown(session_id)
@@ -1718,6 +1713,7 @@ async def test_hygiene_does_not_wait_ceiling_after_fence_cancel(
         release_worker.set()
         await asyncio.wait_for(asyncio.to_thread(cleanup_done.wait), timeout=2)
     finally:
+        release_worker.set()
         db.close()
 
 

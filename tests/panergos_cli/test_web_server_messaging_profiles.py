@@ -307,6 +307,30 @@ def test_scoped_enablement_uses_only_own_credentials(client, isolated_profiles, 
     assert "root-token" in (isolated_profiles["default"] / ".env").read_text(encoding="utf-8")
 
 
+def test_scoped_enablement_accepts_either_google_chat_inbound_mode(monkeypatch):
+    from panergos_cli.web_routers import messaging
+
+    entry = {
+        "required_env": ("GOOGLE_CHAT_SERVICE_ACCOUNT_JSON",),
+        "required_env_alternatives": (
+            ("GOOGLE_CHAT_HTTP_EVENTS_URL",),
+            ("GOOGLE_CHAT_PROJECT_ID", "GOOGLE_CHAT_SUBSCRIPTION_NAME"),
+        ),
+    }
+    monkeypatch.setattr(messaging, "load_config", lambda: {})
+    auth = {"GOOGLE_CHAT_SERVICE_ACCOUNT_JSON": "key"}
+
+    assert messaging._platform_enablement("google_chat", entry, auth, True)[1] is False
+    assert messaging._platform_enablement(
+        "google_chat", entry, auth | {"GOOGLE_CHAT_HTTP_EVENTS_URL": "https://example.invalid"}, True,
+    )[1] is True
+    assert messaging._platform_enablement(
+        "google_chat", entry,
+        auth | {"GOOGLE_CHAT_PROJECT_ID": "project", "GOOGLE_CHAT_SUBSCRIPTION_NAME": "subscription"},
+        True,
+    )[1] is True
+
+
 @pytest.mark.parametrize("topology", ["scoped_query", "pooled_unscoped"])
 def test_credential_write_hot_serves_a_multiplexed_profile(client, isolated_profiles, monkeypatch, topology):
     """A token saved for a profile the live multiplexer serves is handed to the multiplexer right

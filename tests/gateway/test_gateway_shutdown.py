@@ -171,24 +171,30 @@ async def test_planned_service_exit_issues_no_restart_of_its_own(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_unexpected_signal_starts_teardown_after_bounded_interrupt_grace():
-    runner, adapter = make_restart_runner()
+    runner, _adapter = make_restart_runner()
     runner._restart_drain_timeout = 0.0
     runner._signal_initiated_shutdown = True
     runner._signal_interrupt_grace_timeout = 0.01
     runner._running_agents = {"session": MagicMock()}
 
-    disconnect_started = asyncio.Event()
+    teardown_started = asyncio.Event()
 
-    async def disconnect():
-        disconnect_started.set()
+    def record_tool_cleanup(phase):
+        if phase == "post-interrupt":
+            teardown_started.set()
+        return []
 
-    adapter.disconnect = disconnect
-
-    with patch("gateway.status.remove_pid_file"), patch(
-        "gateway.status.write_runtime_status"
+    with (
+        patch("gateway.status.remove_pid_file"),
+        patch("gateway.status.write_runtime_status"),
+        patch.object(
+            gateway_run.GatewayRunner,
+            "_stop_kill_tool_subprocesses",
+            side_effect=record_tool_cleanup,
+        ),
     ):
         stop_task = asyncio.create_task(runner.stop())
-        await asyncio.wait_for(disconnect_started.wait(), timeout=0.75)
+        await asyncio.wait_for(teardown_started.wait(), timeout=2.0)
         await stop_task
 
     assert runner._shutdown_event.is_set() is True

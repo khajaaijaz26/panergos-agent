@@ -8,6 +8,7 @@ from types import ModuleType, SimpleNamespace
 from gateway.config import GatewayConfig, Platform, PlatformConfig
 from panergos_cli.connectors import _connect_account, _connector_rows, _read_state, _setup_connector
 from panergos_cli.subcommands.gateway import build_gateway_parser
+from panergos_cli.web_server_messaging import _build_catalog_entry, _messaging_requirement_state
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -68,6 +69,46 @@ def test_connector_rows_accept_legacy_runtime_status():
     )
 
     assert rows[0]["runtime"] == "running"
+
+
+def test_connector_catalog_reports_all_runtime_credentials():
+    plugin = SimpleNamespace(required_env=[], label="Test", install_hint="")
+
+    sms = _build_catalog_entry("sms", plugin)
+    wecom = _build_catalog_entry("wecom", plugin)
+
+    assert "TWILIO_PHONE_NUMBER" in sms["required_env"]
+    assert {"WECOM_BOT_ID", "WECOM_SECRET"} <= set(wecom["required_env"])
+
+
+def test_connector_requirements_accept_either_google_chat_inbound_mode():
+    entry = {
+        "required_env": ("GOOGLE_CHAT_SERVICE_ACCOUNT_JSON",),
+        "required_env_alternatives": (
+            ("GOOGLE_CHAT_HTTP_EVENTS_URL",),
+            ("GOOGLE_CHAT_PROJECT_ID", "GOOGLE_CHAT_SUBSCRIPTION_NAME"),
+        ),
+    }
+
+    auth_only = {"GOOGLE_CHAT_SERVICE_ACCOUNT_JSON": "key"}
+    configured, missing = _messaging_requirement_state(entry, auth_only.get)
+    assert configured is False
+    assert missing == [
+        "GOOGLE_CHAT_HTTP_EVENTS_URL or GOOGLE_CHAT_PROJECT_ID + GOOGLE_CHAT_SUBSCRIPTION_NAME"]
+    row = _connector_rows(
+        ({"id": "google_chat", "name": "Google Chat", **entry},),
+        GatewayConfig(), {}, True, auth_only.get,
+    )[0]
+    assert row["missing"] == missing
+
+    for inbound in (
+        {"GOOGLE_CHAT_HTTP_EVENTS_URL": "https://example.invalid/events"},
+        {"GOOGLE_CHAT_PROJECT_ID": "project", "GOOGLE_CHAT_SUBSCRIPTION_NAME": "subscription"},
+    ):
+        configured, missing = _messaging_requirement_state(
+            entry, ({"GOOGLE_CHAT_SERVICE_ACCOUNT_JSON": "key"} | inbound).get)
+        assert configured is True
+        assert missing == []
 
 
 def test_read_state_projects_platforms_for_profile_served_by_multiplexer(monkeypatch, tmp_path):

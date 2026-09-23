@@ -7,7 +7,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 
+
+@pytest.mark.linux_only
 class TestCronFilePermissions(unittest.TestCase):
     """Verify cron files get secure permissions."""
 
@@ -74,6 +77,7 @@ class TestCronFilePermissions(unittest.TestCase):
             self.assertEqual(dir_mode, 0o700)
 
 
+@pytest.mark.linux_only
 class TestConfigFilePermissions(unittest.TestCase):
     """Verify config files get secure permissions."""
 
@@ -125,6 +129,7 @@ class TestSecureHelpers(unittest.TestCase):
         from cron.jobs import _secure_file
         _secure_file(Path("/nonexistent/path/file.json"))  # Should not raise
 
+    @pytest.mark.linux_only
     def test_secure_dir_preserves_operator_mode_in_container(self):
         """A bind-mounted data dir shared with sibling containers must keep the operator's mode;
         an explicit PANERGOS_HOME_MODE is still honored (#10757)."""

@@ -1446,7 +1446,7 @@ def _collect_history_media_paths(agent_history: List[Dict[str, Any]]) -> set:
                 paths.add(path)
         # The regex misses quoted/spaced paths extract_media accepts; use the same extractor to dedup.
         media_files, _ = BasePlatformAdapter.extract_media(content)
-        paths.update(path for path, _is_voice in media_files)
+        paths.update(os.path.normpath(path) for path, _is_voice in media_files)
 
     for msg in agent_history:
         role = msg.get("role")

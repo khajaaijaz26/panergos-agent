@@ -29,7 +29,9 @@ from panergos_constants import get_process_panergos_home
 from panergos_cli.web_deps import LateState, late
 from panergos_cli.web_server_gateway import _restart_gateway_after
 from panergos_cli.web_server_messaging import (
-    _TelegramOnboardingPairing, _WhatsAppOnboardingSession, _messaging_platform_catalog, _telegram_onboarding_error_message, _telegram_onboarding_lock, _telegram_onboarding_pairings, _whatsapp_onboarding_payload, _whatsapp_onboarding_sessions,
+    _TelegramOnboardingPairing, _WhatsAppOnboardingSession, _messaging_platform_catalog,
+    _messaging_requirement_state, _telegram_onboarding_error_message, _telegram_onboarding_lock,
+    _telegram_onboarding_pairings, _whatsapp_onboarding_payload, _whatsapp_onboarding_sessions,
 )
 from panergos_cli.web_routers._common import http_failure
 from panergos_cli.web_models import (
@@ -166,9 +168,8 @@ def _platform_enablement(
     """(enabled, configured, home_channel). Profile-scoped: derive from the profile's
     config.yaml + .env only — load_gateway_config()'s env-override layer reads
     os.environ and would leak the root install's tokens into the profile's state."""
-    required = entry["required_env"]
     if scoped:
-        configured = bool(required) and all(env_on_disk.get(key) for key in required)
+        configured, _missing = _messaging_requirement_state(entry, env_on_disk.get)
         try:
             plat_cfg = (load_config().get("platforms") or {}).get(platform_id)
             plat_cfg = plat_cfg if isinstance(plat_cfg, dict) else {}
@@ -191,7 +192,8 @@ def _platform_enablement(
         home_channel = platform_config.home_channel.to_dict() if platform_config and platform_config.home_channel else None
     except Exception:
         enabled, home_channel = False, None
-        configured = all(env_on_disk.get(key) or os.getenv(key, "") for key in required)
+        configured, _missing = _messaging_requirement_state(
+            entry, lambda key: env_on_disk.get(key) or os.getenv(key, ""))
     return enabled, configured, home_channel
 
 

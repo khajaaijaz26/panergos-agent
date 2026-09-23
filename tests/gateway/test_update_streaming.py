@@ -151,13 +151,17 @@ class TestUpdateCommandGatewayFlag:
              patch("subprocess.Popen", mock_popen):
             result = await runner._handle_update_command(event)
 
-        # Check the bash command string contains --gateway and PYTHONUNBUFFERED
+        # Both the POSIX shell command and Windows Python helper must preserve
+        # the updater, streaming, output, and exit-code contracts.
         call_args = mock_popen.call_args[0][0]
-        cmd_string = call_args[-1] if isinstance(call_args, list) else str(call_args)
+        cmd_string = " ".join(map(str, call_args))
+        output_path = panergos_home / ".update_output.txt"
+        exit_code_path = panergos_home / ".update_exit_code"
+        assert "update" in cmd_string
         assert "--gateway" in cmd_string
         assert "PYTHONUNBUFFERED" in cmd_string
-        assert "rc=$?" in cmd_string
-        assert "status=$?" not in cmd_string
+        assert str(output_path) in cmd_string
+        assert str(exit_code_path) in cmd_string
         assert "stream progress" in result
 
 
@@ -397,4 +401,3 @@ class TestCmdUpdateGatewayMode:
 
         assert len(calls) == 1
         assert "Restore" in calls[0]
-

@@ -55,6 +55,7 @@ from gateway.config import Platform, PlatformConfig
 from gateway.platforms.helpers import MessageDeduplicator
 from gateway.platforms.base import (
     gateway_trust_env, BasePlatformAdapter, ExecApprovalPrompt, SendResult, cache_image_from_url, cache_media_bytes_async,
+    _file_uri_to_path,
 )
 from gateway.platforms.event import MessageEvent, MessageType
 from panergos_cli import __distribution_user_agent__ as _PANERGOS_USER_AGENT
@@ -689,7 +690,7 @@ class TeamsAdapter(BasePlatformAdapter):
                 content_url = source
                 mime_type = mimetypes.guess_type(source.split("?")[0])[0] or default_mime
             else:
-                path = source.removeprefix("file://")
+                path = _file_uri_to_path(source) if source.startswith("file://") else source
                 mime_type = mimetypes.guess_type(path)[0] or default_mime
                 with open(path, "rb") as f:
                     content_url = f"data:{mime_type};base64,{base64.b64encode(f.read()).decode()}"

@@ -273,6 +273,7 @@ class TestSkillReadiness:
                 "setup_needed": True,
                 "missing_required_environment_variables": ["NEEDY_API_KEY"],
                 "missing_required_commands": [],
+                "missing_required_python_packages": ["needy_sdk"],
             }
         )
 
@@ -289,6 +290,7 @@ class TestSkillReadiness:
         assert success is False
         assert error is not None and "[blocked_config]" in error
         assert "NEEDY_API_KEY" in f"{error} {output}"
+        assert "needy_sdk" in f"{error} {output}"
 
     def test_ready_skill_runs(self, tmp_path):
         payload = json.dumps(

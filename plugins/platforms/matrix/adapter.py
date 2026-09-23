@@ -63,7 +63,7 @@ except ImportError:
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.base import (
     gateway_trust_env, BasePlatformAdapter, ExecApprovalPrompt,
-    SendResult, resolve_proxy_url, proxy_kwargs_for_aiohttp, _ssrf_redirect_guard,
+    SendResult, resolve_proxy_url, proxy_kwargs_for_aiohttp, _ssrf_redirect_guard, _file_uri_to_path,
 )
 from gateway.platforms.base import transcode_to_ogg_opus
 from gateway.platforms.event import MessageEvent, MessageType, ProcessingOutcome
@@ -1503,7 +1503,6 @@ class MatrixAdapter(BasePlatformAdapter):
         human_delay: float = 0.0) -> SendResult:
         if not images:
             return SendResult(success=False, error="no images to send")
-        from urllib.parse import unquote as _unquote
         total = len(images)
         delivered = False
         for idx, (image_url, alt_text) in enumerate(images, start=1):
@@ -1512,7 +1511,7 @@ class MatrixAdapter(BasePlatformAdapter):
             caption = f"{alt_text} ({idx}/{total})" if alt_text and total > 1 else (alt_text or None)
             if image_url.startswith("file://"):
                 result = await self.send_image_file(
-                    chat_id=chat_id, image_path=_unquote(image_url[7:]), caption=caption, metadata=metadata)
+                    chat_id=chat_id, image_path=_file_uri_to_path(image_url), caption=caption, metadata=metadata)
             else:
                 result = await self.send_image(chat_id=chat_id, image_url=image_url, caption=caption, metadata=metadata)
             if not result.success:

@@ -243,6 +243,9 @@ def suspend_self(environ: Optional[dict] = None, *, socket_path: str = FLY_API_S
     if not app or not machine_id:
         logger.warning("scale-to-zero: suspend_self called without Fly machine identity")
         return False
+    if not hasattr(socket, "AF_UNIX"):
+        logger.warning("scale-to-zero: Unix sockets are unavailable on this platform")
+        return False
     request = (f"POST /v1/apps/{app}/machines/{machine_id}/suspend HTTP/1.1\r\n"
                "Host: flaps\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
     try:

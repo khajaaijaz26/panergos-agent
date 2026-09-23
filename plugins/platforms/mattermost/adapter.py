@@ -16,13 +16,12 @@ import mimetypes
 import os
 import re
 from pathlib import Path
-from urllib.parse import unquote as _unquote
 from typing import Any, Dict, List, Optional, Tuple
 
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.helpers import MessageDeduplicator
 from gateway.platforms.helpers import cancel_task
-from gateway.platforms.base import gateway_trust_env, BasePlatformAdapter, SendResult
+from gateway.platforms.base import gateway_trust_env, BasePlatformAdapter, SendResult, _file_uri_to_path
 from gateway.platforms.event import MessageEvent, MessageType
 from gateway.platforms._shared import (
     apply_yaml_bridge as _apply_yaml_bridge, env_is_connected as _env_is_connected,
@@ -373,7 +372,7 @@ class MattermostAdapter(BasePlatformAdapter):
         """Read a file:// or remote image for a batch post → (data, filename, content_type), or None to skip."""
         import aiohttp
         if image_url.startswith("file://"):
-            local_path = _unquote(image_url[7:])
+            local_path = _file_uri_to_path(image_url)
             p = Path(local_path)
             if not p.exists():
                 logger.warning("Mattermost: skipping missing image %s", local_path)

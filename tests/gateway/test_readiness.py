@@ -18,6 +18,10 @@ def test_collect_runtime_readiness_reports_healthy_local_runtime(tmp_path, monke
     with sqlite3.connect(home / "state.db") as conn:
         conn.execute("CREATE TABLE probe (id INTEGER PRIMARY KEY)")
     monkeypatch.setenv("PANERGOS_HOME", str(home))
+    monkeypatch.setattr(
+        "gateway.readiness._probe_disk",
+        lambda _home: {"status": "ok", "used_percent": 10.0, "free_bytes": 1},
+    )
 
     result = collect_runtime_readiness(
         configured_model="test/model",
@@ -36,7 +40,7 @@ def test_collect_runtime_readiness_reports_healthy_local_runtime(tmp_path, monke
     assert result["checks"]["model"]["status"] == "ok"
     assert result["checks"]["gateway"]["status"] == "ok"
     assert result["checks"]["background_queues"]["active_api_runs"] == 2
-    assert result["checks"]["disk"]["status"] in {"ok", "degraded"}
+    assert result["checks"]["disk"]["status"] == "ok"
 
 
 def test_collect_runtime_readiness_degrades_on_invalid_config_and_stopped_gateway(
@@ -91,5 +95,3 @@ def test_readiness_uses_running_session_store_state_over_independent_probe(
         },
     )
     assert recovered["checks"]["session_store"] == {"status": "ok"}
-
-

@@ -56,7 +56,8 @@ def test_atomic_output_keeps_previous_file_after_failure(tmp_path) -> None:
 def test_quick_snapshot_is_published_with_manifest(tmp_path, monkeypatch) -> None:
     home = tmp_path / ".panergos"
     home.mkdir()
-    (home / "config.yaml").write_text("model: {}\n", encoding="utf-8")
+    config = home / "config.yaml"
+    config.write_text("model: {}\n", encoding="utf-8")
     published: list[tuple[Path, Path]] = []
 
     from panergos_cli import backup
@@ -82,7 +83,7 @@ def test_quick_snapshot_is_published_with_manifest(tmp_path, monkeypatch) -> Non
         (home / "state-snapshots" / snapshot_id / "manifest.json").read_text(encoding="utf-8")
     )
     assert manifest["id"] == snapshot_id
-    assert manifest["files"] == {"config.yaml": 10}
+    assert manifest["files"] == {"config.yaml": config.stat().st_size}
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX permission bits")

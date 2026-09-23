@@ -137,6 +137,8 @@ def short_sock_dir():
     production path is the fixed ``/.fly/api`` so the length limit never
     applies there; only the fake flaps server needs a short home.
     """
+    if not hasattr(_socket, "AF_UNIX"):
+        pytest.skip("Python build has no AF_UNIX support")
     candidates = [tempfile.gettempdir(), "/tmp"]
     for base in candidates:
         try:

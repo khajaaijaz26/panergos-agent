@@ -36,6 +36,7 @@ def test_model_short_drops_vendor_prefix(model, expected):
 
 def test_home_relative_cwd_collapses_home(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
     sub = tmp_path / "projects" / "panergos"
     sub.mkdir(parents=True)
     result = _home_relative_cwd(str(sub))
@@ -48,6 +49,7 @@ def test_home_relative_cwd_collapses_home(tmp_path, monkeypatch):
 
 def test_format_footer_all_fields(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
     monkeypatch.setenv("TERMINAL_CWD", str(tmp_path / "projects" / "panergos"))
     (tmp_path / "projects" / "panergos").mkdir(parents=True)
     out = format_runtime_footer(
@@ -214,6 +216,7 @@ def test_format_footer_latency_zero_renders_sub_second():
 
 def test_format_footer_latency_in_field_order(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
     out = format_runtime_footer(
         model="openai/gpt-5.4",
         context_tokens=68_000,

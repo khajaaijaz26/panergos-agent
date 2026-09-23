@@ -33,6 +33,7 @@ from gateway.platforms.access_policy_mixin import OwnAccessPolicyMixin
 from gateway.platforms.base import (
     _IMAGE_EXTS, _VIDEO_EXTS, gateway_trust_env, BasePlatformAdapter, SendResult,
     cache_audio_from_bytes_async, cache_document_from_bytes_async, cache_image_from_bytes_async,
+    _file_uri_to_path,
 )
 from gateway.platforms.event import MessageEvent, MessageType
 from panergos_constants import get_panergos_home
@@ -1075,7 +1076,8 @@ class WeixinAdapter(OwnAccessPolicyMixin, BasePlatformAdapter):
 
     async def send_image(self, chat_id: str, image_url: str, caption: str, reply_to: Optional[str] = None, metadata=None) -> SendResult:
         cleanup = image_url.startswith(("http://", "https://"))
-        file_path = await self._download_remote_media(image_url) if cleanup else image_url.replace("file://", "")
+        file_path = await self._download_remote_media(image_url) if cleanup else (
+            _file_uri_to_path(image_url) if image_url.startswith("file://") else image_url)
         if not cleanup and not os.path.isabs(file_path):
             file_path = os.path.abspath(file_path)
         try:

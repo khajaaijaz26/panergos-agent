@@ -19,6 +19,7 @@ Covers:
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -230,13 +231,16 @@ def test_leading_slash_prefers_a_real_absolute_path(tmp_path, monkeypatch):
     absolute path in a repo that happens to mirror those names breaks.
     """
     monkeypatch.chdir(tmp_path)
+    absolute_dir = Path(os.environ.get("SystemRoot", r"C:\Windows")) if os.name == "nt" else Path("/etc")
+    relative_dir = absolute_dir.relative_to(absolute_dir.anchor)
     # A decoy that would win if the slash were stripped unconditionally.
-    (tmp_path / "etc").mkdir()
-    (tmp_path / "etc" / "decoy.conf").write_text("x")
+    decoy = tmp_path / relative_dir
+    decoy.mkdir(parents=True)
+    (decoy / "decoy.conf").write_text("x")
 
-    texts = [t for t, _, _ in _items("@/etc/")]
+    texts = [t for t, _, _ in _items(f"@/{relative_dir.as_posix()}/")]
 
-    # `/etc` exists on any POSIX box, so the absolute reading must hold.
+    # The platform's system directory exists, so the absolute reading must hold.
     assert not any("decoy.conf" in t for t in texts), texts
 
 
@@ -261,5 +265,4 @@ def test_completion_ignores_real_terminal_cwd(tmp_path, monkeypatch):
         f"_completion_cwd resolved to {resolved} instead of {tmp_path} — "
         f"the autouse fixture may not be patching _launch_configured_cwd"
     )
-
 

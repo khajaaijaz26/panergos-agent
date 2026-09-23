@@ -279,6 +279,7 @@ def _preflight_check_delivery(job: dict) -> Optional[str]:
 _SKILL_MISSING_FIELDS = (
     ("missing_required_environment_variables", "env ${}"),
     ("missing_required_commands", "command '{}'"),
+    ("missing_required_python_packages", "Python package '{}'"),
     ("missing_credential_files", "credential file {}"))
 
 

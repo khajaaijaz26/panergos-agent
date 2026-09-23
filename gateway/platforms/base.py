@@ -17,7 +17,7 @@ import time
 import uuid
 import weakref
 from abc import ABC, abstractmethod
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from panergos_cli import __distribution_user_agent__ as _PANERGOS_USER_AGENT
 from utils import normalize_proxy_url
@@ -97,6 +97,17 @@ def _platform_name(platform) -> str:
     """Normalize a Platform enum / raw string into a lowercase name."""
     value = getattr(platform, "value", platform)
     return str(value or "").lower()
+
+
+def _file_uri_to_path(uri: str) -> str:
+    """Decode canonical and legacy ``file://`` URIs into a native path."""
+    raw = unquote(uri[7:])
+    if os.name == "nt":
+        if re.match(r"^/?[A-Za-z]:[/\\]", raw):
+            return os.path.normpath(raw[1:] if raw.startswith("/") else raw)
+        if raw and not raw.startswith(("/", "\\")):
+            return os.path.normpath("//" + raw)
+    return raw
 
 
 def _or_default(thunk, default, exc=(TypeError, ValueError)):
@@ -909,7 +920,7 @@ def _parse_docker_volume_mounts() -> List[Tuple[Path, Path]]:
         if not (host_expanded.startswith("/") or (len(host_expanded) > 1 and host_expanded[1] == ":")):
             continue
         host_path, container_path = _resolve_path(Path(host_expanded)), Path(container_raw)
-        if host_path is not None and container_path.is_absolute():
+        if host_path is not None and container_raw.startswith("/"):
             mounts.append((host_path, container_path))
     return mounts
 
@@ -1015,7 +1026,7 @@ def _warn_unresolved_docker_media(candidate: Path, session_key: str, reason: str
 def _translate_docker_container_media_path(candidate: Path, session_key: str = "") -> Optional[Path]:
     """Container-absolute path -> host path via longest-prefix match over ``docker_volumes``, the
     auto-mounted cache dirs (``/root/.panergos/...``), persistent ``/workspace`` and ``/root``."""
-    if not candidate.is_absolute():
+    if not (candidate.is_absolute() or candidate.as_posix().startswith("/")):
         return None
     # In-process gateways (Desktop, `panergos serve`) may not have bridged terminal.* config into
     # TERMINAL_* env yet; the bridge is idempotent.
@@ -1067,7 +1078,7 @@ def validate_media_delivery_path(path: str, session_key: str = "") -> Optional[s
     except (OSError, RuntimeError, ValueError):
         # expanduser raises ValueError("embedded null byte") for a ~\x00 path.
         return None
-    if not expanded.is_absolute():
+    if not (expanded.is_absolute() or candidate.startswith("/")):
         return None
     # Docker agents emit MEDIA:/workspace/... — map container paths to host paths first.
     resolved = _translate_docker_container_media_path(expanded, session_key=session_key)
@@ -2691,7 +2702,6 @@ class BasePlatformAdapter(ABC):
         (Signal). Returns success when at least one image was delivered — the outcome
         the turn-level delivery tracker records; every override must return the same
         aggregate, or a media-only turn on that platform reports FAILURE (#106153)."""
-        from urllib.parse import unquote as _unquote
         delivered = False
         for image_url, alt_text in images:
             if human_delay > 0:
@@ -2700,7 +2710,7 @@ class BasePlatformAdapter(ABC):
                 logger.info("[%s] Sending image: %s (alt=%s)", self.name,
                             safe_url_for_log(image_url), alt_text[:30] if alt_text else "")
                 if image_url.startswith("file://"):
-                    sender, url_kw = self.send_image_file, {"image_path": _unquote(image_url[7:])}
+                    sender, url_kw = self.send_image_file, {"image_path": _file_uri_to_path(image_url)}
                 elif self._is_animation_url(image_url):
                     sender, url_kw = self.send_animation, {"animation_url": image_url}
                 else:
@@ -3875,15 +3885,13 @@ class BasePlatformAdapter(ABC):
         ``send_multiple_images`` unless ``[[as_document]]``; otherwise audio → send_voice (MEDIA
         tags only, never bare local files), video → send_video, else send_document. Every failure is
         reported. Each send feeds ``record_delivery`` so media-only turns report SUCCESS."""
-        from urllib.parse import quote as _quote
-
         def _as_image(path: str) -> bool:
             return Path(path).suffix.lower() in _IMAGE_EXTS and not force_document_attachments
         _image_paths = [p for p, is_voice in media_files if not is_voice and _as_image(p)]
         _image_paths += [p for p in local_files if _as_image(p)]
         if _image_paths:
             await self._send_image_batch(
-                event, [(f"file://{_quote(p)}", "") for p in _image_paths], metadata, human_delay,
+                event, [(Path(p).as_uri(), "") for p in _image_paths], metadata, human_delay,
                 record_delivery)
         chat_id = event.source.chat_id
 

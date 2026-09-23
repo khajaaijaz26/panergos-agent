@@ -489,10 +489,16 @@ def save_env_file(path: Path, data: Dict[str, str]) -> None:
     path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 
 
-def backup_existing(path: Path, backup_root: Path) -> Optional[Path]:
+def backup_existing(
+    path: Path, backup_root: Path, relative_root: Optional[Path] = None
+) -> Optional[Path]:
     if not path.exists():
         return None
-    rel = Path(*path.parts[1:]) if path.is_absolute() and len(path.parts) > 1 else path
+    try:
+        rel = path.resolve().relative_to(relative_root.resolve()) if relative_root else Path(path.name)
+    except ValueError:
+        digest = hashlib.sha256(os.fsencode(path.resolve())).hexdigest()[:12]
+        rel = Path("_external") / digest / path.name
     dest = backup_root / rel
     ensure_parent(dest)
     if path.is_dir():
@@ -1228,7 +1234,7 @@ class Migrator:
     def maybe_backup(self, path: Path) -> Optional[Path]:
         if not self.execute or not self.backup_dir or not path.exists():
             return None
-        return backup_existing(path, self.backup_dir)
+        return backup_existing(path, self.backup_dir, self.target_root)
 
     def write_overflow_entries(self, kind: str, entries: Sequence[str]) -> Optional[Path]:
         if not entries or not self.overflow_dir:

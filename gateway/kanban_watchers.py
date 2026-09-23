@@ -180,14 +180,12 @@ class GatewayKanbanWatchersMixin:
         if not candidates:
             return
 
-        from urllib.parse import quote as _quote
-
         # Images ride one send_multiple_images call (batch uploads on Signal/Slack).
         image_paths = [p for p in candidates if Path(p).suffix.lower() in _IMAGE_EXTS]
         other_paths = [p for p in candidates if Path(p).suffix.lower() not in _IMAGE_EXTS]
         if image_paths:
             try:
-                batch = [(f"file://{_quote(p)}", "") for p in image_paths]
+                batch = [(Path(p).as_uri(), "") for p in image_paths]
                 await adapter.send_multiple_images(chat_id=chat_id, images=batch, metadata=metadata)
             except Exception as exc:
                 logger.warning("kanban notifier: image batch upload failed: %s", exc)

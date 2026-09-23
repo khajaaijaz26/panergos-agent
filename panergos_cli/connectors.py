@@ -44,6 +44,7 @@ def _connector_rows(
 ) -> list[dict[str, Any]]:
     """Return a secret-free connector snapshot from the shared catalog and gateway config."""
     from gateway.config import Platform
+    from panergos_cli.web_server_messaging import _messaging_requirement_state
 
     runtime_platforms = runtime.get("platforms") if gateway_running else {}
     runtime_platforms = runtime_platforms if isinstance(runtime_platforms, dict) else {}
@@ -63,9 +64,9 @@ def _connector_rows(
         except Exception:
             configured = False
 
-        missing = [] if configured else [
-            key for key in entry.get("required_env", ()) if not env_value(key)
-        ]
+        _, missing = _messaging_requirement_state(entry, env_value)
+        if configured:
+            missing = []
         if not configured and not missing:
             missing = ["guided setup"]
 

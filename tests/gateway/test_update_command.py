@@ -147,9 +147,10 @@ class TestHandleUpdateCommand:
         assert not (panergos_home / ".update_exit_code").exists()
 
 
+    @pytest.mark.linux_only
     @pytest.mark.asyncio
     async def test_fallback_when_no_setsid(self, tmp_path):
-        """Falls back to start_new_session=True when setsid is not available."""
+        """POSIX falls back to start_new_session=True when setsid is unavailable."""
         runner = _make_runner()
         event = _make_event()
 
