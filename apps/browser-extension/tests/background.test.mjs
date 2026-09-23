@@ -37,9 +37,11 @@ test('service worker pairs with a session-only token and publishes the side-pane
   const session = {}
   const runtimeConnect = event()
   const tabsUpdated = event()
+  const tabsRemoved = event()
   const requests = []
   const sockets = []
   const networkRuleUpdates = []
+  const navigatedUrls = []
   let runAdmissions = 0
   let firstRunId = null
   let queuedRunId = null
@@ -64,12 +66,21 @@ test('service worker pairs with a session-only token and publishes the side-pane
       },
     },
     permissions: { contains: async () => true },
+    scripting: { executeScript: async () => [] },
     tabs: {
       get: async () => {
         if (tabResult) return tabResult
         throw new Error('no bound tab')
       },
-      onUpdated: tabsUpdated, onRemoved: event(),
+      update: async (tabId, change) => {
+        assert.equal(session[SCOPE_STORAGE_KEY], undefined)
+        assert.equal(messages.findLast(message => message.type === 'state').state.currentTab, null)
+        assert.ok(networkRuleUpdates.at(-1).addRules.length > 0)
+        navigatedUrls.push(change.url)
+        tabResult = { id: tabId, title: 'YouTube', status: 'loading', url: change.url }
+        return tabResult
+      },
+      onUpdated: tabsUpdated, onRemoved: tabsRemoved,
     },
     sidePanel: { setPanelBehavior: async () => {} },
   }
@@ -89,7 +100,7 @@ test('service worker pairs with a session-only token and publishes the side-pane
       return Response.json({ features: {
         run_submission: true, run_events_sse: true, session_resources: true,
         browser_extension_control: {
-          enabled: true, protocol_version: 1, capabilities: ['controller.noop'],
+          enabled: true, protocol_version: 1, capabilities: ['controller.noop', 'browser_navigate'],
         },
       } })
     }
@@ -100,7 +111,7 @@ test('service worker pairs with a session-only token and publishes the side-pane
     if (path === '/v1/browser-control/register') {
       return Response.json({
         ticket: 'ticket_12345678901234567890', ws_path: '/v1/browser-control/ws',
-        scope: { capabilities: ['controller.noop'] },
+        scope: { capabilities: ['controller.noop', 'browser_navigate'] },
       }, { status: 201 })
     }
     if (path === '/v1/runs' && options.method === 'POST') {
@@ -331,6 +342,73 @@ test('service worker pairs with a session-only token and publishes the side-pane
 
   port.onMessage.emit({ type: 'run.start', prompt: 'Stop during admission', includePage: false })
   await waitFor(() => releaseQueuedAdmission, 'second run did not enter queued admission')
+  const unboundCommandId = 'c'.repeat(32)
+  sockets[0].emit('message', { data: JSON.stringify({
+    method: 'browser.controller.command',
+    params: {
+      command_id: unboundCommandId, action: 'browser_navigate',
+      arguments: { url: 'https://www.youtube.com/' }, run_id: queuedRunId,
+    },
+  }) })
+  await waitFor(
+    () => sockets[0].sent.some(frame => frame.params?.command_id === unboundCommandId),
+    'unbound browser command did not return a result',
+  )
+  assert.deepEqual(
+    sockets[0].sent.find(frame => frame.params?.command_id === unboundCommandId).params.error,
+    { code: 'tab_unbound', message: 'Choose Use this page before Panergos performs browser actions.' },
+  )
+
+  tabResult = { id: 9, title: 'Public plans', url: 'https://example.com/plans' }
+  port.onMessage.emit({ type: 'scope.use', tabId: 9 })
+  await waitFor(() => releaseNetworkGuard, 'worker did not guard the rebound tab')
+  releaseNetworkGuard()
+  releaseNetworkGuard = null
+  await waitFor(() => session[SCOPE_STORAGE_KEY]?.tabId === 9, 'worker did not rebind the public tab')
+  const crossOriginCommandId = 'd'.repeat(32)
+  sockets[0].emit('message', { data: JSON.stringify({
+    method: 'browser.controller.command',
+    params: {
+      command_id: crossOriginCommandId, action: 'browser_navigate',
+      arguments: { url: 'https://www.youtube.com/' }, run_id: queuedRunId,
+    },
+  }) })
+  await waitFor(
+    () => sockets[0].sent.some(frame => frame.params?.command_id === crossOriginCommandId),
+    'cross-origin browser command did not return a result',
+  )
+  const crossOriginFrame = sockets[0].sent.find(frame => frame.params?.command_id === crossOriginCommandId)
+  assert.equal(crossOriginFrame.params.ok, true, JSON.stringify(crossOriginFrame))
+  assert.deepEqual(navigatedUrls, ['https://www.youtube.com/'])
+  assert.equal(session[SCOPE_STORAGE_KEY], undefined)
+  assert.ok(networkRuleUpdates.at(-1).addRules.length > 0)
+  assert.deepEqual(
+    crossOriginFrame.params.result,
+    {
+      success: true,
+      url: 'https://www.youtube.com/',
+      requires_confirmation: true,
+      message: 'Opened the destination. Choose Use this page again before further browser actions.',
+    },
+  )
+  tabsUpdated.emit(9, { status: 'complete' })
+  await waitFor(() => networkRuleUpdates.at(-1).addRules.length === 0, 'loaded tab retained its network guard')
+  const postNavigationCommandId = 'e'.repeat(32)
+  sockets[0].emit('message', { data: JSON.stringify({
+    method: 'browser.controller.command',
+    params: {
+      command_id: postNavigationCommandId, action: 'browser_navigate',
+      arguments: { url: 'https://www.youtube.com/feed/subscriptions' }, run_id: queuedRunId,
+    },
+  }) })
+  await waitFor(
+    () => sockets[0].sent.some(frame => frame.params?.command_id === postNavigationCommandId),
+    'post-navigation browser command did not return a result',
+  )
+  assert.equal(
+    sockets[0].sent.find(frame => frame.params?.command_id === postNavigationCommandId).params.error.code,
+    'tab_unbound',
+  )
   port.onMessage.emit({ type: 'run.stop' })
   await waitFor(
     () => messages.some(message => message.type === 'state' && message.state.runStatus === 'stopping'),

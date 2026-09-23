@@ -33,29 +33,31 @@
       <section class="settings-panel" id="settings-panel" aria-labelledby="settings-title" hidden>
         <div class="section-heading">
           <div>
-            <span class="eyebrow">One-time setup</span>
+            <span class="eyebrow" id="settings-eyebrow">One-time setup</span>
             <h2 id="settings-title">Pair this browser</h2>
           </div>
-          <span class="step-chip">Restricted access</span>
+          <span class="step-chip" id="settings-state">Restricted access</span>
         </div>
         <label>
           Panergos API
           <input id="api-base" type="url" value="http://127.0.0.1:8642" spellcheck="false" autocomplete="url" />
         </label>
-        <label>
-          Pairing code
-          <input id="pairing-code" type="text" inputmode="text" spellcheck="false" autocomplete="one-time-code" placeholder="Paste the one-time code" />
-        </label>
-        <p class="help-copy">
-          Run this command, paste its one-time code above, then connect:
-        </p>
-        <div class="command-row">
-          <code id="pairing-command">panergos extension pair --origin …</code>
-          <button class="quiet-button" id="copy-pairing-command" type="button">Copy command</button>
-        </div>
-        <div class="origin-row">
-          <span>Extension origin</span>
-          <code id="extension-origin">Loading…</code>
+        <div class="pairing-setup" id="pairing-setup">
+          <label>
+            Pairing code
+            <input id="pairing-code" type="text" inputmode="text" spellcheck="false" autocomplete="one-time-code" placeholder="Paste the one-time code" />
+          </label>
+          <p class="help-copy">
+            Run this command, paste its one-time code above, then connect:
+          </p>
+          <div class="command-row">
+            <code id="pairing-command">panergos extension pair --origin …</code>
+            <button class="quiet-button" id="copy-pairing-command" type="button">Copy command</button>
+          </div>
+          <div class="origin-row">
+            <span>Extension origin</span>
+            <code id="extension-origin">Loading…</code>
+          </div>
         </div>
         <button class="primary-button" id="connect-button" type="button">Pair and connect</button>
         <button class="text-button" id="disconnect-button" type="button" hidden>Forget this pairing</button>

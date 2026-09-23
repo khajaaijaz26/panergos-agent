@@ -1,5 +1,6 @@
 import {
   CONTROLLER_CAPABILITIES,
+  ControllerActionError,
   bindControllerTab,
   cancelControllerCommand,
   clearControllerTab,
@@ -399,6 +400,29 @@ async function executeControllerFrame(socket, generation, params) {
       throw new Error('The Panergos run changed before the browser action could start.')
     }
     result = await executeControllerCommand({ ...params, tabId: boundTabId })
+    const navigation = result?._cross_origin_navigation
+    if (navigation) {
+      await clearBoundTab({ keepNetworkGuard: true })
+      try {
+        if (cancelledControllerCommands.has(commandId)
+            || generation !== controllerGeneration || socket !== controllerSocket
+            || expectedRunId !== (state.runId || runAdmissionId)
+            || !controllerActionAllowed(action, expectedRunId, state.runStatus, params?.run_id)) {
+          throw new ControllerActionError('cancelled', 'Command cancelled.')
+        }
+        await chrome.tabs.update(navigation.tab_id, { url: navigation.url })
+      } catch (error) {
+        await replaceNetworkGuard()
+        throw error
+      }
+      result = {
+        success: true,
+        url: navigation.display_url,
+        requires_confirmation: true,
+        message: 'Opened the destination. Choose Use this page again before further browser actions.',
+      }
+      updateState({ error: SCOPE_RECONFIRM_ERROR })
+    }
     ok = true
   } catch (error) {
     result = serializeControllerError(error)
@@ -646,12 +670,12 @@ async function replaceNetworkGuard(tabId = null) {
   guardedTabId = guarded
 }
 
-async function clearBoundTab() {
+async function clearBoundTab({ keepNetworkGuard = false } = {}) {
   boundTabId = null
   boundTabOrigin = null
   clearControllerTab()
   try {
-    await replaceNetworkGuard()
+    if (!keepNetworkGuard) await replaceNetworkGuard()
   } finally {
     await chrome.storage.session.remove(SCOPE_STORAGE_KEY)
     updateState({ currentTab: null })
@@ -660,17 +684,27 @@ async function clearBoundTab() {
 
 async function refreshBoundTab(required = false) {
   if (!Number.isSafeInteger(boundTabId) || typeof boundTabOrigin !== 'string') {
-    if (required) throw new Error('Choose Use this page before Panergos performs browser actions.')
+    if (required) {
+      throw new ControllerActionError(
+        'tab_unbound', 'Choose Use this page before Panergos performs browser actions.',
+      )
+    }
     return null
   }
   try {
     const page = controllableTab(await chrome.tabs.get(boundTabId))
     if (!page || !isPublicHttpUrl(page.url)) {
-      throw new Error('The selected tab is not a public page that Panergos may control.')
+      throw new ControllerActionError(
+        'blocked_url', 'The selected tab is not a public page that Panergos may control.',
+      )
     }
-    if (pageOrigin(page.url) !== boundTabOrigin) throw new Error(SCOPE_RECONFIRM_ERROR)
+    if (pageOrigin(page.url) !== boundTabOrigin) {
+      throw new ControllerActionError('origin_changed', SCOPE_RECONFIRM_ERROR)
+    }
     const permitted = await chrome.permissions.contains({ origins: [pageOriginPattern(page.url)] })
-    if (!permitted) throw new Error('Access to the selected page is no longer granted.')
+    if (!permitted) {
+      throw new ControllerActionError('permission_denied', 'Access to the selected page is no longer granted.')
+    }
     await replaceNetworkGuard(page.id)
     bindControllerTab(page.id, boundTabOrigin)
     state.currentTab = { title: page.title, url: page.url }
@@ -678,7 +712,7 @@ async function refreshBoundTab(required = false) {
     return page
   } catch (error) {
     await clearBoundTab()
-    if (error instanceof Error && error.message === SCOPE_RECONFIRM_ERROR) {
+    if (error instanceof ControllerActionError && error.code === 'origin_changed') {
       updateState({ error: SCOPE_RECONFIRM_ERROR })
     }
     if (required) throw error
@@ -1038,11 +1072,13 @@ chrome.runtime.onConnect.addListener(port => {
   bootstrapPromise ||= bootstrap().catch(error => reportError(error, port))
 })
 
-chrome.tabs.onUpdated.addListener(tabId => {
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (tabId === boundTabId) void refreshBoundTab(false)
+  else if (tabId === guardedTabId && changeInfo.status === 'complete') void replaceNetworkGuard()
 })
 chrome.tabs.onRemoved.addListener(tabId => {
   if (tabId === boundTabId) void clearBoundTab()
+  else if (tabId === guardedTabId) void replaceNetworkGuard()
 })
 
 chrome.runtime.onInstalled.addListener(() => {

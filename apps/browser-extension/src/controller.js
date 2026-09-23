@@ -440,15 +440,19 @@ async function noop(args) {
 async function navigate(args, api, signal) {
   exactKeys(args, ['url'])
   const url = normalizePublicHttpUrl(stringArg(args, 'url', MAX_URL_LENGTH))
-  if (new URL(url).origin !== controlledOrigin) {
-    reject('origin_changed', 'Cross-site navigation requires choosing Use this page again.')
-  }
+  const targetOrigin = new URL(url).origin
   if (isHighImpactControlLabel(new URL(url).pathname.replace(/[-_/]+/g, ' '))) {
     reject('approval_required', 'This consequential navigation must be completed manually in the page.')
   }
-  await requireOriginPermission(api, url)
   const tab = await controlledTab(api)
   try {
+    if (targetOrigin !== controlledOrigin) {
+      if (signal.aborted) throw cancelled()
+      return {
+        _cross_origin_navigation: { tab_id: tab.id, url, display_url: displayUrl(url) },
+      }
+    }
+    await requireOriginPermission(api, url)
     await abortable(api.tabs.update(tab.id, { url }), signal)
     await waitForLoad(api, tab.id, signal)
     const loaded = await checkedLoadedTab(api, tab.id, url)

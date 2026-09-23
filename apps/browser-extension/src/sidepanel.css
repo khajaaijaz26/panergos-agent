@@ -237,6 +237,10 @@ button:disabled {
   gap: 13px;
 }
 
+.pairing-setup {
+  display: contents;
+}
+
 [hidden] {
   display: none !important;
 }

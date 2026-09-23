@@ -25,6 +25,7 @@ const elements = {
   output: $("run-output"),
   pairingCommand: $("pairing-command"),
   pairingCode: $("pairing-code"),
+  pairingSetup: $("pairing-setup"),
   resultPanel: $("result-panel"),
   run: $("run-button"),
   runPanel: $("run-panel"),
@@ -33,6 +34,9 @@ const elements = {
   scopeTitle: $("scope-title"),
   scopeUrl: $("scope-url"),
   settingsPanel: $("settings-panel"),
+  settingsEyebrow: $("settings-eyebrow"),
+  settingsState: $("settings-state"),
+  settingsTitle: $("settings-title"),
   settingsToggle: $("settings-toggle"),
   stop: $("stop-button"),
   timeline: $("timeline"),
@@ -49,10 +53,68 @@ let state = {
   timeline: [],
 };
 
-const port = chrome.runtime.connect({ name: "panergos-sidepanel" });
+let port = null;
+let portReady = false;
+let reconnectTimer = null;
+const pendingMessages = [];
+let submittedGoal = null;
+let submittedGoalSent = false;
+let submittedRunId = null;
+let pendingScopedRun = null;
+
+function reconnect(currentPort = port) {
+  if (currentPort && port !== currentPort) return;
+  port = null;
+  portReady = false;
+  if (reconnectTimer) return;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    openPort();
+  }, 100);
+}
+
+function flushMessages() {
+  if (!portReady) return;
+  while (pendingMessages.length) {
+    try {
+      port.postMessage(pendingMessages[0]);
+      if (pendingMessages[0].type === "run.start") {
+        submittedGoalSent = true;
+        submittedRunId = state.runId || null;
+      }
+      pendingMessages.shift();
+    } catch {
+      reconnect();
+      return;
+    }
+  }
+}
+
+function openPort() {
+  if (port) return;
+  const currentPort = chrome.runtime.connect({ name: "panergos-sidepanel" });
+  port = currentPort;
+  currentPort.onMessage.addListener((message) => {
+    if (port !== currentPort) return;
+    portReady = true;
+    if (message?.type === "state") render(message.state || {});
+    if (message?.type === "error") {
+      pendingScopedRun = null;
+      setError(message.message || "Panergos could not complete that request.");
+    }
+    flushMessages();
+  });
+  currentPort.onDisconnect.addListener(() => {
+    if (port !== currentPort) return;
+    render({ connected: false, error: "The extension worker disconnected. Reconnecting…" });
+    reconnect(currentPort);
+  });
+}
 
 function post(message) {
-  port.postMessage(message);
+  pendingMessages.push(message);
+  openPort();
+  flushMessages();
 }
 
 function setError(message = "") {
@@ -85,12 +147,20 @@ function statusPresentation(current) {
 
 function renderConnection(current) {
   const [kind, label] = statusPresentation(current);
+  const paired = Boolean(current.paired);
   elements.connection.dataset.state = kind;
   elements.connection.querySelector("span").textContent = label;
   elements.run.disabled = !current.connected || ACTIVE_RUN_STATES.has(current.runStatus);
   elements.connect.disabled = current.phase === "connecting" || current.phase === "pairing";
-  elements.connect.textContent = current.phase === "pairing" ? "Pairing…" : "Pair and connect";
-  elements.disconnect.hidden = !current.paired;
+  elements.connect.hidden = paired && current.connected;
+  elements.connect.textContent = current.phase === "connecting" || current.phase === "pairing"
+    ? "Connecting…"
+    : paired ? "Reconnect" : "Pair and connect";
+  elements.disconnect.hidden = !paired;
+  elements.pairingSetup.hidden = paired;
+  elements.settingsEyebrow.textContent = paired ? "Connection" : "One-time setup";
+  elements.settingsTitle.textContent = paired ? "Browser paired" : "Pair this browser";
+  elements.settingsState.textContent = paired ? "Paired" : "Restricted access";
   elements.extensionOrigin.textContent = current.extensionOrigin || location.origin;
   if (current.apiBase) elements.apiBase.value = current.apiBase;
   updatePairingCommand();
@@ -194,6 +264,18 @@ function renderRun(current) {
 
 function render(current) {
   state = { ...state, ...current };
+  if (pendingScopedRun?.origin && state.currentTab
+      && new URL(state.currentTab.url).origin === pendingScopedRun.origin) {
+    const submission = pendingScopedRun;
+    pendingScopedRun = null;
+    submitRun(submission);
+  }
+  if (submittedGoalSent && current.runId && current.runId !== submittedRunId) {
+    if (elements.goal.value === submittedGoal) elements.goal.value = "";
+    submittedGoal = null;
+    submittedGoalSent = false;
+    submittedRunId = null;
+  }
   renderConnection(state);
   renderScope(state);
   renderRun(state);
@@ -214,15 +296,20 @@ async function requestServerPermission(rawBase) {
   return apiBase;
 }
 
-async function useCurrentPage() {
+async function requestCurrentPageAccess() {
   setError();
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   if (!tab?.id || !tab.url) throw new Error("No active web page is available.");
   const url = new URL(tab.url);
   if (!["http:", "https:"].includes(url.protocol)) throw new Error("Protected browser pages cannot be controlled.");
   const granted = await chrome.permissions.request({ origins: [pageOriginPattern(url.href)] });
   if (!granted) throw new Error(`Access to ${url.hostname} was not granted.`);
-  post({ type: "scope.use", tabId: tab.id });
+  return { origin: url.origin, tabId: tab.id };
+}
+
+async function useCurrentPage() {
+  const { tabId } = await requestCurrentPageAccess();
+  post({ type: "scope.use", tabId });
 }
 
 async function connect() {
@@ -235,24 +322,37 @@ async function connect() {
   elements.pairingCode.value = "";
 }
 
-function startRun() {
+function submitRun({ input, prompt }) {
+  setError();
+  submittedGoal = input;
+  submittedGoalSent = false;
+  post({ type: "run.start", prompt, includePage: true });
+}
+
+async function startRun() {
   const prompt = elements.goal.value.trim();
   if (!prompt) {
     elements.goal.focus();
     return;
   }
-  setError();
-  post({ type: "run.start", prompt, includePage: Boolean(state.currentTab) });
+  if (!state.currentTab) {
+    if (pendingScopedRun) return;
+    const pending = { input: elements.goal.value, prompt, origin: null, requesting: true };
+    pendingScopedRun = pending;
+    try {
+      const page = await requestCurrentPageAccess();
+      if (pendingScopedRun !== pending) return;
+      pending.origin = page.origin;
+      pending.requesting = false;
+      post({ type: "scope.use", tabId: page.tabId });
+    } catch (error) {
+      if (pendingScopedRun === pending) pendingScopedRun = null;
+      setError(error.message);
+    }
+    return;
+  }
+  submitRun({ input: elements.goal.value, prompt });
 }
-
-port.onMessage.addListener((message) => {
-  if (message?.type === "state") render(message.state || {});
-  if (message?.type === "error") setError(message.message || "Panergos could not complete that request.");
-});
-
-port.onDisconnect.addListener(() => {
-  render({ connected: false, error: "The extension worker disconnected. Reopen the panel to reconnect." });
-});
 
 elements.settingsToggle.addEventListener("click", () => {
   const open = elements.settingsPanel.hidden;
@@ -285,4 +385,4 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-post({ type: "state.get" });
+openPort();

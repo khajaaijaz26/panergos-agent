@@ -11,7 +11,8 @@
     "declarativeNetRequest",
     "scripting",
     "sidePanel",
-    "storage"
+    "storage",
+    "tabs"
   ],
   "host_permissions": [
     "http://127.0.0.1/*"
@@ -41,6 +42,6 @@
     "default_path": "sidepanel.html"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src http://127.0.0.1:* ws://127.0.0.1:* http://localhost:* ws://localhost:* http://[::1]:* ws://[::1]:* https://* wss://*"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:* https: wss:"
   }
 }

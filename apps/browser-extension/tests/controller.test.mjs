@@ -227,6 +227,49 @@ test('controller revalidates an anchor then uses native tab navigation', async (
   clearControllerTab()
 })
 
+test('controller preflights safe cross-origin navigation without touching the destination', async () => {
+  let currentUrl = 'https://example.com/start'
+  const permissionChecks = []
+  const api = {
+    permissions: { contains: async ({ origins }) => {
+      permissionChecks.push(origins[0])
+      return origins[0] === 'https://example.com/*'
+    } },
+    scripting: { executeScript: async () => [] },
+    tabs: {
+      get: async () => ({ id: 16, status: 'complete', url: currentUrl }),
+      update: async (_id, change) => {
+        currentUrl = change.url
+        return { id: 16, status: 'loading', url: currentUrl }
+      },
+    },
+  }
+  bindControllerTab(16, 'https://example.com')
+  const result = await executeControllerCommand({
+    command_id: '9'.repeat(32), action: 'browser_navigate',
+    arguments: { url: 'https://www.youtube.com/watch?v=abc#details' },
+  }, api)
+  assert.deepEqual(permissionChecks, ['https://example.com/*'])
+  assert.deepEqual(result, {
+    _cross_origin_navigation: {
+      tab_id: 16,
+      url: 'https://www.youtube.com/watch?v=abc#details',
+      display_url: 'https://www.youtube.com/watch',
+    },
+  })
+  assert.equal(currentUrl, 'https://example.com/start')
+
+  currentUrl = 'https://example.com/start'
+  const cancelledNavigation = executeControllerCommand({
+    command_id: 'a'.repeat(32), action: 'browser_navigate',
+    arguments: { url: 'https://www.youtube.com/' },
+  }, api)
+  assert.equal(cancelControllerCommand('a'.repeat(32)), true)
+  await assert.rejects(cancelledNavigation, error => error.code === 'cancelled')
+  assert.equal(currentUrl, 'https://example.com/start')
+  clearControllerTab()
+})
+
 test('controller refuses a link that changes between inspection and navigation', async () => {
   let inspection = 0
   let navigated = false
