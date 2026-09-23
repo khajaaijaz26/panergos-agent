@@ -5,6 +5,7 @@ version: 1.2.0
 author: Mibayy
 license: MIT
 platforms: [linux, macos, windows]
+required_commands: [python]
 metadata:
   panergos:
     tags: [maps, geocoding, places, routing, distance, directions, nearby, location, openstreetmap, nominatim, overpass, osrm]

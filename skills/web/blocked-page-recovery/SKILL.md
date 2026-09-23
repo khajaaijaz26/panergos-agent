@@ -5,6 +5,7 @@ version: 1.0.0
 author: Panergos Agent
 license: MIT
 platforms: [linux, macos, windows]
+required_commands: [python]
 metadata:
   panergos:
     tags: [Research, Archives, Wayback, Paywall, WAF, Fallback]
@@ -31,7 +32,7 @@ ladder, cheapest first.
 Run it in one shot with the bundled script:
 
 ```bash
-python3 scripts/recover_page.py "https://example.com/blocked-article" --json
+python scripts/recover_page.py "https://example.com/blocked-article" --json
 ```
 
 The script tries each route in order, validates every body (see "Fake

@@ -7,7 +7,7 @@ license: MIT
 platforms: [linux, macos, windows]
 prerequisites:
   env_vars: [MSGRAPH_TENANT_ID, MSGRAPH_CLIENT_ID, MSGRAPH_CLIENT_SECRET]
-  commands: [Panergos]
+  commands: [panergos]
 metadata:
   panergos:
     tags: [Teams, Microsoft Graph, Meetings, Productivity, Operations]

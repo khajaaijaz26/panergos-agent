@@ -5,6 +5,10 @@ version: 1.1.0
 author: Panergos contributors
 license: MIT
 platforms: [linux, macos, windows]
+required_commands: [python]
+required_python_packages:
+  - {import: pptx, package: python-pptx}
+  - {import: lxml, package: lxml}
 metadata:
   panergos:
     tags: [pptx, powerpoint, presentations, slides, office, python-pptx]

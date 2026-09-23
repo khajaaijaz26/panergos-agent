@@ -5,6 +5,11 @@ version: 1.1.0
 author: Panergos contributors
 license: MIT
 platforms: [linux, macos, windows]
+required_commands: [python]
+required_python_packages:
+  - {import: pypdf, package: pypdf}
+  - {import: reportlab, package: reportlab}
+  - {import: pdfplumber, package: pdfplumber}
 metadata:
   panergos:
     tags: [pdf, documents, forms, ocr, text-extraction, reportlab, pypdf, pdfplumber, pymupdf, marker]

@@ -5,6 +5,7 @@ version: 2.2.1
 author: Panergos Agent + Teknium
 license: MIT
 platforms: [linux, macos, windows]
+required_commands: [claude]
 metadata:
   panergos:
     tags: [Coding-Agent, Claude, Anthropic, Code-Review, Refactoring, PTY, Automation]

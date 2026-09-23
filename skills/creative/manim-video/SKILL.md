@@ -5,6 +5,9 @@ version: 1.0.0
 author: SHL0MS, Panergos Agent
 license: MIT
 platforms: [linux, macos, windows]
+required_commands: [manim, pdflatex, ffmpeg]
+required_python_packages:
+  - {import: manim, package: manim}
 metadata:
   panergos:
     tags: [Manim, Animation, Math, Video]

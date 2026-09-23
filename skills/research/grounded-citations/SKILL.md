@@ -5,6 +5,7 @@ version: 1.2.0
 author: Panergos Agent + Teknium
 license: MIT
 platforms: [linux, macos, windows]
+required_commands: [python]
 metadata:
   panergos:
     tags: [Research, Citations, Grounding, Sources, Web, Reports]

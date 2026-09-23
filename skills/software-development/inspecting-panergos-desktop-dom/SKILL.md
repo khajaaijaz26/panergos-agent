@@ -5,6 +5,7 @@ version: 1.0.0
 author: Panergos Agent
 license: MIT
 platforms: [linux, macos, windows]
+required_commands: [node]
 metadata:
   panergos:
     tags: [desktop, electron, cdp, dom, ui-verification, self-inspection]

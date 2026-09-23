@@ -5,6 +5,10 @@ version: 1.0.0
 author: SHL0MS, Panergos Agent
 license: MIT
 platforms: [linux, macos, windows]
+required_commands: [python, ffmpeg]
+required_python_packages:
+  - {import: numpy, package: numpy}
+  - {import: PIL, package: Pillow}
 metadata:
   panergos:
     tags: [ASCII, Video, FFmpeg, Terminal-Art]

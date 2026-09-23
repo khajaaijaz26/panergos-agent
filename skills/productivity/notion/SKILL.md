@@ -7,6 +7,7 @@ license: MIT
 platforms: [linux, macos, windows]
 prerequisites:
   env_vars: [NOTION_API_KEY]
+  commands: [curl]
 metadata:
   panergos:
     tags: [Notion, Productivity, Notes, Database, API, CLI, Workers]

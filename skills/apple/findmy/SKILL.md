@@ -5,6 +5,7 @@ version: 1.0.0
 author: Panergos Agent
 license: MIT
 platforms: [macos]
+required_commands: [osascript, screencapture]
 metadata:
   panergos:
     tags: [FindMy, AirTag, location, tracking, macOS, Apple]

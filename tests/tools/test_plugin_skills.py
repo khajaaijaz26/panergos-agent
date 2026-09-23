@@ -8,6 +8,7 @@ Covers:
 
 import json
 import logging
+import sys
 
 import pytest
 
@@ -222,16 +223,18 @@ class TestSkillViewQualifiedName:
     def test_platform_gate_applies_before_supporting_file(self, tmp_path):
         from tools.skills_tool import skill_view
 
+        other = "linux" if sys.platform.startswith("darwin") else "macos"
+
         md = self._register_skill(
             tmp_path,
             content=(
                 "---\nname: writing-plans\ndescription: desc\n"
-                "platforms: [windows]\n---\nBody.\n"
+                f"platforms: [{other}]\n---\nBody.\n"
             ),
         )
         reference = md.parent / "references" / "guide.md"
         reference.parent.mkdir()
-        reference.write_text("Windows only.")
+        reference.write_text("Other platform only.")
 
         result = json.loads(
             skill_view("superpowers:writing-plans", file_path="references/guide.md")

@@ -5,6 +5,7 @@ version: 2.0.0
 author: Ben Barclay (benbarclay), Panergos Agent
 license: MIT
 platforms: [linux, macos, windows]
+required_commands: [gh]
 metadata:
   panergos:
     tags: [github, gh, git, pull-requests, issues, code-review, repos, auth, ci]

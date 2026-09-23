@@ -5,6 +5,7 @@ version: 1.1.0
 author: Panergos Agent
 license: MIT
 platforms: [linux, macos, windows]
+required_commands: [npx]
 metadata:
   panergos:
     tags: [design, design-system, tokens, ui, accessibility, wcag, tailwind, dtcg, google]

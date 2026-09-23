@@ -5,6 +5,7 @@ version: 1.2.0
 author: Panergos Agent
 license: MIT
 platforms: [linux, macos, windows]
+required_commands: [opencode]
 metadata:
   panergos:
     tags: [Coding-Agent, OpenCode, Autonomous, Refactoring, Code-Review]

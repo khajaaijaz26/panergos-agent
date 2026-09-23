@@ -5,6 +5,14 @@ version: 1.2.0
 author: Panergos contributors
 license: MIT
 platforms: [linux, macos, windows]
+required_commands: [python]
+required_python_packages:
+  - {import: googleapiclient, package: google-api-python-client}
+  - {import: google.auth, package: google-auth}
+  - {import: google_auth_oauthlib, package: google-auth-oauthlib}
+  - {import: google_auth_httplib2, package: google-auth-httplib2}
+  - {import: httplib2, package: httplib2}
+  - {import: pyasn1, package: pyasn1}
 required_credential_files:
   - path: google_token.json
     description: Google OAuth2 token (created by setup script)

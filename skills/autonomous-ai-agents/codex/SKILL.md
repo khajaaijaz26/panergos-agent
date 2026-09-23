@@ -5,6 +5,7 @@ version: 1.0.1
 author: Panergos Agent
 license: MIT
 platforms: [linux, macos, windows]
+required_commands: [codex]
 metadata:
   panergos:
     tags: [Coding-Agent, Codex, OpenAI, Code-Review, Refactoring]

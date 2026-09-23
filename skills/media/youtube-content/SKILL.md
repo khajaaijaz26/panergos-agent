@@ -5,6 +5,9 @@ version: 1.0.0
 author: Teknium (teknium1), Panergos Agent
 license: MIT
 platforms: [linux, macos, windows]
+required_commands: [uv]
+required_python_packages:
+  - {import: youtube_transcript_api, package: youtube-transcript-api}
 metadata:
   panergos:
     tags: [YouTube, Video, Transcripts, Media]
