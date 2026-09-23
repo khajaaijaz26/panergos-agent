@@ -562,6 +562,8 @@ def _open_private_append(path: Path, *, strict_chmod: bool) -> int:
     fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_APPEND | _O_NOFOLLOW, 0o600)
     try:
         os.fchmod(fd, 0o600)
+    except AttributeError:
+        pass  # Windows has no fchmod; ACLs, not POSIX mode bits, govern access.
     except OSError:
         if strict_chmod:
             os.close(fd)

@@ -367,8 +367,9 @@ def test_ca_key_created_with_0o600(panergos_home, monkeypatch):
 
     ca_crt, ca_key = ip.ensure_ca_cert()
     assert ca_key.exists()
-    mode = ca_key.stat().st_mode & 0o777
-    assert mode == 0o600, f"CA key has perms {oct(mode)}, expected 0o600"
+    if os.name != "nt":
+        mode = ca_key.stat().st_mode & 0o777
+        assert mode == 0o600, f"CA key has perms {oct(mode)}, expected 0o600"
 
 
 # ---------------------------------------------------------------------------
@@ -380,8 +381,9 @@ def test_ensure_audit_log_creates_with_0o600(panergos_home, tmp_path):
     audit = tmp_path / "audit.log"
     ip.ensure_audit_log(audit)
     assert audit.exists()
-    mode = audit.stat().st_mode & 0o777
-    assert mode == 0o600
+    if os.name != "nt":
+        mode = audit.stat().st_mode & 0o777
+        assert mode == 0o600
 
 
 def test_ensure_audit_log_tightens_existing_perms(panergos_home, tmp_path):
@@ -389,8 +391,9 @@ def test_ensure_audit_log_tightens_existing_perms(panergos_home, tmp_path):
     audit.write_text("preexisting content\n")
     os.chmod(audit, 0o644)
     ip.ensure_audit_log(audit)
-    mode = audit.stat().st_mode & 0o777
-    assert mode == 0o600
+    if os.name != "nt":
+        mode = audit.stat().st_mode & 0o777
+        assert mode == 0o600
 
 
 # ---------------------------------------------------------------------------
@@ -400,8 +403,10 @@ def test_ensure_audit_log_tightens_existing_perms(panergos_home, tmp_path):
 
 def test_proxy_state_dir_is_0o700(panergos_home):
     state = ip._proxy_state_dir()
-    mode = state.stat().st_mode & 0o777
-    assert mode == 0o700
+    assert state.is_dir()
+    if os.name != "nt":
+        mode = state.stat().st_mode & 0o777
+        assert mode == 0o700
 
 
 
@@ -492,7 +497,8 @@ def test_ensure_management_token_persists_and_is_stable(panergos_home):
     assert t1.startswith("panergos-mgmt-")
     p = ip._proxy_state_dir() / "management.token"
     assert p.exists()
-    assert (p.stat().st_mode & 0o777) == 0o600
+    if os.name != "nt":
+        assert (p.stat().st_mode & 0o777) == 0o600
 
 
 
@@ -812,5 +818,4 @@ def test_bitwarden_importerror_raise_without_fallback(
         ip._build_proxy_subprocess_env(
             refresh_from_bitwarden=True, bitwarden_config=bw_cfg,
         )
-
 

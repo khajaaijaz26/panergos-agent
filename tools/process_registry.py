@@ -798,9 +798,8 @@ class ProcessRegistry(ProcessCheckpointMixin):
         or dead PID means the number was recycled onto a stranger and we refuse to touch
         it — a leaked orphan beats tree-killing someone's browser. POSIX: psutil SIGTERMs
         children before the parent (so trees aren't reparented to init and survive), then
-        SIGKILLs survivors after ``terminal.daemon_term_grace_seconds``. Windows:
-        ``taskkill /T /F`` (psutil's stale PPID links miss orphans there); ``os.kill``
-        is the fallback."""
+        SIGKILLs survivors after ``terminal.daemon_term_grace_seconds``. Windows
+        uses the shared process-tree killer; ``os.kill`` is the fallback."""
         if expected_start is not None and not cls._host_pid_is_ours(pid, expected_start):
             logger.warning(
                 "Refusing to terminate host pid %d: start-time mismatch — "
@@ -812,11 +811,10 @@ class ProcessRegistry(ProcessCheckpointMixin):
                 os.kill(pid, signal.SIGTERM)
         if _IS_WINDOWS:
             try:
-                subprocess.run(
-                    ["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, text=True,
-                    encoding='utf-8', errors='replace', timeout=10, creationflags=windows_hide_flags(),
-                    stdin=subprocess.DEVNULL)
-            except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+                from agent.deadline import kill_process_tree
+                if not kill_process_tree(pid):
+                    _sigterm_quietly()
+            except Exception:
                 _sigterm_quietly()
             return
         import psutil
@@ -1973,6 +1971,11 @@ class ProcessRegistry(ProcessCheckpointMixin):
     def close_stdin(self, session_id: str) -> dict:
         """Close a running process's stdin / send EOF without killing the process."""
         session = self.get(session_id)
+        if _IS_WINDOWS and session is not None and session._pty is not None:
+            return {
+                "status": "error",
+                "error": "Windows ConPTY cannot close stdin without terminating the process; stop it explicitly instead.",
+            }
         msg = "EOF sent" if session is not None and session._pty else "stdin closed"
         return self._stdin_op(
             session_id, lambda pty: pty.sendeof(), lambda stdin: stdin.close(), {"status": "ok", "message": msg})

@@ -690,6 +690,58 @@ class TestSkillViewPrerequisites:
         assert result["setup_needed"] is False
         assert result["required_environment_variables"] == []
 
+    def test_required_commands_report_missing_local_executables(self, tmp_path):
+        with (
+            patch("tools.skills_tool.SKILLS_DIR", tmp_path),
+            patch(
+                "tools.skills_tool.shutil.which",
+                side_effect=lambda name: "/bin/ok" if name == "ready" else None,
+            ),
+        ):
+            _make_skill(
+                tmp_path,
+                "command-skill",
+                frontmatter_extra=(
+                    "required_commands: [ready]\n"
+                    "prerequisites:\n  commands: [ready, missing]\n"
+                    "metadata:\n  panergos:\n    prerequisites:\n"
+                    "      commands: [missing-too]\n"
+                ),
+            )
+            result = json.loads(skill_view("command-skill"))
+
+        assert result["required_commands"] == ["ready", "missing", "missing-too"]
+        assert result["missing_required_commands"] == ["missing", "missing-too"]
+        assert result["setup_needed"] is True
+        assert result["readiness_status"] == "setup_needed"
+
+    def test_required_python_packages_report_missing_imports(self, tmp_path):
+        with (
+            patch("tools.skills_tool.SKILLS_DIR", tmp_path),
+            patch(
+                "tools.skills_tool.importlib.util.find_spec",
+                side_effect=lambda name: object() if name == "ready_module" else None,
+            ),
+        ):
+            _make_skill(
+                tmp_path,
+                "python-package-skill",
+                frontmatter_extra=(
+                    "required_python_packages:\n"
+                    "  - import: ready_module\n    package: ready-package\n"
+                    "  - import: missing_module\n    package: missing-package\n"
+                ),
+            )
+            result = json.loads(skill_view("python-package-skill"))
+
+        assert result["required_python_packages"] == [
+            {"import": "ready_module", "package": "ready-package"},
+            {"import": "missing_module", "package": "missing-package"},
+        ]
+        assert result["missing_required_python_packages"] == ["missing-package"]
+        assert result["setup_needed"] is True
+        assert result["readiness_status"] == "setup_needed"
+
     def test_skill_view_treats_backend_only_env_as_setup_needed(
         self, tmp_path, monkeypatch
     ):

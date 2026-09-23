@@ -714,13 +714,17 @@ def _expand_skill_config_path(value: str) -> str:
     plain ``expanduser`` pointed the prompt at a path no tool would ever read (#12260).
     """
     subprocess_home = get_subprocess_home()
+    used_subprocess_home = False
     if subprocess_home:
         if value == "~" or value.startswith(("~/", "~\\")):
             value = subprocess_home + value[1:]
+            used_subprocess_home = True
         # Callable replacement: a literal template would parse backslashes in the home path
         # as regex escapes.
-        value = _HOME_VAR_RE.sub(lambda _m: subprocess_home, value)
-    return os.path.expanduser(os.path.expandvars(value))
+        value, replacements = _HOME_VAR_RE.subn(lambda _m: subprocess_home, value)
+        used_subprocess_home = used_subprocess_home or bool(replacements)
+    expanded = os.path.expanduser(os.path.expandvars(value))
+    return os.path.normpath(expanded) if used_subprocess_home else expanded
 
 
 def resolve_skill_config_values(config_vars: List[Dict[str, Any]]) -> Dict[str, Any]:

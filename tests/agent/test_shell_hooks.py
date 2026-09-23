@@ -203,11 +203,13 @@ class TestCallbackSubprocess:
 
     def test_matcher_regex_filters_callback(self, tmp_path, monkeypatch):
         """A matcher set to 'terminal' must not fire for 'web_search'."""
+        from tools.environments.local import _bash_safe_path
+
         calls = tmp_path / "calls.log"
         script = _write_script(
             tmp_path, "log.sh",
             f"#!/usr/bin/env bash\n"
-            f"echo \"$(cat -)\" >> {calls}\n"
+            f"echo \"$(cat -)\" >> {_bash_safe_path(str(calls))}\n"
             f"printf '{{}}\\n'\n",
         )
         spec = shell_hooks.ShellHookSpec(
@@ -224,10 +226,12 @@ class TestCallbackSubprocess:
         assert calls.read_text().count("pre_tool_call") == 1
 
     def test_payload_schema_delivered(self, tmp_path):
+        from tools.environments.local import _bash_safe_path
+
         capture = tmp_path / "payload.json"
         script = _write_script(
             tmp_path, "capture.sh",
-            f"#!/usr/bin/env bash\ncat - > {capture}\nprintf '{{}}\\n'\n",
+            f"#!/usr/bin/env bash\ncat - > {_bash_safe_path(str(capture))}\nprintf '{{}}\\n'\n",
         )
         spec = shell_hooks.ShellHookSpec(
             event="pre_tool_call", command=str(script),

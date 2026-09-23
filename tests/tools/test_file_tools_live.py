@@ -101,9 +101,9 @@ class TestLocalEnvironmentExecute:
     def test_cat_deterministic_content(self, env, tmp_path):
         f = tmp_path / "det.txt"
         f.write_text(SIMPLE_CONTENT)
-        result = env.execute(f"cat {f}")
+        result = env.execute("cat det.txt")
         assert result["returncode"] == 0
-        assert result["output"] == SIMPLE_CONTENT
+        assert result["output"] == SIMPLE_CONTENT.replace("\n", os.linesep)
         _assert_clean(result["output"])
 
 
@@ -227,7 +227,7 @@ class TestSearch:
 class TestExpandPath:
     def test_tilde_exact(self, ops):
         result = ops._expand_path("~/test.txt")
-        expected = f"{Path.home()}/test.txt"
+        expected = ops._exec("echo $HOME").stdout.strip() + "/test.txt"
         assert result == expected
         _assert_clean(result)
 
@@ -264,8 +264,8 @@ class TestTerminalOutputCleanliness:
     def test_cat(self, env, tmp_path):
         f = tmp_path / "cat_test.txt"
         f.write_text("CAT_CONTENT_EXACT\n")
-        result = env.execute(f"cat {f}")
-        assert result["output"] == "CAT_CONTENT_EXACT\n"
+        result = env.execute("cat cat_test.txt")
+        assert result["output"] == f"CAT_CONTENT_EXACT{os.linesep}"
         _assert_clean(result["output"])
 
 

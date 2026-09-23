@@ -302,7 +302,11 @@ _SANDBOX_MIRROR_WARNING = (
 
 def _mirror_info(target: Path, mirror_root: Path, inner_path: str) -> dict:
     """Common ``classify_*_mirror_target`` result shape."""
-    return {"target_path": str(target), "mirror_root": str(mirror_root), "inner_path": inner_path}
+    return {
+        "target_path": str(target),
+        "mirror_root": mirror_root.as_posix(),
+        "inner_path": Path(inner_path).as_posix(),
+    }
 
 
 def classify_sandbox_mirror_target(path: str) -> Optional[dict]:

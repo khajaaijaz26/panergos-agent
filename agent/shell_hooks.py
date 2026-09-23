@@ -299,6 +299,10 @@ def _spawn(spec: ShellHookSpec, stdin_json: str) -> Dict[str, Any]:
         return failed(f"command {spec.command!r} cannot be parsed: {exc}")
     if not argv:
         return failed("empty command")
+    if IS_WINDOWS and os.path.isfile(argv[0]) and argv[0].lower().endswith((".sh", ".bash")):
+        from tools.environments.local import _bash_safe_path, _find_bash
+
+        argv = [_find_bash(), _bash_safe_path(argv[0]), *argv[1:]]
     t0 = time.monotonic()
     # Own process group on POSIX so a timed-out hook's descendants are reaped with it (Windows: kill_process_tree
     # / taskkill /T). Hooks that finish in time keep detached helpers alive.

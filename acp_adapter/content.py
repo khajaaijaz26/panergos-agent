@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import os
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
@@ -71,7 +72,7 @@ _IMAGE_SUFFIX_MIME = {
 
 def _path_from_file_uri(uri: str) -> Path | None:
     """Local file URI/path from an ACP client -> readable Path (None for non-file URIs).
-    Windows drive forms (Zed via wsl.exe) become ``/mnt/<drive>/...``."""
+    Windows drive forms stay native on Windows and use ``/mnt/<drive>`` under WSL."""
     raw = (uri or "").strip()
     if not raw:
         return None
@@ -91,6 +92,8 @@ def _path_from_file_uri(uri: str) -> Path | None:
         drive, rest = path_text[0], path_text[2:]
     else:
         return Path(path_text)
+    if os.name == "nt":
+        return Path(f"{drive}:{rest}")
     return Path("/mnt") / drive.lower() / rest.lstrip("/\\").replace("\\", "/")
 
 
@@ -100,13 +103,13 @@ def _decode_text_bytes(data: bytes, mime_type: str | None) -> str | None:
         return None
     for encoding in ("utf-8-sig", "utf-8", "latin-1"):
         try:
-            return data.decode(encoding)
+            return data.decode(encoding).replace("\r\n", "\n").replace("\r", "\n")
         except UnicodeDecodeError:
             continue
     # Binary (ELF/Mach-O/PE), not a shell script: feeding its decoded bytes back into the guard tokenizes
     # machine code into bogus NUL-bearing paths and crashes the scanner (#77703). Mirror
     # lifecycle_guard._read_referenced_script and treat it as nothing to scan.
-    return data.decode("utf-8", errors="replace")
+    return data.decode("utf-8", errors="replace").replace("\r\n", "\n").replace("\r", "\n")
 
 
 def _format_resource_text(

@@ -7,6 +7,7 @@ when proxy env vars or custom endpoint URLs are malformed.
 from __future__ import annotations
 
 import os
+import re
 
 import pytest
 
@@ -28,7 +29,11 @@ from agent.auxiliary_client import _validate_base_url, _validate_proxy_env_urls
 ])
 def test_proxy_env_rejects_malformed_port(monkeypatch, key):
     monkeypatch.setenv(key, "http://127.0.0.1:6153export")
-    with pytest.raises(RuntimeError, match=rf"Malformed proxy environment variable {key}=.*6153export"):
+    visible_key = key.upper() if os.name == "nt" else key
+    with pytest.raises(
+        RuntimeError,
+        match=rf"Malformed proxy environment variable {re.escape(visible_key)}=.*6153export",
+    ):
         _validate_proxy_env_urls()
 
 
@@ -44,5 +49,4 @@ def test_proxy_env_rejects_malformed_port(monkeypatch, key):
 ])
 def test_base_url_accepts_valid(url):
     _validate_base_url(url)  # should not raise
-
 

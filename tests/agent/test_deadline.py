@@ -407,6 +407,45 @@ class TestRunBoundedAsync:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.windows_only
+def test_windows_partial_process_sweep_falls_back_to_taskkill(monkeypatch):
+    """One inaccessible descendant must not suppress the whole-tree fallback."""
+    from contextlib import nullcontext
+    from types import SimpleNamespace
+
+    import agent.deadline as deadline
+    import psutil
+
+    root_kills = []
+    root = SimpleNamespace(is_running=lambda: True, kill=lambda: root_kills.append(True))
+
+    class _DeniedChild:
+        @staticmethod
+        def is_running():
+            return True
+
+        @staticmethod
+        def kill():
+            raise psutil.AccessDenied(pid=2)
+
+    monkeypatch.setattr(psutil, "Process", lambda _pid: root)
+    monkeypatch.setattr(
+        deadline,
+        "_process_tree_snapshot",
+        lambda *_a, **_k: nullcontext([_DeniedChild()]),
+    )
+    calls = []
+    monkeypatch.setattr(
+        deadline.subprocess,
+        "run",
+        lambda argv, **_kwargs: calls.append(argv) or SimpleNamespace(returncode=0),
+    )
+
+    assert deadline.kill_process_tree(42) is True
+    assert root_kills == []
+    assert calls == [["taskkill", "/F", "/T", "/PID", "42"]]
+
+
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX process-group semantics")
 class TestKillProcessTree:
     def test_kills_descendants_of_session_leader(self, tmp_path):

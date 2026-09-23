@@ -4,9 +4,11 @@ holding SKILL.md (YAML frontmatter + instructions) plus optional references/, te
 scripts/. `skills_list` returns name/description only; `skill_view` returns full content and
 linked files. Sibling modules (skills_tool_setup / _plugin / _dedup) re-export here."""
 
+import importlib.util
 import json
 import logging
 import os
+import shutil
 import time
 from contextlib import suppress
 from pathlib import Path, PurePosixPath, PureWindowsPath
@@ -19,7 +21,8 @@ from agent.skill_utils import (
     EXCLUDED_SKILL_DIRS as _EXCLUDED_SKILL_DIRS, is_skill_support_path as _is_skill_support_path)
 from tools.skills_tool_setup import (  # noqa: F401
     SkillReadinessStatus, _build_setup_note, _capture_required_environment_variables,
-    _get_required_environment_variables, _is_env_var_persisted, _is_remote_env_backend)
+    _get_required_commands, _get_required_environment_variables, _get_required_python_packages,
+    _is_env_var_persisted, _is_remote_env_backend)
 from tools.skills_tool_plugin import (  # noqa: F401
     MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, _INJECTION_PATTERNS, _fail, _json,
     _mark_background_review_read, _preprocess_skill, _read_skill_text, _safe_frontmatter,
@@ -365,7 +368,7 @@ def _skill_linked_files(skill_dir: Optional[Path]) -> dict:
     for sub, globs, recursive, files_only in _LINKED_FILE_SPECS if skill_dir else ():
         base = skill_dir / sub
         found = [
-            str(f.relative_to(skill_dir)) for g in globs if base.exists()
+            f.relative_to(skill_dir).as_posix() for g in globs if base.exists()
             for f in (base.rglob(g) if recursive else base.glob(g))
             if not files_only or f.is_file()]
         if found:
@@ -419,7 +422,18 @@ def _skill_readiness(frontmatter: Dict[str, Any], skill_name: str) -> Tuple[dict
     remaining = [
         e["name"] for e in required_env_vars if not e.get("optional")
         and (e["name"] in still_missing or not _is_env_var_persisted(e["name"], env_snapshot))]
-    setup_needed = bool(remaining)
+    required_commands = _get_required_commands(frontmatter)
+    required_python_packages = _get_required_python_packages(frontmatter)
+    missing_required_commands = (
+        [] if _is_remote_env_backend(backend)
+        else [command for command in required_commands if shutil.which(command) is None]
+    )
+    missing_required_python_packages = [] if _is_remote_env_backend(backend) else [
+        entry["package"] for entry in required_python_packages
+        if _python_import_missing(entry["import"])
+    ]
+    setup_needed = bool(
+        remaining or missing_required_commands or missing_required_python_packages)
     # Only vars actually set pass through to sandboxed execution (execute_code, terminal).
     if available_env_names := [e["name"] for e in required_env_vars if e["name"] not in remaining]:
         try:
@@ -440,9 +454,12 @@ def _skill_readiness(frontmatter: Dict[str, Any], skill_name: str) -> Tuple[dict
             logger.debug("Could not register credential files for skill %s", skill_name, exc_info=True)
     status = SkillReadinessStatus.SETUP_NEEDED if setup_needed else SkillReadinessStatus.AVAILABLE
     fields = {
-        "required_environment_variables": required_env_vars, "required_commands": [],
+        "required_environment_variables": required_env_vars, "required_commands": required_commands,
+        "required_python_packages": required_python_packages,
         "missing_required_environment_variables": remaining,
-        "missing_credential_files": missing_cred_files, "missing_required_commands": [],
+        "missing_credential_files": missing_cred_files,
+        "missing_required_commands": missing_required_commands,
+        "missing_required_python_packages": missing_required_python_packages,
         "setup_needed": setup_needed, "setup_skipped": capture_result["setup_skipped"],
         "readiness_status": status.value}
     extras: dict = {}
@@ -450,12 +467,22 @@ def _skill_readiness(frontmatter: Dict[str, Any], skill_name: str) -> Tuple[dict
         extras["setup_help"] = setup_help
     if capture_result["gateway_setup_hint"]:
         extras["gateway_setup_hint"] = capture_result["gateway_setup_hint"]
-    missing_items = [f"env ${n}" for n in remaining] + [f"file {p}" for p in missing_cred_files]
+    missing_items = ([f"env ${n}" for n in remaining]
+                     + [f"command '{c}'" for c in missing_required_commands]
+                     + [f"Python package '{p}'" for p in missing_required_python_packages]
+                     + [f"file {p}" for p in missing_cred_files])
     if setup_needed and (setup_note := _build_setup_note(status, missing_items, setup_help)):
         if _is_remote_env_backend(backend):
             setup_note = f"{setup_note} {backend.upper()}-backed skills need these requirements available inside the remote environment as well."
         extras["setup_note"] = setup_note
     return fields, extras
+
+
+def _python_import_missing(module: str) -> bool:
+    try:
+        return importlib.util.find_spec(module) is None
+    except (ImportError, ModuleNotFoundError, ValueError):
+        return True
 
 
 def _locate_skill(name: str, local_category_name: Optional[str], project_dirs: list, all_dirs):
@@ -470,7 +497,7 @@ def _locate_skill(name: str, local_category_name: Optional[str], project_dirs: l
         # ambiguity WITHIN the project tier still refuses.
         candidates = [c for c in candidates if _under_any(c[1], project_dirs)] or candidates
     if len(candidates) > 1:
-        paths = [str(smd) for _, smd in candidates]
+        paths = [smd.as_posix() for _, smd in candidates]
         logger.warning("Skill name collision for '%s': %d candidates — %s", name, len(candidates), "; ".join(paths))
         return _fail(
             f"Ambiguous skill name '{name}': {len(candidates)} skills match across your local skills dir "
@@ -558,9 +585,10 @@ def skill_view(
             _parse_tags(panergos_meta.get(k) or frontmatter.get(k, "")) for k in ("tags", "related_skills"))
         linked_files = _skill_linked_files(skill_dir)
         try:
-            rel_path = str(skill_md.relative_to(active_skills_dir))
+            rel_path = skill_md.relative_to(active_skills_dir).as_posix()
         except ValueError:  # external skill — relative to its own parent dir
-            rel_path = str(skill_md.relative_to(skill_md.parent.parent)) if skill_md.parent.parent else skill_md.name
+            rel_path = (skill_md.relative_to(skill_md.parent.parent).as_posix()
+                        if skill_md.parent.parent else skill_md.name)
         skill_name = frontmatter.get("name", skill_md.stem if not skill_dir else skill_dir.name)
         readiness, readiness_extras = _skill_readiness(frontmatter, skill_name)
         rendered_content = content if not preprocess else _preprocess_skill(

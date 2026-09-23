@@ -14,6 +14,7 @@ from utils import env_var_enabled
 logger = logging.getLogger("tools.skills_tool")
 
 _ENV_VAR_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_PYTHON_IMPORT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
 _REMOTE_ENV_BACKENDS = frozenset({"docker", "singularity", "modal", "ssh", "daytona", "vercel_sandbox"})
 
 
@@ -78,6 +79,41 @@ def _get_required_environment_variables(frontmatter: Dict[str, Any]) -> List[Dic
         if entry.get("optional"):
             normalized["optional"] = True
         required[env_name] = normalized
+    return list(required.values())
+
+
+def _get_required_commands(frontmatter: Dict[str, Any]) -> List[str]:
+    """Merge current and legacy command prerequisites, first declaration wins."""
+    prereqs = frontmatter.get("prerequisites")
+    metadata = frontmatter.get("metadata")
+    panergos = metadata.get("panergos") if isinstance(metadata, dict) else None
+    nested = panergos.get("prerequisites") if isinstance(panergos, dict) else None
+    values = []
+    for raw in (
+        frontmatter.get("required_commands"),
+        prereqs.get("commands") if isinstance(prereqs, dict) else None,
+        nested.get("commands") if isinstance(nested, dict) else None,
+    ):
+        values.extend([raw] if isinstance(raw, str) else raw if isinstance(raw, list) else [])
+    return list(dict.fromkeys(value.strip() for value in values
+                              if isinstance(value, str) and value.strip()))
+
+
+def _get_required_python_packages(frontmatter: Dict[str, Any]) -> List[Dict[str, str]]:
+    """Normalize import/package pairs used for lightweight readiness checks."""
+    raw = frontmatter.get("required_python_packages")
+    entries = [raw] if isinstance(raw, (str, dict)) else raw if isinstance(raw, list) else []
+    required: Dict[str, Dict[str, str]] = {}
+    for entry in entries:
+        if isinstance(entry, str):
+            module = package = entry.strip()
+        elif isinstance(entry, dict):
+            module = _clean_str(entry.get("import") or entry.get("module") or entry.get("name"))
+            package = _clean_str(entry.get("package")) or module
+        else:
+            continue
+        if module and package and _PYTHON_IMPORT_RE.match(module) and module not in required:
+            required[module] = {"import": module, "package": package}
     return list(required.values())
 
 

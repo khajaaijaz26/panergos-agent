@@ -57,9 +57,9 @@ class TestFlushAfterCompression:
         """
         from panergos_state import SessionDB
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = Path(tmpdir) / "test.db"
-            db = SessionDB(db_path=db_path)
+        with tempfile.TemporaryDirectory() as tmpdir, SessionDB(
+            db_path=Path(tmpdir) / "test.db"
+        ) as db:
 
             agent = self._make_agent(db)
 
@@ -104,9 +104,9 @@ class TestFlushAfterCompression:
         """Stale conversation_history no longer causes data loss."""
         from panergos_state import SessionDB
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = Path(tmpdir) / "test.db"
-            db = SessionDB(db_path=db_path)
+        with tempfile.TemporaryDirectory() as tmpdir, SessionDB(
+            db_path=Path(tmpdir) / "test.db"
+        ) as db:
 
             agent = self._make_agent(db)
 
@@ -140,9 +140,9 @@ class TestFlushAfterCompression:
         from agent.conversation_compression import conversation_history_after_compression
         from panergos_state import SessionDB
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = Path(tmpdir) / "test.db"
-            db = SessionDB(db_path=db_path)
+        with tempfile.TemporaryDirectory() as tmpdir, SessionDB(
+            db_path=Path(tmpdir) / "test.db"
+        ) as db:
 
             agent = self._make_agent(db)
             agent._ensure_db_session()
@@ -402,7 +402,7 @@ class TestStoredPromptCwdDrift:
         return (
             "Host: Linux (6.16.0)\n"
             "User home directory: /home/tester\n"
-            f"Current working directory: {cwd}\n"
+            f"Current working directory: {Path(cwd)}\n"
         )
 
     def test_stored_prompt_stale_when_cwd_differs(self):
@@ -512,8 +512,9 @@ class TestStoredPromptCwdDrift:
         from run_agent import AIAgent
         from agent.system_prompt import build_system_prompt_parts
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db = SessionDB(db_path=Path(tmpdir) / "test.db")
+        with tempfile.TemporaryDirectory() as tmpdir, SessionDB(
+            db_path=Path(tmpdir) / "test.db"
+        ) as db:
             with patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key"}):
                 agent = AIAgent(
                     api_key="test-key",

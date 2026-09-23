@@ -34,8 +34,8 @@ __all__ = [
     "run_bounded_async", "run_bounded_sync", "kill_process_tree",
 ]
 
-# One year: semantically "unbounded" yet far below any platform time_t limit (#83220).
-MAX_SAFE_TIMEOUT_S = 31_536_000.0
+# Semantically "unbounded", capped by Python's platform-specific threading limit (#83220).
+MAX_SAFE_TIMEOUT_S = min(31_536_000.0, threading.TIMEOUT_MAX)
 
 # Grace after a deadline fires before concluding the loop thread is blocked and dumping stacks.
 _LOOP_BLOCKED_DUMP_GRACE_S = 5.0
@@ -401,13 +401,34 @@ def _process_tree_snapshot(pid: int, *, hard_kill: bool):
 def kill_process_tree(pid: int, *, sig: Optional[int] = None) -> bool:
     """Terminate ``pid`` and all its descendants, portably; True when anything was signalled.
 
-    Windows: ``taskkill /F /T`` (``sig`` ignored). POSIX: snapshot descendants via
+    Windows: snapshot and kill descendants directly (``taskkill /F /T`` fallback;
+    ``sig`` ignored). POSIX: snapshot descendants via
     psutil; for SIGKILL, stop and rescan the live tree so a concurrent fork cannot
     escape a stale snapshot. Signal identity-checked descendants before their
     parent, then its group when ``pid`` leads one. Stopping is best-effort with a
     bounded wait; unavailable psutil still leaves process-group cleanup. Other
     signals do not suspend recipients. ``sig`` defaults to ``SIGKILL``."""
     if sys.platform == "win32":
+        try:
+            import psutil
+            root = psutil.Process(pid)
+            with _process_tree_snapshot(pid, hard_kill=True) as descendants:
+                signalled = False
+                incomplete = False
+                for process in [*reversed(descendants), root]:
+                    try:
+                        if process.is_running():
+                            process.kill()
+                            signalled = True
+                    except psutil.NoSuchProcess:
+                        continue
+                    except (psutil.AccessDenied, OSError):
+                        incomplete = True
+                        break
+            if signalled and not incomplete:
+                return True
+        except Exception:
+            logger.debug("kill_process_tree: Windows psutil sweep failed for pid %s", pid, exc_info=True)
         try:
             from panergos_cli._subprocess_compat import windows_hide_flags
             creationflags = windows_hide_flags()

@@ -12,6 +12,7 @@ import copy
 import json
 import logging
 import os
+import posixpath
 import re
 import sys
 import threading
@@ -36,9 +37,15 @@ def _normalize_cwd_for_compare(cwd: str | None) -> str:
     # Windows drive paths -> WSL mount form so history filters match across hosts.
     translated = windows_path_to_wsl(expanded)
     if translated is not None:
+        if os.name == "nt" and os.path.exists(expanded):
+            translated = windows_path_to_wsl(os.path.realpath(expanded)) or translated
         expanded = translated
     elif re.match(r"^/mnt/[A-Za-z]/", expanded):
         expanded = f"/mnt/{expanded[5].lower()}/{expanded[7:]}"
+
+    # A persisted POSIX/WSL cwd stays POSIX even when the ACP client now runs on Windows.
+    if os.name == "nt" and expanded.startswith("/"):
+        return posixpath.normpath(expanded)
 
     # realpath resolves symlink aliases (macOS ``/var`` vs ``/private/var``, ``/tmp`` vs
     # ``/private/tmp``) that otherwise drop a workspace's own sessions; it is lexical

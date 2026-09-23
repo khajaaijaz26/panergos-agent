@@ -48,9 +48,10 @@ def run_inline_shell(command: str, cwd: Path | None, timeout: int) -> str:
     of raising, so one bad snippet can't wreck the whole skill message."""
     _popen_kwargs = {"creationflags": windows_hide_flags()} if IS_WINDOWS else {}
     from agent.delegation_context import delegated_child_subprocess_env
+    from tools.environments.local import _find_bash
     try:
         completed = subprocess.run(
-            ["bash", "-c", command],
+            [_find_bash(), "-c", command],
             cwd=str(cwd) if cwd else None,
             capture_output=True,
             text=True, encoding='utf-8', errors='replace',
