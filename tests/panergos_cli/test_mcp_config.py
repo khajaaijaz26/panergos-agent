@@ -14,11 +14,7 @@ from tools import mcp_tool_config as _mcp_config
 
 
 def _set_interactive_stdin(monkeypatch, *, is_tty: bool = True) -> None:
-    from unittest.mock import MagicMock
-
-    mock_stdin = MagicMock()
-    mock_stdin.isatty.return_value = is_tty
-    monkeypatch.setattr("tools.mcp_oauth.sys.stdin", mock_stdin)
+    monkeypatch.setattr("tools.mcp_oauth._stdin_is_console", lambda: is_tty)
 
 
 # ---------------------------------------------------------------------------
@@ -855,4 +851,3 @@ def test_tool_filters_keeps_explicit_empty_include():
     assert _tool_filters({"tools": {"include": []}}) == ([], None)
     assert _tool_filters({"tools": {"include": "bad", "exclude": ["x"]}}) == (None, ["x"])
     assert _tool_filters({}) == (None, None)
-

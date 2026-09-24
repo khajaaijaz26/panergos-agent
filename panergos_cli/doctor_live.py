@@ -105,7 +105,7 @@ def _launch_browser_use_probe(timeout: float) -> tuple:
         ))
     finally:
         _stop_cdp_supervisor(task_id)
-        _stop_cli_session(session)
+        _stop_cli_session(session, timeout_s=math.ceil(timeout))
         cleanup_browser(_backend_cache_key(task_id, session))
     if result.get("success") and "PANERGOS_BROWSER_READY" in str(result.get("output") or ""):
         return (True, "Browser Use configured backend ready")
@@ -137,8 +137,10 @@ def _keyed_probe(name: str, url: str, env_var: str, scheme: str, timeout: float)
 
 
 def _probe_browser(timeout: float) -> ProbeResult:
+    from tools.browser_tool import MIN_FIRST_OPEN_TIMEOUT
     from tools.browser_use_cli import is_browser_use_cli_mode
 
+    timeout = max(timeout, MIN_FIRST_OPEN_TIMEOUT)
     if is_browser_use_cli_mode():
         ok, detail = _launch_browser_use_probe(timeout)
     elif not _browser_available():

@@ -184,14 +184,19 @@ class TestConfiguredOnlySelection:
         assert results["STT"].status == "warn"
 
     def test_browser_probed_when_available(self, monkeypatch):
+        from tools.browser_tool import MIN_FIRST_OPEN_TIMEOUT
+
+        seen = []
         monkeypatch.setattr(doctor_live, "_browser_available", lambda: True)
         monkeypatch.setattr(
             doctor_live, "_launch_browser_probe",
-            lambda timeout: (True, "about:blank ok"))
+            lambda timeout: seen.append(timeout) or (True, "about:blank ok"))
         results = {r.name: r for r in run_live_checks([])}
         assert results["Browser"].status == "pass"
+        assert seen == [MIN_FIRST_OPEN_TIMEOUT]
 
     def test_browser_use_mode_probes_its_runtime_without_python_playwright(self, monkeypatch):
+        from tools.browser_tool import MIN_FIRST_OPEN_TIMEOUT
         from tools import browser_use_cli
 
         calls = []
@@ -201,7 +206,10 @@ class TestConfiguredOnlySelection:
         monkeypatch.setattr(browser_use_cli, "is_browser_use_cli_mode", lambda: True)
         monkeypatch.setattr(browser_use_cli, "browser_exec", lambda code, **kwargs: calls.append((code, kwargs)) or
                             '{"success": true, "output": "PANERGOS_BROWSER_READY\\n"}')
-        monkeypatch.setattr(browser_use_cli, "_stop_cli_session", lambda session: stopped.append(session))
+        monkeypatch.setattr(
+            browser_use_cli, "_stop_cli_session",
+            lambda session, timeout_s=10: stopped.append((session, timeout_s)),
+        )
         monkeypatch.setattr("tools.browser_tool_cdp._stop_cdp_supervisor",
                             lambda task_id: supervisors_stopped.append(task_id))
         monkeypatch.setattr("tools.browser_tool_lifecycle.cleanup_browser", lambda task_id: cleaned.append(task_id))
@@ -216,7 +224,8 @@ class TestConfiguredOnlySelection:
         assert kwargs["session"].startswith("doctor-")
         assert kwargs["task_id"] == kwargs["session"]
         assert supervisors_stopped == [kwargs["task_id"]]
-        assert stopped == [kwargs["session"]]
+        assert kwargs["timeout_s"] == MIN_FIRST_OPEN_TIMEOUT
+        assert stopped == [(kwargs["session"], MIN_FIRST_OPEN_TIMEOUT)]
         assert cleaned == [f"bu-named-{kwargs['session']}"]
 
 

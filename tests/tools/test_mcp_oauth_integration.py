@@ -19,11 +19,7 @@ pytest.importorskip("mcp.client.auth.oauth2", reason="MCP SDK 1.26.0+ required")
 
 
 def _set_interactive_stdin(monkeypatch, *, is_tty: bool = True) -> None:
-    from unittest.mock import MagicMock
-
-    mock_stdin = MagicMock()
-    mock_stdin.isatty.return_value = is_tty
-    monkeypatch.setattr("tools.mcp_oauth.sys.stdin", mock_stdin)
+    monkeypatch.setattr("tools.mcp_oauth._stdin_is_console", lambda: is_tty)
 
 
 @pytest.mark.asyncio

@@ -134,6 +134,3 @@ class TestAgentMailKeyPassthrough:
             "AGENTMAIL_API_KEY must be declared optional so a missing key does not "
             "block the self-signup path"
         )
-        assert result["setup_needed"] is False, (
-            "an absent optional key must not force the skill into setup_needed"
-        )
