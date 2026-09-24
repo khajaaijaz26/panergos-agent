@@ -161,6 +161,7 @@ class TestSubprocessEnvironment:
         monkeypatch.setitem(sys.modules, "tools.browser_tool", browser_tool)
         env = bu_cli._base_subprocess_env()
         assert env["ANONYMIZED_TELEMETRY"] == "false"
+        assert env["BH_TAB_MARKER"] == "0"
 
     def test_subprocess_env_strips_parent_python_import_paths(self, monkeypatch):
         """#83427/#84841/#86006/#86104: the browser-use CLI runs under its

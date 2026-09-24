@@ -150,6 +150,7 @@ def _base_subprocess_env() -> dict:
     env.pop("PYTHONHOME", None)
     env["PATH"] = _floor_subprocess_path(env.get("PATH", ""))
     env.setdefault("ANONYMIZED_TELEMETRY", "false")
+    env.setdefault("BH_TAB_MARKER", "0")
     return env
 
 
