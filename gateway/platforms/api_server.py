@@ -135,6 +135,7 @@ from gateway.platforms.api_server_run_idempotency import RunIdempotencyStore
 from agent.redact import redact_sensitive_text
 from agent.interrupt_compat import request_hard_interrupt
 from gateway.readiness import collect_runtime_readiness
+from panergos_constants import get_panergos_home
 from gateway.browser_control_artifacts import (
     ArtifactError, ArtifactRateLimiter, ArtifactStore, ArtifactTooLarge, DEFAULT_ALLOWED_MIME_TYPES,
     DEFAULT_MAX_ARTIFACT_BYTES, DEFAULT_ARTIFACT_TTL_SECONDS)
@@ -1187,8 +1188,9 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
         self._pending_agent_requests: int = 0
         # Shared broker; this adapter maps HTTP registration + controller WS onto it.
         self._browser_control_broker = get_browser_control_broker()
-        # Pairing codes and restricted browser-extension grants deliberately die on restart.
-        self._browser_extension_auth = BrowserExtensionAuthStore()
+        # Persist only token digests; raw extension bearers stay in Chrome session memory.
+        self._browser_extension_auth = BrowserExtensionAuthStore(
+            grant_path=get_panergos_home() / "browser-extension-grants.json")
         self._browser_extension_controller_lock: Optional[asyncio.Lock] = None
         self._browser_extension_controller_sockets: Dict[str, set[Any]] = {}
         self._browser_extension_expiry_tasks: Dict[str, asyncio.Task] = {}
@@ -1442,6 +1444,8 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
                 )
             except BrowserExtensionAuthError as exc:
                 return self._browser_extension_auth_error(exc)
+            if grant.grant_id not in self._browser_extension_expiry_tasks:
+                self._schedule_browser_extension_grant_expiry(grant)
             request["panergos_extension_principal"] = grant.principal
             request["panergos_extension_grant"] = grant
             _api_request_browser_control_principal.set(grant.principal)

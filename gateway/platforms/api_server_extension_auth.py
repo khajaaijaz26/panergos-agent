@@ -1,4 +1,4 @@
-"""Ephemeral, least-privilege credentials for the local browser extension."""
+"""Least-privilege credentials for the local browser extension."""
 
 from __future__ import annotations
 
@@ -6,11 +6,15 @@ from collections import defaultdict, deque
 from dataclasses import dataclass
 import hashlib
 import hmac
+import math
+from pathlib import Path
 import re
 import secrets
 import threading
 import time
 from typing import Callable
+
+from utils import atomic_json_write, read_json_or_empty
 
 
 PAIRING_TTL_SECONDS = 120
@@ -30,6 +34,8 @@ BROWSER_EXTENSION_CONTROLLER_CAPABILITIES = frozenset({
 _PAIRING_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 _EXTENSION_ORIGIN_RE = re.compile(r"chrome-extension://[a-p]{32}\Z")
 _PROFILE_PREFIX_RE = re.compile(r"\A/p/[^/]+(?=/)")
+_PROFILE_ID_RE = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}\Z")
+_GRANT_LEDGER_VERSION = 1
 
 
 # An extension grant is intentionally narrower than API_SERVER_KEY. Keep this list
@@ -67,6 +73,7 @@ class BrowserExtensionGrant:
     principal: str
     session_id: str
     expires_at: float
+    expires_at_epoch: float
 
 
 @dataclass
@@ -91,38 +98,113 @@ def extension_route_allowed(method: str, path: str) -> bool:
 
 
 class BrowserExtensionAuthStore:
-    """In-memory pairing codes and hashed extension tokens.
-
-    Restarting the API server revokes every extension grant. That is a useful
-    fail-closed property and avoids writing bearer credentials to disk.
-    """
+    """In-memory pairing codes plus optionally persisted hashed extension grants."""
 
     def __init__(
         self,
         *,
         clock: Callable[[], float] = time.monotonic,
+        wall_clock: Callable[[], float] = time.time,
         pairing_ttl_seconds: int = PAIRING_TTL_SECONDS,
         token_ttl_seconds: int = TOKEN_TTL_SECONDS,
+        grant_path: Path | None = None,
     ) -> None:
         self._clock = clock
+        self._wall_clock = wall_clock
         self.pairing_ttl_seconds = pairing_ttl_seconds
         self.token_ttl_seconds = token_ttl_seconds
+        self._grant_path = Path(grant_path) if grant_path is not None else None
         self._pairings: dict[str, _Pairing] = {}
         self._grants: dict[bytes, BrowserExtensionGrant] = {}
         self._rates: dict[tuple[str, str], deque[float]] = defaultdict(deque)
         self._lock = threading.Lock()
+        self._load_grants()
 
     @staticmethod
     def _digest(value: str) -> bytes:
         return hashlib.sha256(value.encode("utf-8")).digest()
 
+    @staticmethod
+    def _identity(profile: str, origin: str) -> str:
+        return hashlib.sha256(f"{profile}\0{origin}".encode("utf-8")).hexdigest()[:32]
+
+    def _load_grants(self) -> None:
+        if self._grant_path is None:
+            return
+        payload = read_json_or_empty(self._grant_path)
+        if payload.get("version") != _GRANT_LEDGER_VERSION:
+            return
+        rows = payload.get("grants")
+        if not isinstance(rows, list):
+            return
+        now = self._clock()
+        wall_now = self._wall_clock()
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            grant_id = row.get("grant_id")
+            origin = row.get("origin")
+            profile = row.get("profile")
+            try:
+                expires_at_epoch = float(row.get("expires_at_epoch"))
+            except (TypeError, ValueError):
+                continue
+            remaining = expires_at_epoch - wall_now
+            if (
+                not isinstance(grant_id, str)
+                or re.fullmatch(r"[0-9a-f]{64}", grant_id) is None
+                or not valid_extension_origin(origin)
+                or not isinstance(profile, str)
+                or _PROFILE_ID_RE.fullmatch(profile) is None
+                or not math.isfinite(expires_at_epoch)
+                or remaining <= 0
+                or remaining > self.token_ttl_seconds + 1
+            ):
+                continue
+            token_hash = bytes.fromhex(grant_id)
+            identity = self._identity(profile, origin)
+            self._grants[token_hash] = BrowserExtensionGrant(
+                grant_id=grant_id,
+                origin=origin,
+                profile=profile,
+                principal=f"principal:browser-extension:{identity}",
+                session_id=f"extension_{identity}",
+                expires_at=now + min(remaining, self.token_ttl_seconds),
+                expires_at_epoch=expires_at_epoch,
+            )
+        if len(self._grants) != len(rows):
+            self._persist_grants()
+
+    def _persist_grants(self) -> None:
+        if self._grant_path is None:
+            return
+        self._grant_path.parent.mkdir(parents=True, exist_ok=True)
+        rows = [
+            {
+                "grant_id": grant.grant_id,
+                "origin": grant.origin,
+                "profile": grant.profile,
+                "expires_at_epoch": grant.expires_at_epoch,
+            }
+            for grant in sorted(self._grants.values(), key=lambda item: item.grant_id)
+        ]
+        atomic_json_write(
+            self._grant_path,
+            {"version": _GRANT_LEDGER_VERSION, "grants": rows},
+            mode=0o600,
+            fsync_dir=True,
+        )
+
     def _gc(self, now: float) -> None:
         self._pairings = {
             key: value for key, value in self._pairings.items() if value.expires_at > now
         }
-        self._grants = {
+        grants = {
             key: value for key, value in self._grants.items() if value.expires_at > now
         }
+        if len(grants) != len(self._grants):
+            self._grants = grants
+            self._persist_grants()
 
     def _limit(self, kind: str, actor: str, *, count: int, window: int = 60) -> None:
         now = self._clock()
@@ -202,9 +284,7 @@ class BrowserExtensionAuthStore:
             self._pairings.pop(pairing_id, None)  # success is one-time
             token = f"pxe_{secrets.token_urlsafe(32)}"
             token_hash = self._digest(token)
-            extension_identity = hashlib.sha256(
-                f"{pairing.profile}\0{origin}".encode("utf-8")
-            ).hexdigest()[:32]
+            extension_identity = self._identity(pairing.profile, origin)
             grant = BrowserExtensionGrant(
                 grant_id=token_hash.hex(),
                 origin=origin,
@@ -212,9 +292,26 @@ class BrowserExtensionAuthStore:
                 principal=f"principal:browser-extension:{extension_identity}",
                 session_id=f"extension_{extension_identity}",
                 expires_at=now + self.token_ttl_seconds,
+                expires_at_epoch=self._wall_clock() + self.token_ttl_seconds,
             )
             self._grants[token_hash] = grant
+            try:
+                self._persist_grants()
+            except Exception:
+                self._grants.pop(token_hash, None)
+                raise
             return token, grant
+
+    def _remove_grant(self, token_hash: bytes) -> BrowserExtensionGrant | None:
+        grant = self._grants.pop(token_hash, None)
+        if grant is None:
+            return None
+        try:
+            self._persist_grants()
+        except Exception:
+            self._grants[token_hash] = grant
+            raise
+        return grant
 
     def grant_is_active(self, grant_id: str) -> bool:
         """Whether an unexpired grant still exists, without accepting its bearer again."""
@@ -231,7 +328,7 @@ class BrowserExtensionAuthStore:
     def revoke_grant(self, token: str) -> BrowserExtensionGrant | None:
         """Atomically revoke ``token`` and return the grant needed for live cleanup."""
         with self._lock:
-            return self._grants.pop(self._digest(token), None)
+            return self._remove_grant(self._digest(token))
 
     def revoke_grant_id(self, grant_id: str) -> BrowserExtensionGrant | None:
         """Atomically remove one grant by its server-only digest identifier."""
@@ -243,7 +340,7 @@ class BrowserExtensionAuthStore:
             grant = self._grants.get(token_hash)
             if grant is None or not hmac.compare_digest(grant.grant_id, grant_id):
                 return None
-            return self._grants.pop(token_hash)
+            return self._remove_grant(token_hash)
 
     def authenticate(
         self, *, token: str, origin: str, profile: str, method: str, path: str

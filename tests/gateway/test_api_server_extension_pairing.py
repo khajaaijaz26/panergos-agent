@@ -759,6 +759,87 @@ def test_repairing_same_extension_keeps_its_session_and_run_owner_identity():
     assert first.principal == second.principal
 
 
+def test_hashed_grant_survives_restart_and_revocation_does_not(tmp_path):
+    now = [100.0]
+    ledger = tmp_path / "browser-extension-grants.json"
+
+    def store():
+        return BrowserExtensionAuthStore(
+            clock=lambda: now[0], wall_clock=lambda: now[0], grant_path=ledger)
+
+    first = store()
+    code, _ = first.mint_pairing_code(origin=ORIGIN, profile="default", actor="owner")
+    token, grant = first.exchange(pairing_code=code, origin=ORIGIN, actor="extension")
+    persisted = ledger.read_text(encoding="utf-8")
+    assert token not in persisted
+    assert code not in persisted
+    assert grant.grant_id in persisted
+
+    restarted = store()
+    assert restarted.authenticate(
+        token=token,
+        origin=ORIGIN,
+        profile="default",
+        method="GET",
+        path="/v1/capabilities",
+    ).grant_id == grant.grant_id
+    assert restarted.revoke_grant(token) is not None
+
+    with pytest.raises(BrowserExtensionAuthError):
+        store().authenticate(
+            token=token,
+            origin=ORIGIN,
+            profile="default",
+            method="GET",
+            path="/v1/capabilities",
+        )
+
+
+def test_expired_persisted_grant_is_not_loaded(tmp_path):
+    now = [100.0]
+    ledger = tmp_path / "browser-extension-grants.json"
+
+    def store():
+        return BrowserExtensionAuthStore(
+            clock=lambda: now[0], wall_clock=lambda: now[0], token_ttl_seconds=3,
+            grant_path=ledger)
+
+    first = store()
+    code, _ = first.mint_pairing_code(origin=ORIGIN, profile="default", actor="owner")
+    token, grant = first.exchange(pairing_code=code, origin=ORIGIN, actor="extension")
+    now[0] += 4
+    restarted = store()
+
+    assert restarted.grant_is_active(grant.grant_id) is False
+    assert grant.grant_id not in ledger.read_text(encoding="utf-8")
+    with pytest.raises(BrowserExtensionAuthError):
+        restarted.authenticate(
+            token=token,
+            origin=ORIGIN,
+            profile="default",
+            method="GET",
+            path="/v1/capabilities",
+        )
+
+
+def test_persisted_grant_cannot_gain_lifetime_after_clock_rollback(tmp_path):
+    now = [100.0]
+    ledger = tmp_path / "browser-extension-grants.json"
+
+    def store():
+        return BrowserExtensionAuthStore(
+            clock=lambda: now[0], wall_clock=lambda: now[0], token_ttl_seconds=3,
+            grant_path=ledger)
+
+    first = store()
+    code, _ = first.mint_pairing_code(origin=ORIGIN, profile="default", actor="owner")
+    _, grant = first.exchange(pairing_code=code, origin=ORIGIN, actor="extension")
+    now[0] -= 10
+
+    assert store().grant_is_active(grant.grant_id) is False
+    assert grant.grant_id not in ledger.read_text(encoding="utf-8")
+
+
 def test_pairing_store_enforces_expiry_attempt_and_rate_limits():
     now = [100.0]
     store = BrowserExtensionAuthStore(
