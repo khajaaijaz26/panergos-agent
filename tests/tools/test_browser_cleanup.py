@@ -31,6 +31,7 @@ class TestBrowserCleanup:
         self.browser_tool = browser_tool
         self.orig_active_sessions = browser_tool._active_sessions.copy()
         self.orig_session_last_activity = browser_tool._session_last_activity.copy()
+        self.orig_session_activity_leases = browser_tool._session_activity_leases.copy()
         self.orig_recording_sessions = browser_tool._recording_sessions.copy()
         self.orig_cleanup_done = browser_tool._cleanup_done
 
@@ -39,6 +40,8 @@ class TestBrowserCleanup:
         self.browser_tool._active_sessions.update(self.orig_active_sessions)
         self.browser_tool._session_last_activity.clear()
         self.browser_tool._session_last_activity.update(self.orig_session_last_activity)
+        self.browser_tool._session_activity_leases.clear()
+        self.browser_tool._session_activity_leases.update(self.orig_session_activity_leases)
         self.browser_tool._recording_sessions.clear()
         self.browser_tool._recording_sessions.update(self.orig_recording_sessions)
         self.browser_tool._cleanup_done = self.orig_cleanup_done
@@ -74,6 +77,7 @@ class TestBrowserCleanup:
         browser_tool._active_sessions["task-2"] = {"session_name": "sess-2"}
         browser_tool._session_last_activity["task-1"] = 1.0
         browser_tool._session_last_activity["task-2"] = 2.0
+        browser_tool._session_activity_leases["task-1"] = 1
         browser_tool._recording_sessions.update({"task-1", "task-2"})
 
         with patch("tools.browser_tool_lifecycle.cleanup_all_browsers") as mock_cleanup_all:
@@ -82,6 +86,7 @@ class TestBrowserCleanup:
         mock_cleanup_all.assert_called_once_with()
         assert browser_tool._active_sessions == {}
         assert browser_tool._session_last_activity == {}
+        assert browser_tool._session_activity_leases == {}
         assert browser_tool._recording_sessions == set()
         assert browser_tool._cleanup_done is True
 
@@ -111,7 +116,8 @@ class TestInactivityJanitorMultiplex:
             name: getattr(browser_tool, name).copy()
             for name in (
                 "_active_sessions", "_session_last_activity",
-                "_session_owner_homes", "_cleanup_failures", "_recording_sessions",
+                "_session_activity_leases", "_session_owner_homes",
+                "_cleanup_failures", "_recording_sessions",
             )
         }
         self.orig_timeout = browser_tool.BROWSER_SESSION_INACTIVITY_TIMEOUT
@@ -172,6 +178,45 @@ class TestInactivityJanitorMultiplex:
         assert "t1" not in self.bt._session_last_activity
         assert "t1" not in self.bt._active_sessions
         assert "t1" not in self.bt._session_owner_homes
+
+    def test_activity_lease_defers_cleanup_until_release(self):
+        self.bt._active_sessions["t1"] = {"session_name": "s1", "bb_session_id": None}
+        self.bt._session_last_activity["t1"] = 1.0
+
+        with patch("tools.browser_tool_lifecycle.cleanup_browser") as mock_cleanup:
+            with bt_lifecycle._session_activity_lease("t1"):
+                # Even an apparently ancient timestamp cannot make the janitor
+                # reap a browser that an in-flight command has leased.
+                self.bt._session_last_activity["t1"] = 1.0
+                bt_lifecycle._cleanup_inactive_browser_sessions()
+                mock_cleanup.assert_not_called()
+                assert self.bt._session_activity_leases["t1"] == 1
+
+            assert "t1" not in self.bt._session_activity_leases
+            self.bt._session_last_activity["t1"] = 1.0
+            bt_lifecycle._cleanup_inactive_browser_sessions()
+
+        mock_cleanup.assert_called_once_with("t1")
+        assert "t1" not in self.bt._session_last_activity
+
+    def test_cold_start_command_holds_activity_lease(self, monkeypatch):
+        from tools import browser_tool_session as bt_session
+
+        def slow_session_start(task_id):
+            assert self.bt._session_activity_leases[task_id] == 1
+            self.bt._session_last_activity[task_id] = 1.0
+            bt_lifecycle._cleanup_inactive_browser_sessions()
+            raise RuntimeError("cold start stopped for test")
+
+        monkeypatch.setattr(bt_session, "_browser_command_preflight", lambda: {"browser_cmd": "agent-browser"})
+        monkeypatch.setattr(bt_session, "_get_session_info", slow_session_start)
+        with patch("tools.browser_tool_lifecycle.cleanup_browser") as mock_cleanup:
+            result = bt_session._run_browser_command("cold", "get", ["cdp-url"], timeout=120)
+
+        assert "cold start stopped for test" in result["error"]
+        mock_cleanup.assert_not_called()
+        assert "cold" not in self.bt._session_activity_leases
+        assert "cold" not in self.bt._session_last_activity
 
     def test_repeated_failures_force_reap_and_close_cloud_session(self):
         from unittest.mock import MagicMock

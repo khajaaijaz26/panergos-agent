@@ -90,6 +90,7 @@ def _emergency_cleanup_all_sessions():
             with _bt._cleanup_lock:
                 _bt._active_sessions.clear()
                 _bt._session_last_activity.clear()
+                _bt._session_activity_leases.clear()
                 _bt._session_owner_homes.clear()
                 _bt._cleanup_failures.clear()
                 _bt._recording_sessions.clear()
@@ -152,7 +153,8 @@ def _cleanup_inactive_browser_sessions():
 
     with _bt._cleanup_lock:
         sessions_to_cleanup = [task_id for task_id, last_time in list(_bt._session_last_activity.items())
-                               if current_time - last_time > _bt.BROWSER_SESSION_INACTIVITY_TIMEOUT]
+                               if current_time - last_time > _bt.BROWSER_SESSION_INACTIVITY_TIMEOUT
+                               and not _bt._session_activity_leases.get(task_id)]
 
     for task_id in sessions_to_cleanup:
         elapsed = int(current_time - _bt._session_last_activity.get(task_id, current_time))
@@ -441,6 +443,33 @@ def _update_session_activity(task_id: str):
     with _bt._cleanup_lock:
         _bt._session_last_activity[task_id] = time.time()
         _bt._session_owner_homes.setdefault(task_id, str(get_panergos_home()))
+
+
+@contextlib.contextmanager
+def _session_activity_lease(task_id: str):
+    """Keep ``task_id`` out of inactivity cleanup while an operation is in flight.
+
+    A reference count makes concurrent callers and nested browser commands safe.
+    The final release starts a fresh idle window; a failed cold start leaves no
+    activity-only bookkeeping behind.
+    """
+    with _bt._cleanup_lock:
+        _bt._session_activity_leases[task_id] = _bt._session_activity_leases.get(task_id, 0) + 1
+        _bt._session_last_activity[task_id] = time.time()
+    try:
+        yield
+    finally:
+        with _bt._cleanup_lock:
+            remaining = _bt._session_activity_leases.get(task_id, 1) - 1
+            if remaining > 0:
+                _bt._session_activity_leases[task_id] = remaining
+            else:
+                _bt._session_activity_leases.pop(task_id, None)
+                if task_id in _bt._active_sessions:
+                    _bt._session_last_activity[task_id] = time.time()
+                else:
+                    _bt._session_last_activity.pop(task_id, None)
+                    _bt._session_owner_homes.pop(task_id, None)
 
 
 def _kill_process_tree(proc: "subprocess.Popen") -> None:

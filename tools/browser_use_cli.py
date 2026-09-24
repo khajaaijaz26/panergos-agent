@@ -31,6 +31,9 @@ _SESSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 # Set on the env dict by the CDP resolvers when the resolved browser is EXCLUSIVE to this named session
 # (per-name provider / named BU cloud / Lightpanda). Popped before the subprocess launches — never exported.
 _PRIVATE_BROWSER_SENTINEL = "_PANERGOS_BU_PRIVATE_BROWSER"
+# Exact Panergos session-cache key to lease while Browser Harness drives CDP.
+# Internal routing metadata only; always removed before the child process starts.
+_ACTIVITY_LEASE_SENTINEL = "_PANERGOS_BU_ACTIVITY_LEASE"
 
 # Prepended to the model's code for named sessions on SHARED browsers (a /browser connect CDP override): the
 # harness daemon attaches to the first existing page at startup, so two fresh named daemons can land on the
@@ -127,6 +130,7 @@ def _export_session_cdp(env: dict, get_session_info: Callable[[str], Any], cache
     if not cdp:
         return no_cdp_msg
     _set_cdp_env(env, cdp)
+    env[_ACTIVITY_LEASE_SENTINEL] = cache_key
     return None
 
 
@@ -392,8 +396,8 @@ def _resolve_managed_chromium_cdp(env: dict, task_id: Optional[str], session_nam
     Chrome on its default profile, which needs the chrome://inspect toggle + an Allow popup per run and
     is blocked outright on Chrome >=136; on a headless box it just reports ``chrome-not-running``.
     ``get cdp-url`` runs through ``_run_browser_command`` (legacy cache, inactivity reaper, atexit, Chromium
-    preflight/auto-install) on EVERY call: it launches the browser cold, follows a relaunch, and refreshes
-    the agent-browser daemon's idle timer, which never sees the harness's direct CDP traffic."""
+    preflight/auto-install) on EVERY call: it launches the browser cold, follows a relaunch, and returns
+    the exact session key that stays leased while the harness sends otherwise-invisible CDP traffic."""
     try:
         from tools.browser_tool_session import _run_browser_command
         from tools.browser_tool import _LOCAL_SUFFIX, _get_open_command_timeout
@@ -410,6 +414,7 @@ def _resolve_managed_chromium_cdp(env: dict, task_id: Optional[str], session_nam
         return (f"The local browser could not be started: {(res or {}).get('error') or 'agent-browser returned no CDP endpoint'} "
                 "Run `panergos tools` → Browser Automation to (re)install Chromium, or switch backends.")
     _set_cdp_env(env, cdp)
+    env[_ACTIVITY_LEASE_SENTINEL] = key
     env[_PRIVATE_BROWSER_SENTINEL] = "1"  # one Chromium per cache key: nothing to share a tab with
     return None
 
@@ -649,6 +654,7 @@ def browser_exec(code: str, session: str = "", timeout_s: int = _DEFAULT_TIMEOUT
     # SHARED browser (/browser connect CDP override): pin each named session to its own tab (see
     # _OWN_TAB_PREAMBLE). Private per-name browsers skip this — nothing to collide with.
     private_browser = env.pop(_PRIVATE_BROWSER_SENTINEL, None)  # always pop: never exported to the CLI
+    activity_key = env.pop(_ACTIVITY_LEASE_SENTINEL, None)
     if session and not private_browser:
         code = _OWN_TAB_PREAMBLE + code
 
@@ -663,8 +669,13 @@ def browser_exec(code: str, session: str = "", timeout_s: int = _DEFAULT_TIMEOUT
 
     timeout = _clamp_timeout(timeout_s)
     started = time.time()
+    lease = contextlib.nullcontext()
+    if activity_key:
+        from tools.browser_tool_lifecycle import _session_activity_lease
+        lease = _session_activity_lease(activity_key)
     try:
-        proc = _run_cli_killing_process_group(cmd, code, env, timeout)
+        with lease:
+            proc = _run_cli_killing_process_group(cmd, code, env, timeout)
     except subprocess.TimeoutExpired:
         return tool_error(f"browser-use exec timed out after {timeout}s. The daemon may still be working; retry "
                           f"with a larger timeout_s (max {_MAX_TIMEOUT_S}), or split the work into several calls that "

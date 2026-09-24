@@ -495,6 +495,7 @@ class TestBackendCdpResolution:
         env = self._env()
         assert bu_cli._resolve_backend_cdp(env, "t1") is None
         assert env["BU_CDP_WS"] == "wss://browser.example/cdp/abc"
+        assert env[bu_cli._ACTIVITY_LEASE_SENTINEL] == "t1"
 
     def test_no_provider_drives_packaged_chromium_not_user_chrome(self, monkeypatch, _fake_managed_chromium):
         """Local mode must hand the harness the agent-browser-launched Chromium (same browser the built-in
@@ -506,9 +507,11 @@ class TestBackendCdpResolution:
         assert bu_cli._resolve_backend_cdp(env, "t1") is None
         assert env["BU_CDP_WS"] == "ws://127.0.0.1:47000/devtools/browser/t1::local"
         assert env[bu_cli._PRIVATE_BROWSER_SENTINEL] == "1"
+        assert env[bu_cli._ACTIVITY_LEASE_SENTINEL] == "t1::local"
         assert _fake_managed_chromium == [("t1::local", "get", ("cdp-url",))]
         env = self._env()
         assert bu_cli._resolve_backend_cdp(env, "t1", session_name="r7k2") is None
+        assert env[bu_cli._ACTIVITY_LEASE_SENTINEL] == "bu-named-r7k2::local"
         assert _fake_managed_chromium[-1][0] == "bu-named-r7k2::local"  # named session → its own Chromium
 
     def test_packaged_chromium_launch_failure_is_an_error(self, monkeypatch):
@@ -691,10 +694,14 @@ class TestOwnTabPreamble:
             bt_session, "_get_session_info",
             lambda key: {"cdp_url": "wss://browser.example/cdp/" + key},
         )
-        cli = _fake_cli(tmp_path, 'cat > /dev/null\necho "sentinel:${_PANERGOS_BU_PRIVATE_BROWSER:-unset}"\n')
+        cli = _fake_cli(
+            tmp_path,
+            'cat > /dev/null\necho "private:${_PANERGOS_BU_PRIVATE_BROWSER:-unset} '
+            'lease:${_PANERGOS_BU_ACTIVITY_LEASE:-unset}"\n',
+        )
         monkeypatch.setattr(bu_cli, "_find_cli", lambda: [cli])
         result = json.loads(bu_cli.browser_exec("print(1)", session="r7k2"))
-        assert "sentinel:unset" in result["output"]
+        assert "private:unset lease:unset" in result["output"]
 
     def test_preamble_is_valid_python(self):
         import ast
@@ -996,6 +1003,29 @@ class TestBrowserExec:
         result = json.loads(bu_cli.browser_exec("print(1)", session="r7k2"))
         assert "bu:r7k2" in result["output"]
         assert result["session"] == "r7k2"
+
+    def test_managed_session_is_leased_for_entire_cli_call(self, monkeypatch):
+        import tools.browser_tool as bt
+
+        key = "bu-named-r7k2::local"
+        seen = {}
+
+        monkeypatch.setattr("tools.browser_tool_cdp._get_cdp_override", lambda: "")
+        monkeypatch.setattr(bt_cloud, "_get_cloud_provider", lambda: None)
+        monkeypatch.setattr(bu_cli, "_find_cli", lambda: ["browser-use"])
+
+        def fake_run(cmd, code, env, timeout):
+            seen["lease"] = bt._session_activity_leases.get(key)
+            seen["private_leaked"] = bu_cli._PRIVATE_BROWSER_SENTINEL in env
+            seen["lease_leaked"] = bu_cli._ACTIVITY_LEASE_SENTINEL in env
+            return subprocess.CompletedProcess(cmd, 0, "ready\n", "")
+
+        monkeypatch.setattr(bu_cli, "_run_cli_killing_process_group", fake_run)
+        result = json.loads(bu_cli.browser_exec("print(1)", session="r7k2", task_id="task-1"))
+
+        assert result["success"] is True
+        assert seen == {"lease": 1, "private_leaked": False, "lease_leaked": False}
+        assert key not in bt._session_activity_leases
 
     def test_invalid_session_name_rejected(self, monkeypatch, tmp_path):
         cli = _fake_cli(tmp_path, "cat > /dev/null\n")
