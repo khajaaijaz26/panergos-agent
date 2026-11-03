@@ -348,7 +348,7 @@ google = [
   # httplib2 0.32.0 (GHSA-j5g9-f88f-gfj3 decompression bomb DoS),
   # pyasn1 0.6.4, google-auth 2.55.1.
   "httplib2==0.32.0",
-  "pyasn1==0.6.4",
+  "pyasn1==0.6.5",
 ]
 google-chat = [
   # Google Chat adapter (Pub/Sub inbound + Chat REST). Kept out of [all] so a
@@ -361,7 +361,7 @@ google-chat = [
   "google-auth-oauthlib==1.3.1",
   "google-auth-httplib2==0.3.1",
   "httplib2==0.32.0",
-  "pyasn1==0.6.4",
+  "pyasn1==0.6.5",
 ]
 youtube = [
   # Required by skills/media/youtube-content and
